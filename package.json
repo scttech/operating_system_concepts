@@ -8,11 +8,13 @@
     "build:glossary": "node tools/build-glossary-index.js",
     "serve": "python -m http.server 8000",
     "audit": "node tools/audit.js",
-    "build:labs": "node tools/build-labs.js"
+    "build:labs": "node tools/build-labs.js",
+    "vendor:prism": "node tools/vendor-prism.js"
   },
   "devDependencies": {
     "axe-core": "4.14.1",
     "jsdom": "26.1.0",
+    "prismjs": "1.30.0",
     "puppeteer-core": "25.18.0",
     "qunit": "2.24.1"
   }

@@ -58,8 +58,8 @@ jobs:
       - name: Assemble site (only the files the browser needs)
         run: |
           mkdir _site
-          cp index.html labs.html problems.html glossary.html faq.html practice.html cheatsheet.html _site/
-          cp -r css js modules labs images _site/
+          cp index.html labs.html problems.html glossary.html faq.html practice.html cheatsheet.html LICENSE.txt _site/
+          cp -r css js modules labs examples images _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -149,7 +149,12 @@
           listings.forEach((pre) => {
             const name = pre.dataset.src.split("/").pop(), bar = pre.previousElementSibling;
             assert.ok(bar && bar.classList.contains("codebar"), `${name} has a toolbar`);
-            assert.equal(bar.querySelector("a[download]").getAttribute("href"), `code/${name}`, "download link points at the real script");
+            assert.equal(bar.querySelector("a[download]").getAttribute("href"), `../${pre.dataset.src}`, "download link points at the real script");
+            const isC = pre.dataset.src.endsWith(".c"), lang = isC ? "c" : "python";
+            assert.equal(bar.querySelector(".lang").textContent, isC ? "C" : "Python", "language label");
+            assert.ok(pre.querySelector("code.language-" + lang + " .token.keyword"), `${name}: keywords are highlighted`);
+            assert.ok(pre.querySelector("code .token.string") && pre.querySelector("code .token.comment") && pre.querySelector("code .token.builtin, code .token.function"), `${name}: strings, comments and builtins/functions are highlighted`);
+            assert.ok(pre.querySelectorAll(".token.comment .marker").length >= 1, `${name}: numbered comment markers like (1) are badges`);
             assert.ok(bar.querySelector("button"), "Copy button");
             assert.equal(pre.textContent, fs.readFileSync(path.join(ROOT, pre.dataset.src), "utf8").replace(/\r\n/g, "\n").replace(/\n$/, ""), "the page shows exactly the script's code");
           });
@@ -224,10 +229,26 @@
     assert.ok(fs.existsSync(path.join(ROOT, "images", "operating_system_concepts_logo.png")));
   });
 
-  QUnit.test("License: MIT file is present and the README says so", (assert) => {
-    const lic = fs.readFileSync(path.join(ROOT, "LICENSE"), "utf8");
+  QUnit.test("License: the standard MIT text is present, the README explains reuse, and the deploy ships the file", (assert) => {
+    const lic = fs.readFileSync(path.join(ROOT, "LICENSE.txt"), "utf8");
     assert.ok(/^MIT License/.test(lic) && /Permission is hereby granted, free of charge/.test(lic) && /Copyright \(c\) 2026/.test(lic));
-    assert.ok(/## License\s+Released under the \[MIT License\]\(LICENSE\)/.test(fs.readFileSync(path.join(ROOT, "README.md"), "utf8")), "README has a License section pointing at the file");
+    assert.ok(/sublicense, and\/or sell/.test(lic) && /THE SOFTWARE IS PROVIDED "AS IS"/.test(lic), "unmodified MIT wording (rights and warranty disclaimer)");
+    assert.false(fs.existsSync(path.join(ROOT, "LICENSE")), "one license file, not two");
+    const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
+    assert.ok(/## License\s+Released under the \[MIT License\]\(LICENSE\.txt\)/.test(readme), "README has a License section pointing at the file");
+    assert.ok(/free to copy, adapt/i.test(readme.replace(/\s+/g, " ")), "README says people may copy and adapt");
+    assert.ok(/cp [^\n]*LICENSE\.txt _site\//.test(fs.readFileSync(path.join(ROOT, ".github", "workflows", "pages.yml"), "utf8")), "the deployed site includes the license file");
+  });
+
+  QUnit.test("Every page's footer links to the license", async (assert) => {
+    for (const [rel, href] of [["index.html", "LICENSE.txt"], ["modules/04-scheduling.html", "../LICENSE.txt"], ["labs/01-processes.html", "../LICENSE.txt"], ["problems.html", "LICENSE.txt"]]) {
+      await withPage(rel, ({ document: doc }) => {
+        const a = doc.querySelector("footer.site a");
+        assert.ok(a && a.textContent === "MIT License" && a.getAttribute("href") === href, `${rel}: footer links to ${href}`);
+        assert.ok(/Free to copy and adapt/.test(doc.querySelector("footer.site").textContent));
+        assert.true(fs.existsSync(path.resolve(path.dirname(path.join(ROOT, rel)), href)), "and the file exists there");
+      });
+    }
   });
 
   QUnit.test("Glossary: search and topic filter", async (assert) => {
@@ -841,6 +862,26 @@
 
   QUnit.module("pages: Python labs and calculation practice");
 
+  QUnit.test("Source viewer: highlighted blocks in lessons, the cheat sheet and the labs index keep their text and get the right language", async (assert) => {
+    const cases = [["cheatsheet.html", ["bash", "python", "python"]], ["modules/03-processes.html", ["c"]], ["modules/05-threads.html", ["python"]], ["modules/02-security.html", ["bash"]], ["modules/01-fundamentals.html", ["c"]], ["labs.html", ["bash"]]];
+    for (const [rel, langs] of cases) {
+      await withPage(rel, ({ window: w, document: doc }) => {
+        const blocks = [...doc.querySelectorAll("pre[data-lang]:not(.code)")];
+        assert.deepEqual(blocks.map((b) => b.dataset.lang), langs, `${rel}: languages`);
+        blocks.forEach((b) => {
+          assert.ok(b.querySelector("code.language-" + b.dataset.lang + " .token"), `${rel}: ${b.dataset.lang} block has highlighted tokens`);
+          assert.ok(b.textContent.trim().length > 20, "text is intact");
+        });
+        assert.ok(w.Prism && w.Prism.manual === true && Object.keys(w.Prism.languages).includes("c") && Object.keys(w.Prism.languages).includes("python"), "vendored Prism loaded with C and Python");
+      });
+    }
+    await withPage("modules/03-processes.html", ({ document: doc }) => {
+      const code = doc.querySelector("pre[data-lang=c] code");
+      assert.ok(code.querySelector(".token.macro, .token.directive"), "#include is highlighted as a directive");
+      assert.ok(code.querySelector(".token.keyword"), "C keywords");
+    });
+  });
+
   QUnit.test("Labs index lists every lab with its related lessons", async (assert) => {
     await withPage("labs.html", ({ window: w, document: doc }) => {
       const cards = [...doc.querySelectorAll("#lab-grid .card")];
@@ -985,6 +1026,162 @@
         hrefs.forEach((k) => assert.ok(lib.problemKinds.some((x) => x.id === k), `${k} is a real problem kind`));
       });
     }
+  });
+
+  QUnit.module("pages: page tables and language tabs");
+
+  const PT = require("../js/lib/pagetable.js");
+  const tabsOf = (g) => [...g.querySelectorAll('[role="tab"]')];
+  const visible = (g) => [...g.querySelectorAll('[role="tabpanel"]')].filter((p) => !p.hidden).map((p) => p.id.split("-").slice(-2, -1)[0]);
+  const walkText = (s) => text(s.querySelector(".ptwalk"));
+  const ex = (s, label) => [...s.querySelectorAll('[role="group"] button')].find((b) => b.textContent.startsWith(label));
+
+  QUnit.test("Language tabs: switching, keyboard, notes, and one choice applies to every sample on the page", async (assert) => {
+    await withPage("tests/fixtures/codetabs.html", ({ window: w, document: doc, errors }) => {
+      assert.deepEqual(errors, []);
+      const groups = [...doc.querySelectorAll(".code-tabs")];
+      assert.equal(groups.filter((g) => g.classList.contains("ready")).length, 2, "two groups became tabs; the single-language block did not");
+      assert.equal(groups[2].querySelectorAll('[role="tab"]').length, 0);
+      const [a, b] = groups;
+      assert.deepEqual(tabsOf(a).map((t) => t.textContent), ["C", "Python"], "tabs in the order of the markup");
+      assert.equal(a.querySelector('[role="tablist"]').getAttribute("aria-label"), "First sample");
+      assert.deepEqual([visible(a), visible(b)], [["c"], ["python"]], "each group starts at its own first language");
+      assert.ok(tabsOf(a).every((t) => t.getAttribute("aria-controls") && doc.getElementById(t.getAttribute("aria-controls")).getAttribute("aria-labelledby") === t.id), "tabs and panels reference each other");
+      assert.deepEqual(tabsOf(a).map((t) => t.tabIndex), [0, -1], "roving tabindex");
+      // clicking Python in the first group switches the second group too
+      tabsOf(a)[1].click();
+      assert.deepEqual([visible(a), visible(b)], [["python"], ["python"]]);
+      assert.deepEqual(tabsOf(a).map((t) => t.getAttribute("aria-selected")), ["false", "true"]);
+      assert.ok(/Python note one/.test(a.textContent) && !a.querySelector('[role="tabpanel"][hidden]').textContent.includes("Python note one"), "the note travels with its language");
+      // choosing C in the second group switches the first
+      tabsOf(b)[1].click();
+      assert.deepEqual([visible(a), visible(b)], [["c"], ["c"]], "choice synced across groups");
+      // keyboard: arrows, Home, End, wrap-around, with focus following
+      tabsOf(a)[0].focus();
+      tabsOf(a)[0].dispatchEvent(new w.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      assert.equal(doc.activeElement, tabsOf(a)[1]); assert.deepEqual(visible(a), ["python"]);
+      tabsOf(a)[1].dispatchEvent(new w.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      assert.equal(doc.activeElement, tabsOf(a)[0], "wraps around");
+      tabsOf(a)[0].dispatchEvent(new w.KeyboardEvent("keydown", { key: "End", bubbles: true }));
+      assert.deepEqual(visible(a), ["python"]);
+      tabsOf(a)[1].dispatchEvent(new w.KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+      assert.deepEqual(visible(a), ["c"]);
+      assert.ok(a.querySelector("pre code.language-c .token") && a.querySelector("pre code.language-python .token"), "hidden panels are highlighted too");
+    });
+  });
+
+  QUnit.test("Module 8 page: C and Python tabs show the real files, with notes about each language", async (assert) => {
+    await withPage("modules/08-memory.html", ({ document: doc }) => {
+      const box = doc.querySelector(".code-tabs");
+      assert.ok(box.classList.contains("ready")); assert.deepEqual(tabsOf(box).map((t) => t.textContent), ["C", "Python"]);
+      assert.deepEqual(visible(box), ["c"], "C first: it shows the structure more honestly");
+      const c = box.querySelector('pre[data-src="examples/pagetable_translate.c"]'), py = box.querySelector('pre[data-src="examples/pagetable_translate.py"]');
+      assert.equal(c.textContent, fs.readFileSync(path.join(ROOT, "examples", "pagetable_translate.c"), "utf8").replace(/\r\n/g, "\n").replace(/\n$/, ""));
+      assert.equal(py.textContent, fs.readFileSync(path.join(ROOT, "examples", "pagetable_translate.py"), "utf8").replace(/\r\n/g, "\n").replace(/\n$/, ""));
+      assert.ok(c.querySelector(".token.keyword") && c.querySelector(".token.macro, .token.directive") && py.querySelector(".token.keyword"), "both highlighted");
+      assert.equal(c.querySelectorAll(".marker").length, 7); assert.equal(py.querySelectorAll(".marker").length, 7, "(1)–(7) badges in both");
+      assert.ok(/clearer version here/.test(text(box.querySelector('.lang-note[data-lang="c"]'))) && /hides the hardware reality/.test(text(box.querySelector('.lang-note[data-lang="python"]'))), "each tab explains its trade-off");
+      assert.ok(doc.getElementById("multilevel") && doc.querySelector("details.deeper summary .badge").textContent === "Advanced", "advanced tier is opt-in");
+      assert.ok(doc.querySelectorAll("details.deeper li").length >= 6);
+    });
+  });
+
+  const MODULE_PAGES = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => /^\d\d-.*\.html$/.test(f)).sort();
+  QUnit.test("every module has an opt-in Advanced 'Going deeper' section with several points", async (assert) => {
+    for (const f of MODULE_PAGES) {
+      await withPage(`modules/${f}`, ({ document: doc }) => {
+        const d = doc.querySelector("details.deeper");
+        assert.ok(d, `${f}: has a going-deeper section`);
+        if (!d) return;
+        assert.false(d.hasAttribute("open"), `${f}: collapsed by default so newcomers are not overwhelmed`);
+        assert.equal(d.querySelector("summary .badge").textContent, "Advanced", `${f}: badge`);
+        assert.ok(/^Going deeper/.test(text(d.querySelector("summary")).replace(/^Advanced/, "")), `${f}: summary names it`);
+        assert.ok(d.querySelectorAll("li").length >= 5, `${f}: at least five points`);
+      });
+    }
+  });
+
+  QUnit.test("lesson code examples appear as C and Python tabs with a note for each language and the real files", async (assert) => {
+    const wanted = { "01-fundamentals": "syscall_vs_stdio", "02-security": "file_mode", "05-threads": "threads_sum", "06-synchronization": "spinlock_atomic", "09-virtual-memory": "page_faults", "11-file-systems": "inode_links" };
+    for (const [page, stem] of Object.entries(wanted)) {
+      await withPage(`modules/${page}.html`, ({ document: doc }) => {
+        const box = doc.querySelector(".code-tabs");
+        assert.ok(box && box.classList.contains("ready"), `${page}: tabs are active`);
+        if (!box) return;
+        assert.deepEqual(tabsOf(box).map((t) => t.textContent), ["C", "Python"], `${page}: C and Python tabs`);
+        for (const [lang, ext] of [["c", "c"], ["python", "py"]]) {
+          const pre = box.querySelector(`pre[data-src="examples/${stem}.${ext}"]`);
+          assert.equal(pre.textContent, fs.readFileSync(path.join(ROOT, "examples", `${stem}.${ext}`), "utf8").replace(/\r\n/g, "\n").replace(/\n$/, ""), `${page}: ${lang} listing is the real file`);
+          assert.ok(pre.querySelector(".token"), `${page}: ${lang} is highlighted`);
+          assert.ok(box.querySelector(`.lang-note[data-lang="${lang}"]`), `${page}: ${lang} has a note`);
+        }
+      });
+    }
+  });
+
+  QUnit.test("Page-table walk: translation, faults, TLB behavior and table memory", async (assert) => {
+    await withPage("modules/08-memory.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "ptwalk"), table = PT.ptPresetTable("teach16");
+      // default: the code address 0x0012 on the 4 + 4 + 8 teaching machine
+      assert.ok(/Top-level table, table #0: entry 0 points to the next table/.test(walkText(s)) && /Second-level table, table #1: entry 0 holds frame 0x5/.test(walkText(s)), walkText(s));
+      assert.ok(/Physical address = frame 0x5 × 256 \+ offset 0x12 = 0x512 \(3 memory references: 2 table reads \+ the data access\)/.test(walkText(s)));
+      assert.equal(s.querySelectorAll(".ptfields .ptf").length, 3, "three bit fields: two indices and the offset");
+      // examples: faults at the right level
+      ex(s, "unmapped (gap)").click();
+      assert.ok(/Top-level table, table #0: entry 5 is not present: PAGE FAULT/.test(walkText(s)) && !/Physical address/.test(walkText(s)));
+      ex(s, "unmapped (in a table that exists)").click();
+      assert.ok(/Second-level table, table #\d+: entry 4 is not present: PAGE FAULT/.test(walkText(s)), "fault at the second level");
+      // typed addresses, checked against the library
+      const input = s.querySelector('input[aria-label="Virtual address in hexadecimal"]');
+      for (const a of [0x1034, 0xfe80, 0x03ff]) {
+        setValue(w, input, a.toString(16)); const want = PT.ptWalk(table, a).physical;
+        assert.ok(new RegExp(`= 0x${want.toString(16).toUpperCase()} \\(`).test(walkText(s)), `0x${a.toString(16)} → 0x${want.toString(16).toUpperCase()}`);
+      }
+      setValue(w, input, "zz"); assert.ok(/hexadecimal digits/.test(text(s)), "bad input is explained, not a crash");
+      setValue(w, input, "10000"); assert.ok(/Outside the address space/.test(walkText(s)), "past the end of a 16-bit space");
+      // a sequence with a TLB that is too small, then big enough (the loop of 6 pages repeated 3 times)
+      setValue(w, input, "12");
+      setValue(w, field(s, "Accesses"), "cycle", "change");
+      assert.equal(field(s, "Accesses").value, "cycle");
+      const hitsOf = () => +[...s.querySelectorAll(".metric")].find((m) => /TLB hits/.test(m.textContent)).querySelector("b").textContent;
+      assert.equal(s.querySelector(".player .small").textContent, "access 18 of 18", "starts at the finished state");
+      assert.equal(hitsOf(), 0, "6 pages cycling through a 4-entry LRU TLB: every access misses");
+      setValue(w, field(s, "TLB entries"), "8", "change");
+      assert.equal(hitsOf(), 12, "with 8 entries only the first round misses");
+      setValue(w, field(s, "TLB replacement"), "FIFO", "change"); assert.equal(hitsOf(), 12);
+      setValue(w, field(s, "TLB entries"), "0", "change");
+      assert.equal(hitsOf(), 0); assert.ok(/There is no TLB/.test(text(s)), "no TLB: every access walks");
+      assert.ok(/access time with no TLB/.test(text(s)));
+      // stepping through
+      setValue(w, field(s, "TLB entries"), "4", "change");
+      setValue(w, field(s, "TLB replacement"), "LRU", "change");
+      button(s, "⟲ Restart").click(); assert.ok(/Press Play or Step/.test(text(s)));
+      button(s, "Step ▶").click(); assert.ok(/Access 1: virtual address 0x0008/.test(text(s)) && /not cached \(miss\)/.test(walkText(s)));
+      button(s, "Step ▶").click(); button(s, "Step ▶").click(); button(s, "Step ▶").click(); button(s, "Step ▶").click();
+      assert.ok(/was added and page 0x\w+ was evicted \(LRU\)/.test(walkText(s)), "the fifth distinct page evicts one from a 4-entry TLB");
+      assert.equal(s.querySelectorAll("tbody tr.hl").length >= 1, true, "the newest TLB entry is highlighted");
+      // table memory on the real layouts
+      setValue(w, field(s, "Address layout"), "x86_32", "change");
+      assert.ok(/16 KiB/.test(text(s)) && /4 MiB/.test(text(s)) && /99\.6% less/.test(text(s)), "32-bit: 16 KiB of tables instead of 4 MiB");
+      assert.ok(/Page directory, table #0: entry 1 points to the next table/.test(walkText(s)), "0x00403004 → directory entry 1");
+      const w32 = PT.ptWalk(PT.ptPresetTable("x86_32"), 0x00403004);
+      assert.ok(new RegExp(`entry 3 holds frame 0x${w32.frame.toString(16).toUpperCase()}`).test(walkText(s)), "page-table entry 3");
+      setValue(w, field(s, "Address layout"), "x86_64", "change");
+      assert.ok(/512 GiB/.test(text(s)) && /PML4/.test(walkText(s)) && /PDPT/.test(walkText(s)) && /PT, table/.test(walkText(s)), "four levels with the real names");
+      assert.equal(s.querySelectorAll(".ptfields .ptf").length, 5, "four 9-bit indices and the offset");
+      setValue(w, input, "7ffc12340fff"); assert.ok(/Physical address/.test(walkText(s)), "a 48-bit stack address translates");
+      assert.ok(/Show the tables that exist \(\d+ tables for 18 mapped pages\)/.test(text(s)), "the tables that exist are listed");
+    });
+  });
+
+  QUnit.test("Module 8 lessons, quiz and glossary cover the new material", async (assert) => {
+    await withPage("modules/08-memory.html", ({ window: w, document: doc }) => {
+      const qs = w.OSData.quizzes.filter((q) => q.mod === 8);
+      assert.ok(qs.length >= 14, `${qs.length} questions`);
+      assert.equal(doc.querySelectorAll("[data-quiz] .q").length, qs.length);
+      ["Multi-level page table", "Page table entry (PTE)", "Page walk", "Huge page", "ASID (address-space identifier)", "TLB reach"].forEach((t) => assert.ok(doc.querySelector(`dfn[data-term="${t}"]`), `${t} is marked in the lesson`));
+      assert.ok(/4 MiB/.test(doc.body.textContent) && /512 GiB/.test(doc.body.textContent) && /109 ns/.test(doc.body.textContent));
+    });
   });
 
   QUnit.module("pages: more");

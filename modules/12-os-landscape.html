@@ -88,6 +88,17 @@
     <li>Who controls updates and software installation?</li>
   </ol>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: design ideas worth knowing</summary>
+    <ul>
+      <li><b>Unikernels.</b> Link the application with only the OS libraries it needs and run the result directly on a hypervisor. There is no shell, no other process and almost nothing to attack, and the image can boot in milliseconds.</li>
+      <li><b>Capability-based systems.</b> seL4 and Fuchsia’s Zircon replace ambient authority (“run as user X”) with unforgeable handles: a program can use only what it was explicitly given. This is the access-control matrix stored by row, and seL4’s kernel is formally verified.</li>
+      <li><b>Containers are not virtual machines.</b> A container is ordinary processes using kernel namespaces (what they can see) and cgroups (what they can use), so all share one kernel. A VM runs its own kernel on virtual hardware, which isolates more strongly and costs more.</li>
+      <li><b>Real-time operating systems.</b> VxWorks, FreeRTOS and Zephyr guarantee a bounded response time rather than a fast average. Their schedulers are simple priority-based designs so that worst-case latency can be proven.</li>
+      <li><b>Microkernels in production.</b> QNX runs cars and medical devices, and Apple’s Secure Enclave runs an L4-family kernel. A fault in one driver restarts that driver, not the machine. Minix 3 even restarts failed drivers automatically.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="12"></div>
 </main>

@@ -27,11 +27,85 @@
   <p>Every file has an owner, a group, and three sets of read/write/execute bits: for the <b>owner</b>, the <b>group</b> and <b>others</b>. Each set is written as one octal digit (r=4, w=2, x=1).</p>
   <div data-sim="perms"></div>
   <p>Special bits: <b>setuid</b> (run with the file owner's privileges), <b>setgid</b>, and the <b>sticky bit</b> (in a shared directory like <code>/tmp</code>, only a file's owner may delete it).</p>
-  <pre><code>$ ls -l report.txt
+  <pre data-lang="bash"><code>$ ls -l report.txt
 -rw-r----- 1 alice staff 2048 Nov 3 09:12 report.txt
 $ chmod 640 report.txt      # rw-r-----
 $ chmod g+w,o-r report.txt  # symbolic form
 $ umask 022                 # new files default to 644, directories to 755</code></pre>
+
+  <h3>Try it: umask and chmod</h3>
+  <div class="code-tabs" aria-label="File permission example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>open</code>, <code>umask</code>, <code>chmod</code> and <code>stat</code> are the real system calls, and the mode is an integer whose bits you can see. The octal constants (<code>0666</code>, <code>022</code>) are the notation <code>chmod</code> uses too.</p></div>
+    <pre class="code" data-src="examples/file_mode.c"><code>/* File permissions: the umask, chmod and the permission bits. Unix only. */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;fcntl.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;unistd.h&gt;
+
+static void show(const char *what, const char *path) {
+    struct stat st;
+    if (stat(path, &amp;st) != 0) { perror("stat"); exit(1); }
+    char sym[10];
+    for (int i = 0; i &lt; 9; i++) sym[i] = (st.st_mode &amp; (0400u &gt;&gt; i)) ? "rwxrwxrwx"[i] : '-';   /* (1) nine bits: owner, group, others */
+    sym[9] = '\0';
+    printf("%-36s %03o (%s)\n", what, (unsigned)(st.st_mode &amp; 0777u), sym);
+}
+
+int main(void) {
+    char dir[] = "/tmp/osc_mode_XXXXXX", path[64];
+    if (mkdtemp(dir) == NULL) return 1;
+    snprintf(path, sizeof path, "%s/report.txt", dir);
+
+    umask(022);                                      /* (2) the umask REMOVES permission bits from newly created files */
+    int fd = open(path, O_CREAT | O_WRONLY, 0666);   /* (3) ask for 666 (rw-rw-rw-)... */
+    if (fd &lt; 0) return 1;
+    close(fd);
+    show("created with mode 666, umask 022:", path); /* ...and the umask turns it into 644 */
+
+    if (chmod(path, 0640) != 0) return 1;            /* (4) chmod sets the permissions explicitly: the umask does not apply */
+    show("after chmod 640:", path);
+    if (chmod(path, 0600) != 0) return 1;
+    show("after chmod 600:", path);
+
+    struct stat st;
+    if (stat(path, &amp;st) != 0) return 1;
+    printf("others can read the file: %s\n", (st.st_mode &amp; 004) ? "yes" : "no");
+
+    remove(path);
+    rmdir(dir);
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python’s <code>os</code> module mirrors the C calls almost one-to-one</b>, so nothing here is contrived. The built-in <code>open()</code> has no mode argument, which is why the example uses <code>os.open</code>. On Windows, <code>chmod</code> can only toggle the read-only flag, so this example needs Linux or macOS.</p></div>
+    <pre class="code" data-src="examples/file_mode.py"><code>"""File permissions: the umask, chmod and the permission bits. Unix only."""
+import os
+import shutil
+import tempfile
+
+
+def show(what, path):
+    mode = os.stat(path).st_mode
+    sym = "".join(c if mode &amp; (0o400 &gt;&gt; i) else "-" for i, c in enumerate("rwxrwxrwx"))   # (1) nine bits: owner, group, others
+    print(f"{what:&lt;36} {mode &amp; 0o777:03o} ({sym})")
+
+
+folder = tempfile.mkdtemp(prefix="osc_mode_")
+path = os.path.join(folder, "report.txt")
+
+os.umask(0o022)                                      # (2) the umask REMOVES permission bits from newly created files
+fd = os.open(path, os.O_CREAT | os.O_WRONLY, 0o666)  # (3) ask for 666 (rw-rw-rw-)...
+os.close(fd)
+show("created with mode 666, umask 022:", path)      # ...and the umask turns it into 644
+
+os.chmod(path, 0o640)                                # (4) chmod sets the permissions explicitly: the umask does not apply
+show("after chmod 640:", path)
+os.chmod(path, 0o600)
+show("after chmod 600:", path)
+
+print("others can read the file:", "yes" if os.stat(path).st_mode &amp; 0o004 else "no")
+shutil.rmtree(folder)</code></pre>
+  </div>
 
   <h2>Access-control matrix</h2>
   <p>Conceptually, protection is a matrix: rows are <em>subjects</em> (users, processes), columns are <em>objects</em> (files, devices), and each cell lists the permitted operations. Real systems never store the full sparse matrix. They store it by column (<dfn data-term="Access control list (ACL)">ACLs</dfn>) or by row (<dfn data-term="Capability">capabilities</dfn>).</p>
@@ -52,6 +126,17 @@ $ umask 022                 # new files default to 644, directories to 755</code
 
   <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=perms">Unix permissions problems</a> (random problems with worked solutions).</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: beyond owner, group and others</summary>
+    <ul>
+      <li><b>Access-control lists.</b> Nine permission bits cannot say “Alice may read, Bob may write”. POSIX ACLs (<code>getfacl</code>, <code>setfacl</code>) and Windows ACLs attach a list of (principal, rights) entries to a file, which is the access-control matrix stored by column.</li>
+      <li><b>Capabilities.</b> Linux splits root’s power into about 40 capabilities such as <code>CAP_NET_BIND_SERVICE</code>, so a web server can bind port 80 without being able to read every file. This is least privilege applied to the kernel itself.</li>
+      <li><b>Mandatory access control.</b> With discretionary control the owner decides. SELinux, AppArmor and Android’s SELinux policy let the administrator define rules that even the owner (and root) cannot override. This is how a compromised app is confined.</li>
+      <li><b>Setuid and its risks.</b> A setuid program runs with its owner’s privileges, so <code>passwd</code> can edit the password file. Any bug in such a program becomes a privilege escalation, which is why the set of setuid binaries is kept small and audited.</li>
+      <li><b>Address-space randomization and non-executable memory.</b> ASLR places the stack, heap and libraries at random addresses, and NX/DEP forbids running data pages as code. Neither stops a bug, but together they make buffer-overflow exploits much harder to write.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="2"></div>
 </main>
@@ -61,6 +146,8 @@ $ umask 022                 # new files default to 644, directories to 755</code
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/misc.js"></script>
 <script src="../js/sims/m02-security.js"></script>

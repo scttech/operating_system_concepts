@@ -33,7 +33,7 @@
     <li><b>Kernel-level threads</b> are scheduled by the OS. A blocking call only blocks one thread and threads can use several cores (one-to-one, used by Linux, Windows and macOS).</li>
     <li><b>Thread pools</b> reuse a fixed set of worker threads, avoiding creation cost and bounding resource use.</li>
   </ul>
-  <pre><code># Python: threads vs. processes
+  <pre data-lang="python"><code># Python: threads vs. processes
 import threading, multiprocessing
 
 def work(n): return sum(i*i for i in range(n))
@@ -43,6 +43,70 @@ def work(n): return sum(i*i for i in range(n))
 # For CPU-bound work, use processes:
 with multiprocessing.Pool() as pool:
     results = pool.map(work, [10**6] * 8)</code></pre>
+
+  <h3>Try it: split work across threads</h3>
+  <div class="code-tabs" aria-label="Parallel sum example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> POSIX threads give true parallelism. The four threads can run on four cores at the same time, and the program is a direct picture of the lesson: split the work, start the threads, join them, combine the results.</p></div>
+    <pre class="code" data-src="examples/threads_sum.c"><code>/* Four threads each sum the squares of their own quarter of a range. Build with: gcc -std=c99 -D_POSIX_C_SOURCE=200809L -pthread */
+#include &lt;pthread.h&gt;
+#include &lt;stdio.h&gt;
+
+#define THREADS 4
+#define N 1000000ULL
+
+typedef struct { unsigned long long from, to, sum; } job_t;
+
+static void *partial_sum(void *arg) {
+    job_t *job = arg;
+    unsigned long long s = 0;
+    for (unsigned long long i = job-&gt;from; i &lt; job-&gt;to; i++) s += i * i;
+    job-&gt;sum = s;                                   /* (3) each thread writes only to its own slot, so no lock is needed */
+    return NULL;
+}
+
+int main(void) {
+    pthread_t threads[THREADS];
+    job_t jobs[THREADS];
+    for (int t = 0; t &lt; THREADS; t++) {             /* (1) split the range [0, N) into one piece per thread */
+        jobs[t].from = N * (unsigned long long)t / THREADS;
+        jobs[t].to = N * (unsigned long long)(t + 1) / THREADS;
+        pthread_create(&amp;threads[t], NULL, partial_sum, &amp;jobs[t]);   /* (2) start the thread: it runs while main continues */
+    }
+    unsigned long long total = 0;
+    for (int t = 0; t &lt; THREADS; t++) {
+        pthread_join(threads[t], NULL);             /* (4) wait for the thread, then it is safe to read its result */
+        printf("thread %d summed the squares of [%llu, %llu): %llu\n", t, jobs[t].from, jobs[t].to, jobs[t].sum);
+        total += jobs[t].sum;
+    }
+    unsigned long long expected = (N - 1) * N * (2 * N - 1) / 6;      /* closed formula for 0^2 + 1^2 + ... + (N-1)^2 */
+    printf("total = %llu (matches the formula: %s)\n", total, total == expected ? "True" : "False");
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>The structure is the same, but speed is not.</b> In standard CPython a <em>global interpreter lock</em> lets only one thread run Python code at a time, so this pure-Python sum is no faster with four threads than with one. Threads still help when they wait for I/O. For CPU-bound work Python programs use <code>multiprocessing</code> or a free-threaded build. The example shows the pattern, not the speedup.</p></div>
+    <pre class="code" data-src="examples/threads_sum.py"><code>"""Four threads each sum the squares of their own quarter of a range."""
+import threading
+
+THREADS = 4
+N = 1_000_000
+sums = [0] * THREADS
+
+
+def partial_sum(slot, start, stop):
+    sums[slot] = sum(i * i for i in range(start, stop))   # (3) each thread writes only to its own slot, so no lock is needed
+
+
+pieces = [(t, N * t // THREADS, N * (t + 1) // THREADS) for t in range(THREADS)]   # (1) split the range [0, N) into one piece per thread
+threads = [threading.Thread(target=partial_sum, args=piece) for piece in pieces]
+for t in threads:
+    t.start()                                              # (2) start the thread: it runs while the main thread continues
+total = 0
+for t, (slot, start, stop) in zip(threads, pieces):
+    t.join()                                               # (4) wait for the thread, then it is safe to read its result
+    print(f"thread {slot} summed the squares of [{start}, {stop}): {sums[slot]}")
+    total += sums[slot]
+expected = (N - 1) * N * (2 * N - 1) // 6                  # closed formula for 0^2 + 1^2 + ... + (N-1)^2
+print(f"total = {total} (matches the formula: {total == expected})")</code></pre>
+  </div>
 
   <h2>How much speedup can you expect?</h2>
   <p><dfn data-term="Amdahl's law">Amdahl's law</dfn> says that if a fraction <i>p</i> of a program can be parallelized across <i>N</i> cores, then</p>
@@ -59,6 +123,17 @@ with multiprocessing.Pool() as pool:
 
   <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/02-threads.html">Lab 2: threads, races and the GIL</a>.</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: what threads cost and what they buy</summary>
+    <ul>
+      <li><b>Thread stacks and thread-local storage.</b> Each thread has its own stack (typically 8 MiB of address space on Linux, committed lazily) and its own thread-local variables, which is why a thousand threads uses far more address space than a thousand function calls.</li>
+      <li><b>Many-to-many models and user-level threads.</b> Go goroutines and Erlang processes are scheduled by the language runtime on top of a few kernel threads, so creating one costs a few kilobytes and a switch costs no system call. The price is that a blocking system call must be handled by the runtime.</li>
+      <li><b>Event loops as an alternative.</b> A server can handle thousands of connections on one thread by waiting with <code>epoll</code>, <code>kqueue</code> or <code>io_uring</code> and never blocking. Node.js and Python’s <code>asyncio</code> are built this way.</li>
+      <li><b>Amdahl versus Gustafson.</b> Amdahl’s law fixes the problem size. Gustafson’s observation is that larger machines are used for larger problems, so the serial fraction matters less than the formula suggests when the parallel part grows with the machine.</li>
+      <li><b>False sharing.</b> Two threads writing different variables that happen to sit in the same 64-byte cache line force that line to bounce between cores. Padding the variables apart can make a program several times faster without changing its logic.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="5"></div>
 </main>
@@ -68,6 +143,8 @@ with multiprocessing.Pool() as pool:
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/misc.js"></script>
 <script src="../js/sims/m05-threads.js"></script>

@@ -31,7 +31,7 @@ python -m http.server 8000      # or: npm run serve
 | 5 | Threads & parallel performance | Amdahl's law explorer, context-switch overhead |
 | 6 | Process synchronization | Race-condition lab, bounded-buffer semaphores |
 | 7 | Deadlocks | Dining philosophers (4 strategies), Banker's algorithm |
-| 8 | Memory management | First/best/worst-fit & fragmentation, paging address translation |
+| 8 | Memory management | First/best/worst-fit & fragmentation, paging address translation, **multi-level page-table walk with a TLB** (16-bit teaching layout, 32-bit x86, x86-64), C and Python code tabs, an opt-in "Going deeper" section |
 | 9 | Virtual memory | FIFO / LRU / OPT / Clock, Belady's anomaly, effective access time |
 | 10 | Disk scheduling & I/O | FCFS / SSTF / SCAN / C-SCAN / LOOK / C-LOOK |
 | 11 | File systems | Allocation methods, inode capacity calculator |
@@ -52,6 +52,15 @@ difficulty levels, checks the answer, and shows a step-by-step worked solution. 
 `disk:48213:2`. The same code always gives the same problem, so a link like `problems.html#p=disk:48213:2` can be used in an
 assignment. Lessons link to the matching topic (`problems.html#topic=scheduling`). The generators are pure logic in
 `js/lib/problems.js`.
+
+### Source viewer and language tabs
+
+Code listings come from real files and are syntax-highlighted with [Prism](https://prismjs.com/) (vendored, with C, Python and shell
+grammars; colours chosen to meet WCAG AA contrast in light and dark themes). Comments numbered `(1)`, `(2)` become badges that the
+lesson text can refer to, and each listing has the language, a Download link and a Copy button. Where a concept is shown in more than one
+language, a `<div class="code-tabs">` offers **C | Python** tabs (arrow-key accessible; the choice applies to every sample on the page and is
+remembered). Examples live in `examples/`, labs in `labs/code/`, and `npm run build:labs` injects the files into the pages.
+`npm run vendor:prism` rebuilds the highlighter from the `prismjs` dev dependency.
 
 ### Python labs
 
@@ -84,6 +93,14 @@ What is covered:
 * **Problems** (`tests/problems.test.js`): every generated answer is checked against an *independent* re-computation
   (separate simulators, closed-form formulas, a brute-force search over all orderings for Banker's), plus textbook cases,
   reproducibility, link-code validation and answer checking.
+* **Page tables** (`tests/pagetable.test.js`): address splitting against independent BigInt shifts, walks against a direct mapping, table
+  counts against an independent prefix count on random configurations with 1 to 4 levels, and TLB behavior (LRU versus FIFO, capacity,
+  never caching a fault).
+* **Lesson code examples** (`tests/examples.test.js`): every example (page-table translation, system call versus stdio, file modes, threads, spinlock, page faults, inode links) is
+  compiled in C with `-Wall -Wextra -Werror -pedantic` and run, its Python partner is run, and both must print exactly the expected lines, byte for byte the same (the page-table
+  and thread-sum expectations come from independent calculations). A further test requires every example to be shown in a lesson with a note for each language. This needs a C compiler
+  (`CC`, `gcc`, `cc` or `clang`); without one set `EXAMPLES_DOCKER=1` to compile in a throwaway Alpine container, or the C checks are skipped.
+  CI (Linux) has `gcc`.
 * **Python labs** (`tests/labs.test.js`): every lab script is actually executed and its output checked (a lock fixes the
   race, naive philosophers deadlock, fork and zombie behavior on Linux, and so on), and each lab page must show exactly the
   script it describes.
@@ -110,6 +127,9 @@ What is covered:
   `js/data/glossary-index.js`. The tests fail if that file is out of date, and every term must be discussed in some lesson.
 * **Simulation:** put pure logic in `js/lib/` (with a test), write the UI in `js/sims/` using `OSUI.register("name", fn)`,
   then drop `<div data-sim="name"></div>` into a page and include the scripts.
+* **Code sample in two languages:** put `name.c` and `name.py` in `examples/` with the same `(1)`, `(2)` comment numbers and identical
+  output, show them with `<div class="code-tabs">` containing two `<pre class="code" data-src="examples/name.c">` blocks (plus optional
+  `<div class="lang-note" data-lang="python">` notes), run `npm run build:labs`, and add a run-and-compare test to `tests/examples.test.js`.
 * **Practice problem:** add a generator (`random` draws the numbers, `build` computes the answer and the steps) to
   `js/lib/problems.js`, then add an *independent* check and a textbook case to `tests/problems.test.js`.
 * **Lab:** put the script in `labs/code/`, add a page in `labs/` containing
@@ -124,12 +144,19 @@ Planned improvements, in suggested order, are tracked in [ROADMAP.md](ROADMAP.md
 
 ## License
 
-Released under the [MIT License](LICENSE). The copyright line in `LICENSE` is a generic placeholder
-("The Operating System Concepts contributors"). Replace it with your name or organization before publishing.
+Released under the [MIT License](LICENSE.txt). **You are free to copy, adapt, translate, redistribute and use this material
+for your own courses**, including commercially. The only condition is that the copyright notice and the license text stay
+with copies or substantial portions of the work. There is no warranty. The license applies to the code, the lesson text, the
+quiz questions, the labs and the images in this repository. Third-party code keeps its own license (see below).
+
+The copyright line in `LICENSE.txt` currently reads "The Operating System Concepts contributors". If you want it to name a
+person or organization, edit that one line before publishing. Everyone who adapts the project can add their own line as well.
 
 ## Third-party software
 
 * [d3](https://d3js.org/) v7.9.0, ISC license (`js/vendor/d3.LICENSE.txt`)
+* [Prism](https://prismjs.com/) 1.30.0, MIT license (`js/vendor/prism.LICENSE.txt`): syntax highlighting
 * [QUnit](https://qunitjs.com/) 2.24.1, MIT license (`tests/vendor/QUNIT-LICENSE.txt`), test-only
+* Development-only tools installed by `npm install` and not shipped with the site: jsdom (MIT), puppeteer-core (Apache-2.0), axe-core (MPL-2.0)
 
 Simulations are simplified for teaching and do not model every detail of real operating systems.

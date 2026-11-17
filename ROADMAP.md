@@ -5,6 +5,19 @@ A working list of improvements to build together. Tick items off (`[x]`) as they
 **Status key:** `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` dropped (say why)
 **Effort (rough guess):** **S** under half a day · **M** about a day · **L** several days
 
+## Positioning and principles
+
+* **An independent supplement.** This site is not tied to any one course or syllabus. It is meant to *supplement* whatever a learner is
+  studying, and it is free to grow beyond any syllabus (see the MIT license).
+* **From newcomer to advanced.** The reader is assumed to meet operating-system ideas for the first time, but every topic should
+  carry them toward intermediate and advanced understanding. Pattern: a plain explanation first, then an opt-in
+  **"Going deeper"** block (`<details class="deeper">`) for the advanced material (first used in Module 8, page tables).
+* **Code in more than one language.** Samples use **C | Python tabs** (`<div class="code-tabs">`). Use C when it shows the real thing
+  more honestly (pointers, bit fields, fixed-size structures) and say so in the C tab. The Python tab should say when Python hides the
+  hardware reality or is a little contrived. Numbered comments `(1)`, `(2)` line up across both tabs, both versions must print
+  identical output, and the tests compile and run them (`tests/examples.test.js`).
+* **Labs and problems supplement the lessons**; they never replace them.
+
 ## Where we are today (baseline)
 
 * 12 modules with 25+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
@@ -104,8 +117,9 @@ Goal: an instructor can assign "run this exact case and explain it" by sending o
 
 Goal: make the site easy to use in the actual course.
 
-- [ ] **IN-1 Syllabus map** (S). A table mapping CS 510 modules and assignments (discussions, journals, activities, projects) to the matching lessons and simulations here.
-  Keep it generic enough to share if other instructors want it.
+- [ ] **IN-1 Learning paths** (S). *Reframed:* the site is an independent supplement, so instead of mapping one course's syllabus,
+  provide a few study paths (newcomer to advanced; "how programs run"; "memory and storage"; "concurrency"; "security") that name which
+  lessons, simulations, labs and problems to use in what order. Anyone can then map a path onto their own course.
 - [ ] **IN-2 Prompts** (M). Discussion and journal prompts per module, each linked to a simulation or comparison ("use the scheduler to show a convoy effect, then argue for a better algorithm").
 - [ ] **IN-3 Answer keys and teaching notes** (M). Notes on common misconceptions and suggested in-class demos.
 - [ ] **IN-4 Printable handouts** (M). A print stylesheet and print-friendly versions of the cheat sheet and key tables (see Phase 7).
@@ -133,7 +147,12 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 
 - [ ] **C-1 Virtualization and containers** (L). Hypervisors (type 1 and 2), VMs vs. containers, namespaces, cgroups, a "what is isolated?" comparison.
 - [ ] **C-2 Boot process** (M). Firmware (BIOS/UEFI), bootloader, kernel start, init. A step-through animation.
-- [ ] **C-3 Multi-level page tables and TLB simulator** (L). Module 8 describes these but has no simulation.
+- [x] **C-3 Multi-level page tables and TLB simulator** (L). Module 8 describes these but has no simulation.
+  *Result:* a general N-level page-table and TLB library (`js/lib/pagetable.js`, tested against independent BigInt calculations and
+  brute-force prefix counts), a step-through walk simulator (three real layouts: a 16-bit teaching machine, 32-bit x86 and x86-64),
+  table-memory comparison, TLB reach and EAT, a tested C and Python translation example in language tabs, an opt-in "Going deeper"
+  section (page-walk caches, ASIDs, huge pages, nested paging, KPTI), 8 quiz questions, 6 glossary terms and 2 FAQ entries.
+  *Follow-ups:* a page-fault service step (demand paging) in the same simulator; copy-on-write demonstrated through the PTE flags.
 - [ ] **C-4 Advanced scheduling** (L). Multilevel feedback queue; real-time (rate-monotonic, earliest-deadline-first) with a schedulability check; multicore load balancing.
 - [ ] **C-5 Readers–writers, monitors and condition variables** (M). Simulator plus a starvation demonstration.
 - [ ] **C-6 Security depth** (L). Buffer-overflow stack diagram, authentication and password hashing, a threat-model exercise.
@@ -144,6 +163,9 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 
 ## Phase 6: More learning features
 
+- [x] **L-8 "Going deeper" tiers for every module** (L). Add an opt-in advanced block to each lesson (the pattern from Module 8) so readers can move from beginner to advanced inside one site. **Done:** every module 1–12 has one, and a page test requires it.
+- [x] **L-9 C | Python tabs in the labs and older lessons** (M). Where C shows the real thing better (`fork`/`exec`, threads with pthreads, semaphores, signals), add a tested C version next to the Python one, with a note on how the two differ. **Done:** Labs 1, 2 and 4 and seven lesson examples (modules 1, 2, 5, 6, 8, 9, 11) have tested C and Python tabs.
+- [ ] **L-10 Group modules into parts** (M). Foundations, Systems in practice, Security, Modern infrastructure, so the list stays coherent as it grows past 12 modules.
 - [ ] **L-1 Learning objectives, key takeaways and further reading** per module (M). Map objectives to the course competencies. Include free references (for example OSTEP) next to the course text.
 - [ ] **L-2 Flashcards** (S). Built from the glossary, with "I knew it / still learning" piles.
 - [ ] **L-3 Progress tracking** (M). Modules visited and quiz scores kept in the student's own browser. Private by default; the instructor cannot see it, and students can export or clear it.
@@ -160,7 +182,8 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 - [ ] **P-4 Feedback and contribution** (S). "Report an issue" link, `CONTRIBUTING.md`, issue templates.
 - [ ] **P-5 Offline use** (M). A service worker so the site works without a connection and can be installed. (Careful with cache invalidation.)
 - [ ] **P-6 Changelog** (S). A short `CHANGELOG.md`, so instructors know what changed between terms.
-- [ ] **P-7 Copyright holder** (S). Replace the placeholder in `LICENSE` ("The Operating System Concepts contributors").
+- [x] **P-7 License** (S). MIT, chosen so that people can copy and adapt the material. The file is `LICENSE.txt` (linked from every page's footer and shipped with the deployed site), and the README explains reuse in plain language.
+  *Still optional:* the copyright line reads "The Operating System Concepts contributors". Replace it with a name or organization if you prefer.
 
 ---
 
@@ -182,7 +205,7 @@ For every item:
 - Are the Python labs meant to replace or supplement the course's Codio activities?
 - Is there a deadline (term start, a specific assignment) that sets the order?
 - Who can review the Module 12 profiles, especially the mainframe and midrange entries?
-- What copyright holder name should go in the license?
+- (Optional) What copyright holder name should replace "The Operating System Concepts contributors" in LICENSE.txt?
 
 ## Notes and decisions
 

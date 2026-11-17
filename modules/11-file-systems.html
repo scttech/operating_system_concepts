@@ -43,6 +43,87 @@
     <li><dfn data-term="Symbolic link">Symbolic link</dfn>: a small file containing a path. It can cross file systems and point to directories, but dangles if the target goes away.</li>
   </ul>
 
+  <h3>Try it: hard links, symbolic links and inodes</h3>
+  <div class="code-tabs" aria-label="Links and inodes example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>link</code>, <code>symlink</code>, <code>unlink</code> and <code>stat</code> are the system calls themselves, and <code>st_ino</code> and <code>st_nlink</code> are the inode fields the lesson describes.</p></div>
+    <pre class="code" data-src="examples/inode_links.c"><code>/* Hard links, symbolic links and inodes. Unix only. */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;fcntl.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;unistd.h&gt;
+
+int main(void) {
+    char dir[] = "/tmp/osc_links_XXXXXX", orig[64], hard[64], soft[64];
+    if (mkdtemp(dir) == NULL) return 1;
+    snprintf(orig, sizeof orig, "%s/original.txt", dir);
+    snprintf(hard, sizeof hard, "%s/hard.txt", dir);
+    snprintf(soft, sizeof soft, "%s/soft.txt", dir);
+
+    int fd = open(orig, O_CREAT | O_WRONLY, 0644);
+    if (fd &lt; 0 || write(fd, "hello\n", 6) != 6) return 1;
+    close(fd);
+    struct stat a, b, c;
+    if (stat(orig, &amp;a) != 0) return 1;
+    printf("created original.txt: link count %ld\n", (long)a.st_nlink);
+
+    if (link(orig, hard) != 0) return 1;            /* (1) a hard link is a second NAME for the same inode */
+    stat(orig, &amp;a); stat(hard, &amp;b);
+    printf("after link(): link count %ld, same inode: %s\n", (long)a.st_nlink, a.st_ino == b.st_ino ? "yes" : "no");
+
+    if (symlink(orig, soft) != 0) return 1;         /* (2) a symbolic link is a separate small file that holds a PATH */
+    lstat(soft, &amp;c);
+    printf("the symbolic link has its own inode: %s\n", c.st_ino != a.st_ino ? "yes" : "no");
+
+    if (unlink(orig) != 0) return 1;                /* (3) remove the original name: the data lives on while any name remains */
+    stat(hard, &amp;b);
+    char text[16] = "";
+    fd = open(hard, O_RDONLY);
+    if (fd &gt;= 0) { ssize_t n = read(fd, text, sizeof text - 1); text[n &gt; 0 ? n : 0] = '\0'; close(fd); }
+    printf("after removing the original name: link count %ld, data still readable: %s\n", (long)b.st_nlink, text[0] == 'h' ? "yes" : "no");
+
+    int through_symlink = open(soft, O_RDONLY);     /* (4) the symbolic link still holds the old path, which no longer exists: it dangles */
+    printf("the symbolic link now dangles (opening it fails): %s\n", through_symlink &lt; 0 ? "yes" : "no");
+    if (through_symlink &gt;= 0) close(through_symlink);
+
+    unlink(hard); unlink(soft); rmdir(dir);
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python’s <code>os</code> module mirrors the calls one-to-one</b> (<code>os.link</code>, <code>os.symlink</code>, <code>os.unlink</code>, <code>os.stat</code>), so this is no more contrived than the C version. It needs Linux or macOS: on Windows, hard links exist but behave differently and symbolic links usually need extra privileges.</p></div>
+    <pre class="code" data-src="examples/inode_links.py"><code>"""Hard links, symbolic links and inodes. Unix only."""
+import os
+import shutil
+import tempfile
+
+folder = tempfile.mkdtemp(prefix="osc_links_")
+orig, hard, soft = (os.path.join(folder, n) for n in ("original.txt", "hard.txt", "soft.txt"))
+
+with open(orig, "w") as f:
+    f.write("hello\n")
+print(f"created original.txt: link count {os.stat(orig).st_nlink}")
+
+os.link(orig, hard)                                  # (1) a hard link is a second NAME for the same inode
+a, b = os.stat(orig), os.stat(hard)
+print(f"after link(): link count {a.st_nlink}, same inode: {'yes' if a.st_ino == b.st_ino else 'no'}")
+
+os.symlink(orig, soft)                               # (2) a symbolic link is a separate small file that holds a PATH
+print(f"the symbolic link has its own inode: {'yes' if os.lstat(soft).st_ino != a.st_ino else 'no'}")
+
+os.unlink(orig)                                      # (3) remove the original name: the data lives on while any name remains
+with open(hard) as f:
+    text = f.read()
+print(f"after removing the original name: link count {os.stat(hard).st_nlink}, data still readable: {'yes' if text.startswith('h') else 'no'}")
+
+try:                                                 # (4) the symbolic link still holds the old path, which no longer exists: it dangles
+    open(soft).close()
+    dangles = "no"
+except OSError:
+    dangles = "yes"
+print(f"the symbolic link now dangles (opening it fails): {dangles}")
+shutil.rmtree(folder)</code></pre>
+  </div>
+
   <h2>Free space and reliability</h2>
   <ul>
     <li><b>Free-space tracking:</b> bitmaps (1 bit per block) or free lists/extents.</li>
@@ -53,6 +134,18 @@
 
   <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=inode">maximum file size problems</a> (random problems with worked solutions).</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: what modern file systems add</summary>
+    <ul>
+      <li><b>Journaling.</b> Without it a crash in the middle of an update can leave the structures inconsistent, so older systems had to scan the whole disk at boot (<code>fsck</code>). A journal records the intended change first, so recovery replays or discards it in seconds. Most systems journal only metadata by default, which keeps structure safe but not necessarily your data.</li>
+      <li><b>Copy-on-write file systems.</b> ZFS, Btrfs and APFS never overwrite live blocks. They write a new version and then switch a pointer, which makes snapshots nearly free and makes a torn write impossible. The cost is fragmentation and more work to track free space.</li>
+      <li><b>Extents instead of block lists.</b> Modern systems (ext4, NTFS, XFS) store a file as a few (start, length) ranges rather than one pointer per block, so a large contiguous file needs only a handful of entries and the classic indirect-block limits do not apply.</li>
+      <li><b><code>fsync</code> and lying disks.</b> A successful <code>write</code> only means the data reached the page cache. Durability needs <code>fsync</code>, and database authors worry about drives that acknowledge writes before they are on stable media. Many “lost data after power failure” stories come from skipping this.</li>
+      <li><b>Checksums and silent corruption.</b> Disks sometimes return wrong data without an error. ZFS and Btrfs store a checksum with every block pointer and, with redundancy, repair what fails. Traditional systems trust the device.</li>
+      <li><b>Directories are files too.</b> A directory is a file whose contents map names to inode numbers, which is why a hard link is just another entry and why large directories use hash tables or B-trees to avoid slow linear searches.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="11"></div>
 </main>
@@ -62,6 +155,8 @@
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/misc.js"></script>
 <script src="../js/sims/m11-filesystems.js"></script>

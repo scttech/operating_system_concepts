@@ -64,6 +64,17 @@
 
   <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: reading CPU use and process states with psutil</a>.</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: how real schedulers work</summary>
+    <ul>
+      <li><b>Multilevel feedback queues.</b> Real systems cannot know a job’s length in advance, so they estimate it from behavior: a task that uses its whole time slice drops to a lower-priority queue, and one that blocks early stays high. Interactive programs are favored without anyone labeling them.</li>
+      <li><b>Linux CFS and EEVDF.</b> The Completely Fair Scheduler tracks each task’s virtual runtime and always runs the one that has had the least, kept in a red-black tree. Newer kernels replace it with EEVDF, which also considers each task’s latency requirement.</li>
+      <li><b>Multicore adds a second problem.</b> Each core usually has its own run queue, so the OS must balance load without losing <em>cache affinity</em>: a task moved to another core starts with a cold cache. Processor affinity lets a program pin itself to specific cores.</li>
+      <li><b>Real-time scheduling.</b> Rate-monotonic scheduling gives the highest priority to the shortest period, and earliest-deadline-first always runs the task whose deadline is nearest. Both have schedulability tests, and a missed deadline is a failure, not a slowdown.</li>
+      <li><b>Priority inversion.</b> If a low-priority task holds a lock that a high-priority task needs, a medium-priority task can run ahead of both. The 1997 Mars Pathfinder resets were caused by exactly this. The fix is priority inheritance: the lock holder temporarily takes the waiter’s priority.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="4"></div>
 </main>

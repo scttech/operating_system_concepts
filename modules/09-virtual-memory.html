@@ -24,6 +24,74 @@
   </ol>
   <p>This works because of <dfn data-term="Locality of reference">locality of reference</dfn>: programs reuse nearby and recently used memory, so faults are rare.</p>
 
+  <h3>Try it: watch pages being assigned</h3>
+  <div class="code-tabs" aria-label="Page fault example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>mmap</code> reserves addresses and <code>getrusage</code> reports how many minor page faults this process has taken, so the program shows demand paging directly. The numbers are not printed, because they differ between systems; the program prints only the comparison the lesson is about.</p></div>
+    <pre class="code" data-src="examples/page_faults.c"><code>/* Demand paging you can measure: memory is not assigned until a page is first touched. Linux or macOS. */
+#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+#include &lt;stdio.h&gt;
+#include &lt;sys/mman.h&gt;
+#include &lt;sys/resource.h&gt;
+#include &lt;unistd.h&gt;
+
+#define PAGES 256
+
+static long minor_faults(void) {
+    struct rusage usage;
+    getrusage(RUSAGE_SELF, &amp;usage);
+    return usage.ru_minflt;                         /* page faults served without reading from disk */
+}
+
+int main(void) {
+    long page = sysconf(_SC_PAGESIZE);
+    /* (1) mmap reserves addresses for 256 pages. No physical memory is assigned yet. */
+    char *region = mmap(NULL, (size_t)(PAGES * page), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (region == MAP_FAILED) return 1;
+    printf("mapped %d pages: no physical memory is assigned until a page is first touched\n", PAGES);
+
+    long before = minor_faults();
+    for (long i = 0; i &lt; PAGES; i++) region[i * page] = 1;      /* (2) first touch of each page: a page fault, and the kernel supplies a zeroed frame */
+    long first_pass = minor_faults() - before;
+    printf("touching each page for the first time caused page faults: %s\n", first_pass &gt;= 8 ? "True" : "False");
+
+    before = minor_faults();
+    for (long i = 0; i &lt; PAGES; i++) region[i * page] = 2;      /* (3) the pages are now mapped: touching them again needs no fault */
+    long second_pass = minor_faults() - before;
+    printf("touching them all a second time caused far fewer: %s\n", second_pass * 4 &lt; first_pass ? "True" : "False");
+    munmap(region, (size_t)(PAGES * page));
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python has the same two calls</b> (<code>mmap</code> and <code>resource.getrusage</code>), so it is not contrived, but it is the only way to see this in Python. An ordinary Python list lives inside memory the interpreter manages, so you cannot tell when the kernel assigned each page. Needs Linux or macOS.</p></div>
+    <pre class="code" data-src="examples/page_faults.py"><code>"""Demand paging you can measure: memory is not assigned until a page is first touched. Linux or macOS."""
+import mmap
+import resource
+
+PAGES = 256
+page = mmap.PAGESIZE
+
+
+def minor_faults():
+    return resource.getrusage(resource.RUSAGE_SELF).ru_minflt      # page faults served without reading from disk
+
+
+region = mmap.mmap(-1, PAGES * page, flags=mmap.MAP_PRIVATE)                             # (1) reserves addresses for 256 pages. No physical memory is assigned yet.
+print(f"mapped {PAGES} pages: no physical memory is assigned until a page is first touched")
+
+before = minor_faults()
+for i in range(PAGES):
+    region[i * page] = 1                                           # (2) first touch of each page: a page fault, and the kernel supplies a zeroed frame
+first_pass = minor_faults() - before
+print(f"touching each page for the first time caused page faults: {first_pass &gt;= 8}")
+
+before = minor_faults()
+for i in range(PAGES):
+    region[i * page] = 2                                           # (3) the pages are now mapped: touching them again needs no fault
+second_pass = minor_faults() - before
+print(f"touching them all a second time caused far fewer: {second_pass * 4 &lt; first_pass}")
+region.close()</code></pre>
+  </div>
+
   <h2>Page-replacement algorithms</h2>
   <table>
     <thead><tr><th>Algorithm</th><th>Evicts</th><th>Notes</th></tr></thead>
@@ -56,6 +124,18 @@
 
   <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: RAM, swap and process memory (RSS)</a>.</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: what the kernel does on a page fault</summary>
+    <ul>
+      <li><b>Three kinds of fault.</b> A <em>minor</em> fault maps a page that is already in memory (a zero page, or a page cached by another process). A <em>major</em> fault must read from disk. An <em>invalid</em> fault touches an address that is not mapped at all and ends in <code>SIGSEGV</code>.</li>
+      <li><b>Approximating LRU.</b> True LRU would need a timestamp on every memory access. Hardware instead sets an <em>accessed</em> bit in the page-table entry, and the OS scans pages with the clock algorithm. Linux keeps active and inactive lists, and a page must be touched while inactive to earn promotion.</li>
+      <li><b>Memory-mapped files and the page cache.</b> <code>read()</code> usually copies from the kernel’s page cache, and <code>mmap</code> maps those same pages into the process. File data and program memory compete for the same frames, which is why free memory on a busy Linux machine looks low yet is mostly reclaimable cache.</li>
+      <li><b>Swap, zswap and the OOM killer.</b> When memory is short, anonymous pages go to swap (or are compressed in RAM with zswap). If reclaim fails, Linux’s out-of-memory killer picks a process to terminate. Mobile systems skip swap and kill background apps instead.</li>
+      <li><b>Overcommit.</b> Linux will happily promise more memory than exists, relying on the fact that most pages are never touched. The page-fault example above is why this works, and also why a program can be killed long after <code>malloc</code> said yes.</li>
+      <li><b>Prefetching and Belady’s anomaly.</b> The OS reads ahead when it sees sequential access. And FIFO can produce more faults with <em>more</em> frames (Belady’s anomaly), while stack algorithms such as LRU cannot.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="9"></div>
 </main>
@@ -65,6 +145,8 @@
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/paging.js"></script>
 <script src="../js/sims/m09-virtual.js"></script>

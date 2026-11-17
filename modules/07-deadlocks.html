@@ -57,6 +57,17 @@
 
   <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/04-semaphores-deadlock.html">Lab 4: create a real deadlock and prevent it</a>.</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: deadlock in the real world</summary>
+    <ul>
+      <li><b>Lock ordering in practice.</b> Large programs avoid deadlock by assigning every lock a rank and always acquiring in increasing order. The Linux kernel’s <em>lockdep</em> checker watches every lock acquisition at run time and warns about an ordering cycle even if the deadlock never actually happened.</li>
+      <li><b>Livelock and starvation.</b> In a livelock the threads are not blocked but keep reacting to one another (two people stepping aside in a corridor), so no progress is made. Starvation is a thread that never gets a turn even though the system is moving. Neither is a deadlock, and neither is fixed by the same remedies.</li>
+      <li><b>Distributed and database deadlock.</b> Databases detect a deadlock by finding a cycle in the wait-for graph, choose a victim transaction, roll it back and let the application retry. Two-phase locking makes deadlock possible, and timeouts are the fallback when no coordinator exists.</li>
+      <li><b>Why operating systems mostly ignore it.</b> Prevention restricts programs and avoidance needs advance knowledge of every maximum claim. Most general-purpose systems take the <em>ostrich approach</em> for application resources and rely on programmers to order locks, because deadlocks are rare and the cost of the alternatives is paid constantly.</li>
+      <li><b>Priority inversion looks like deadlock.</b> A task blocked behind a lock holder that cannot run appears hung. It is solved by priority inheritance rather than by any of the four strategies on this page.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="7"></div>
 </main>

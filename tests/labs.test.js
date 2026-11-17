@@ -148,15 +148,74 @@
     labs.forEach((l, i) => assert.equal(l.n, i + 1, `lab ${l.n} numbered sequentially`));
     const used = new Set();
     files.forEach((f) => { for (const [, src] of fs.readFileSync(path.join(ROOT, "labs", f), "utf8").matchAll(/data-src="labs\/code\/([^"]+)"/g)) used.add(src); });
-    const scripts = fs.readdirSync(CODE).filter((f) => f.endsWith(".py")).sort();
-    assert.deepEqual([...used].sort(), scripts, "each script appears in exactly the lab pages that use it");
+    const scripts = fs.readdirSync(CODE).filter((f) => /\.(py|c)$/.test(f)).sort();
+    assert.deepEqual([...used].sort(), scripts, "each script (Python and C) appears in exactly the lab pages that use it");
   });
 
   QUnit.test("scripts are ASCII-only (they print to any console) and follow the numbering the pages refer to", (assert) => {
-    fs.readdirSync(CODE).filter((f) => f.endsWith(".py")).forEach((f) => {
+    fs.readdirSync(CODE).filter((f) => /\.(py|c)$/.test(f)).forEach((f) => {
       const text = fs.readFileSync(path.join(CODE, f), "utf8");
       assert.false(/[^\x00-\x7f]/.test(text), `${f} is plain ASCII`);
       assert.true(/\(1\)/.test(text), `${f} has numbered comments for the page to refer to`);
     });
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------------
+  // C versions of labs 1b, 2a and 4 (Unix only: fork and POSIX threads). Local Unix compiler, or Docker when opted in.
+  // ---------------------------------------------------------------------------------------------------------------------
+  const N = require("./helpers/native.js");
+  const CFILES = ["lab1_fork.c", "lab2_threads.c", "lab4_sync.c"], PYFILES = ["lab1_fork.py", "lab4_sync.py"];
+  const ALL = [...CFILES, ...PYFILES];
+  const cTest = N.canRunUnixC ? QUnit.test : QUnit.skip;
+  const cRun = (f) => N.runUnixC(CODE, f, ALL), pyRun = (f) => N.runUnixPython(CODE, f, ALL);
+  const lines = (r) => r.stdout.replace(/\r\n/g, "\n").trim().split("\n");
+
+  QUnit.module("C labs");
+
+  QUnit.test(`C labs run where Unix C is available: ${N.nativeUnixC ? "local " + N.CC : N.DOCKER ? "in a Linux container (Docker)" : "NOT available here (set EXAMPLES_DOCKER=1 with Docker, or use Linux/macOS)"}`, (assert) => assert.ok(true, "CI runs these on Linux"));
+
+  QUnit.test("each C lab has a Python partner with the same (1), (2)... comment numbers, so one explanation fits both tabs", (assert) => {
+    // every (n) that appears inside a comment (a C comment may hold more than one)
+    const nums = (f) => fs.readFileSync(path.join(CODE, f), "utf8").split("\n").flatMap((line) => { const i = line.search(/\/\*|\/\/|#/); return i < 0 ? [] : [...line.slice(i).matchAll(/\((\d+)\)/g)].map((m) => m[1]); });
+    [["lab1_fork.c", "lab1_fork.py"], ["lab2_threads.c", "lab2_threads.py"], ["lab4_sync.c", "lab4_sync.py"]].forEach(([c, p]) => {
+      assert.deepEqual([...new Set(nums(c))].sort(), [...new Set(nums(p))].sort(), `${c} and ${p} use the same numbered comments`);
+    });
+  });
+
+  cTest("Lab 1b in C compiles warning-free and prints exactly what the Python version prints", (assert) => {
+    const c = cRun("lab1_fork.c");
+    assert.ok(!c.compileFailed, c.stderr); assert.equal(c.status, 0, c.stderr);
+    const py = pyRun("lab1_fork.py");
+    assert.equal(py.status, 0, py.stderr);
+    assert.deepEqual(lines(c), lines(py), "identical, line for line");
+    assert.deepEqual(lines(c).slice(0, 4), ["child : fork() returned 0", "parent: fork() returned the child's pid (a positive number: True)", "parent: the child exited with code 7", "this line was printed by the echo program"]);
+    assert.ok(lines(c).includes("3 forks in a row produced 8 processes") && lines(c).includes("after wait(): the zombie is gone"));
+    const z = lines(c).find((l) => l.startsWith("before wait()")); if (z) assert.ok(/state as 'Z/.test(z), "the un-waited child is a zombie");
+  });
+
+  cTest("Lab 2a in C: the race loses updates with no help, and a mutex fixes it", (assert) => {
+    let seen = false, last = null;
+    for (let attempt = 0; attempt < 4 && !seen; attempt++) {
+      const r = cRun("lab2_threads.c"); last = r;
+      assert.ok(!r.compileFailed, r.stderr); assert.equal(r.status, 0, r.stderr);
+      const [head, unsafe, safe] = lines(r);
+      assert.ok(/^4 threads each add 1 to a shared counter 200000 times; the right answer is 800000$/.test(head), head);
+      const u = /without a lock\s+got\s+(\d+): (.*)/.exec(unsafe), s = /with a lock\s+got\s+(\d+): (.*)/.exec(safe);
+      assert.equal(+s[1], 800000, "with a lock: exactly right"); assert.equal(s[2], "correct");
+      assert.ok(+u[1] <= 800000 && +u[1] > 0);
+      seen = +u[1] < 800000 && /WRONG \(\d+ updates lost\)/.test(u[2]);
+      if (N.nativeUnixC && require("node:os").cpus().length < 2) { seen = true; }       // a single CPU may not interleave: do not insist
+    }
+    assert.true(seen, `the unsafe version lost updates (${last && lines(last)[1]})`);
+  });
+
+  cTest("Lab 4 in C: bounded buffer never overflows; naive philosophers deadlock; ordered ones do not; same lines as Python", (assert) => {
+    const c = cRun("lab4_sync.c"); assert.ok(!c.compileFailed, c.stderr); assert.equal(c.status, 0, c.stderr);
+    const py = pyRun("lab4_sync.py"); assert.equal(py.status, 0, py.stderr);
+    const [a, ...rest] = lines(c), [pa, ...prest] = lines(py);
+    assert.ok(/^bounded buffer: produced 12, consumed 12, largest buffer size seen [1-3] \(limit 3\), each producer's items stayed in order: True$/.test(a), a);
+    assert.ok(/^bounded buffer: produced 12, consumed 12, largest buffer size seen [1-3] \(limit 3\)/.test(pa));
+    assert.deepEqual(rest, prest, "the deadlock and the fix print exactly the same lines in C and Python");
+    assert.deepEqual(rest, ["naive (left fork first): DEADLOCK after 2 s: 5 of 5 philosophers stuck, meals eaten 0 of 15", "ordered (lower-numbered fork first): all 5 philosophers finished, 15 meals eaten, no deadlock"]);
   });
 })();

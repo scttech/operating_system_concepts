@@ -46,12 +46,36 @@
   <p>A <dfn data-term="System call">system call</dfn> is the API through which programs request kernel services: files, processes, memory, networking. Programs normally call a library wrapper (like <code>read()</code> in libc) instead of issuing the trap themselves.</p>
   <div data-sim="syscall"></div>
   <p>Try different system calls. The kernel-side work differs, but the mode switch, argument validation and return path are always the same. That fixed cost is why batching I/O (bigger reads and writes) is faster than many tiny calls.</p>
-  <pre><code>// What a shell does to run "ls", in terms of system calls
+  <pre data-lang="c"><code>// What a shell does to run "ls", in terms of system calls
 pid = fork();          // create a child process
 if (pid == 0) {
     execvp("ls", argv); // replace the child's program with ls
 }
 waitpid(pid, &amp;status, 0); // parent waits for the child to finish</code></pre>
+
+  <h3>Try it: a system call versus a library call</h3>
+  <div class="code-tabs" aria-label="System call versus library call example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>printf</code> and <code>write</code> are exactly the two layers this lesson describes: a library function with a buffer, and a thin wrapper around the system call. Run it and you see the output order change, which is the buffer at work.</p></div>
+    <pre class="code" data-src="examples/syscall_vs_stdio.c"><code>/* A system call versus a library call: why does "B" appear before "A"? */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+int main(void) {
+    printf("A");                            /* (1) printf only copies text into a buffer inside this process... */
+    if (write(1, "B", 1) != 1) return 1;    /* (2) write() is the system call: the kernel receives "B" right away */
+    printf("C\n");                          /* (3) ...and the buffer is written out later: when it is full, at a newline on a terminal, or at exit */
+    return 0;                               /* (4) leaving main flushes the buffer, so "AC" is written only now */
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python behaves the same way, with different names.</b> <code>print()</code> writes into a buffer owned by <code>sys.stdout</code>, and <code>os.write()</code> is the thin wrapper around the system call. The surprise is the same, but it is less visible in everyday Python because you rarely call <code>os.write</code> directly.</p></div>
+    <pre class="code" data-src="examples/syscall_vs_stdio.py"><code>"""A system call versus a library call: why does "B" appear before "A"?"""
+import os
+
+print("A", end="")                # (1) print() only copies text into a buffer inside this process...
+os.write(1, b"B")                 # (2) os.write() is the system call: the kernel receives "B" right away
+print("C")                        # (3) ...and the buffer is written out later: when it is full, at a newline on a terminal, or at exit
+# (4) when the program ends, Python flushes the buffer, so "AC" is written only now</code></pre>
+  </div>
 
   <h2 id="structure">OS structure</h2>
   <table>
@@ -66,6 +90,17 @@ waitpid(pid, &amp;status, 0); // parent waits for the child to finish</code></pr
   <div class="callout warn"><p><b>Common confusion:</b> the OS is not the shell, the GUI or the whole distribution. The kernel is the privileged core; the rest is user-space software.</p></div>
   <div class="callout"><p><b>Beyond the big three:</b> phones, cars, single-board computers and mainframes make very different choices about these same ideas. See <a href="12-os-landscape.html">Module 12</a> to compare Android, iOS, Qubes OS, Raspberry Pi OS, real-time systems and IBM's z/OS, z/VSE and IBM i.</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: how a system call really enters the kernel</summary>
+    <ul>
+      <li><b>The trap instruction.</b> On x86-64 the wrapper executes <code>syscall</code>; on ARM64 it is <code>svc</code>. The CPU switches to kernel mode and jumps to one address chosen by the OS at boot, not by the program. The call number goes in a register, and the kernel uses it to index a table of handlers.</li>
+      <li><b>Arguments are checked, never trusted.</b> A pointer passed to the kernel could point at kernel memory. The kernel verifies that every user pointer lies in user space and copies data across the boundary (for example <code>copy_from_user</code> in Linux).</li>
+      <li><b>The vDSO.</b> Some calls, such as reading the clock, are so frequent that Linux avoids the mode switch: the kernel maps a small page of code and data into every process, and <code>clock_gettime</code> runs entirely in user mode.</li>
+      <li><b>Monolithic versus micro kernels, in practice.</b> A microkernel keeps drivers and file systems in user-mode servers, so one system call can become several messages. That costs speed but isolates faults. Hybrids such as Windows NT and macOS (XNU) put some of each in the kernel.</li>
+      <li><b>Hardware support goes further than two modes.</b> x86 has four privilege rings (only 0 and 3 are commonly used), and virtualization adds a mode below the kernel for the hypervisor. ARM calls these exception levels, EL0 to EL3.</li>
+    </ul>
+  </details>
+
   <h2 id="quiz">Check your understanding</h2>
   <div data-quiz="1"></div>
 </main>
@@ -75,6 +110,8 @@ waitpid(pid, &amp;status, 0); // parent waits for the child to finish</code></pr
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/sims/m01-syscall.js"></script>
 </body>

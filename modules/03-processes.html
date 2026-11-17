@@ -31,7 +31,7 @@
 
   <h2>Creating processes: fork, exec, wait</h2>
   <p><dfn data-term="Fork"><code>fork()</code></dfn> makes a copy of the calling process (using <dfn data-term="Copy-on-write">copy-on-write</dfn> so it's cheap). The copy is the <dfn data-term="Child process">child</dfn> and the original is its parent. It returns 0 in the child and the child's PID in the parent. <code>exec()</code> replaces the process image with a new program. <code>wait()</code> lets the parent collect the child's exit status.</p>
-  <pre><code>#include &lt;unistd.h&gt;
+  <pre data-lang="c"><code>#include &lt;unistd.h&gt;
 #include &lt;sys/wait.h&gt;
 #include &lt;stdio.h&gt;
 
@@ -69,6 +69,17 @@ int main(void) {
 
   <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/01-processes.html">Lab 1: launching, waiting and forking processes</a>.</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: what fork really copies</summary>
+    <ul>
+      <li><b>Copy-on-write.</b> <code>fork()</code> does not copy the parent’s memory. The child gets copies of the page tables, with every writable page marked read-only. The first write by either process faults, and only then is that page copied. This is why <code>fork</code> followed by <code>exec</code> is cheap.</li>
+      <li><b><code>vfork</code>, <code>posix_spawn</code> and <code>clone</code>.</b> When the child will immediately call <code>exec</code>, even copying page tables is wasted. <code>posix_spawn</code> creates the new program directly, and Linux’s <code>clone</code> lets the caller choose what is shared, which is how threads and containers are built.</li>
+      <li><b>Windows has no fork.</b> <code>CreateProcess</code> builds a new process running a named program in one step, and the family of calls on this page is a Unix design choice rather than a law of operating systems.</li>
+      <li><b>Zombies and orphans.</b> A child that exits stays in the process table as a zombie until the parent calls <code>wait</code>, because the exit status must be kept. If the parent dies first, the child is adopted by <code>init</code> (PID 1), which reaps it. A long-running parent that never waits slowly fills the table.</li>
+      <li><b>Pipes are just file descriptors.</b> A pipe is a kernel buffer with two descriptors, and a shell builds <code>a | b</code> by forking twice, connecting standard output to one end and standard input to the other, then calling <code>exec</code>. The programs never know.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="3"></div>
 </main>
@@ -78,6 +89,8 @@ int main(void) {
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/misc.js"></script>
 <script src="../js/sims/m03-processes.js"></script>

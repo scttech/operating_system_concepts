@@ -55,6 +55,18 @@
 
   <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: disk usage and I/O counters</a>.</p></div>
 
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: how storage really behaves</summary>
+    <ul>
+      <li><b>Command queues.</b> SATA drives accept up to 32 outstanding requests (NCQ) and reorder them in firmware, and NVMe supports up to 65,535 queues of 65,536 commands. The disk-scheduling algorithms on this page matter less when the device itself knows the geometry better than the OS does.</li>
+      <li><b>The I/O scheduler on flash.</b> With no head to move, Linux uses the <code>none</code> or <code>mq-deadline</code> scheduler on SSDs and NVMe devices. SCAN and C-SCAN remain useful mainly for spinning disks.</li>
+      <li><b>Write amplification and TRIM.</b> Flash cannot overwrite a page; it must erase a whole block first. The SSD’s translation layer remaps writes and later garbage-collects, which is why writing a byte can cost far more than a byte internally, and why the OS tells the drive which blocks are free (TRIM).</li>
+      <li><b>RAID and what it does not do.</b> Striping gives speed, mirroring gives redundancy, and parity (RAID 5/6) trades capacity for tolerance. RAID is not a backup: it protects against a failed disk, not against deletion, corruption or fire.</li>
+      <li><b>DMA and the IOMMU.</b> A device transfers data directly to memory without the CPU copying it. An IOMMU gives each device its own address translation, so a buggy or malicious device cannot read arbitrary memory. This is the page-table idea applied to hardware.</li>
+      <li><b>Polling returns.</b> At millions of operations per second, interrupts themselves become a cost, so <code>io_uring</code> and user-space NVMe drivers poll queues instead. The textbook trade-off between polling and interrupts reverses as devices get faster.</li>
+    </ul>
+  </details>
+
   <h2>Check your understanding</h2>
   <div data-quiz="10"></div>
 </main>

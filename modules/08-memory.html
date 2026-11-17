@@ -33,17 +33,171 @@
   <p>A logical address splits into two parts: <b>page number</b> (high bits, index into the page table) and <b>offset</b> (low bits, position inside the page). For a page size of 2<sup>n</sup> bytes, the offset is n bits. For example, a 32-bit address with 4 KiB pages has a 20-bit page number and 12-bit offset.</p>
   <div data-sim="paging"></div>
 
-  <h2>Making translation fast</h2>
-  <p>A page table lives in memory, so each access would need two memory references. The <dfn data-term="TLB (translation lookaside buffer)">TLB</dfn> caches recent translations in hardware. With TLB hit ratio <i>h</i>:</p>
-  <p style="text-align:center"><code>EAT = h × (t<sub>TLB</sub> + t<sub>mem</sub>) + (1 − h) × (t<sub>TLB</sub> + 2 × t<sub>mem</sub>)</code></p>
-  <p>With a 1 ns TLB, 100 ns memory and a 98% hit ratio: EAT = 0.98 × 101 + 0.02 × 201 = <b>103 ns</b>, only 3% slower than raw memory.</p>
+  <h2 id="multilevel">Why one big page table does not work</h2>
+  <p>Take a 32-bit machine with 4 KiB pages. The page number has 20 bits, so a flat page table needs 2<sup>20</sup> = 1,048,576 entries. At 4 bytes each, that is <b>4 MiB for every process</b>, even a tiny one that uses a few pages. A hundred processes would spend 400 MiB just on tables. With 64-bit addresses a flat table is impossible: a 48-bit address space would need 2<sup>36</sup> entries, which is <b>512 GiB</b> per process.</p>
+  <p>Notice what is wasteful: most of a process's address space is <em>empty</em>. A typical process has a little code at the bottom, a heap above it, some libraries, and a stack at the very top, with huge gaps between them. We should not pay for table entries that describe nothing.</p>
 
-  <h2>Large address spaces</h2>
+  <h2>Multi-level page tables</h2>
+  <p>A <dfn data-term="Multi-level page table">multi-level page table</dfn> applies the paging idea to the page table itself. The page number is cut into pieces. The first piece indexes a small <b>top-level table</b>. Each entry points to a <b>second-level table</b>, and the second piece indexes that. Second-level tables are created <em>only for regions the process actually uses</em>. If a whole region is empty, its top-level entry is simply marked not present and no lower table exists.</p>
+  <p>The classic 32-bit x86 layout is <b>10 + 10 + 12</b> bits: 10 bits for the top-level index, 10 for the second-level index, and 12 for the offset within a 4 KiB page. Each table has 1,024 entries of 4 bytes, which is exactly one page, so the tables themselves can be stored in ordinary page-sized frames. For the address <code>0x00403004</code> the top-level index is 1, the second-level index is 3 and the offset is 4. A typical small process needs one top-level table and about three second-level tables: <b>16 KiB instead of 4 MiB</b>.</p>
+  <p>On 64-bit x86 the layout is <b>9 + 9 + 9 + 9 + 12</b> bits (48-bit addresses): four levels of 512 entries, each table exactly one 4 KiB page of 8-byte entries.</p>
+
+  <h3>Try it: follow a translation</h3>
+  <p>Pick an address layout and a TLB size, then step through the examples. Watch which table is read at each level, what happens when an entry is missing (a page fault), and how much memory the tables use compared with one flat table. Try “Cycle through six pages” with a 4-entry TLB, then with 8 entries.</p>
+  <div data-sim="ptwalk"></div>
+
+  <h3>The same idea in code</h3>
+  <p>This tiny machine uses 16-bit addresses (4 + 4 + 8 bits) so every table fits on screen. Both versions print identical output, and the numbers in the comments line up in both tabs: <b>(1)</b> a second-level table is created only when needed; <b>(2)–(5)</b> split the address with shifts and masks; <b>(6)</b> a missing table means a page fault; <b>(7)</b> the frame number is placed in front of the unchanged offset.</p>
+  <div class="code-tabs" aria-label="Address translation example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> a page table is a block of fixed-size entries in memory that the hardware reads directly. C shows that honestly: arrays of fixed-size structs, pointers for the next level, and explicit bit masks. A real entry is a packed machine word with flag bits next to the frame number; here each entry is just a frame number to keep the idea visible.</p></div>
+    <pre class="code" data-src="examples/pagetable_translate.c"><code>/* Two-level address translation for a tiny machine: 16-bit addresses = 4 + 4 + 8 bits. */
+#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+
+#define OFFSET_BITS 8
+#define INDEX_BITS  4
+#define ENTRIES     (1u &lt;&lt; INDEX_BITS)
+#define NOT_PRESENT (-1)
+
+typedef struct { int frame[ENTRIES]; } leaf_t;      /* second level: page number -&gt; frame number */
+typedef struct { leaf_t *leaf[ENTRIES]; } root_t;   /* top level: pointer to a second-level table, or NULL */
+
+static root_t root;                                 /* all pointers start out NULL */
+static leaf_t pool[3];                              /* memory for the second-level tables we will need */
+static int pool_used = 0;
+
+static void map_page(unsigned vpn, int frame) {
+    unsigned top = vpn &gt;&gt; INDEX_BITS, low = vpn &amp; (ENTRIES - 1);
+    if (root.leaf[top] == NULL) {                   /* (1) a second-level table is created only when first needed */
+        root.leaf[top] = &amp;pool[pool_used++];
+        for (unsigned i = 0; i &lt; ENTRIES; i++) root.leaf[top]-&gt;frame[i] = NOT_PRESENT;
+    }
+    root.leaf[top]-&gt;frame[low] = frame;
+}
+
+/* Returns 0 on success; 1 = no top-level entry; 2 = page not present in an existing table. */
+static int translate(unsigned vaddr, unsigned *paddr) {
+    unsigned offset = vaddr &amp; ((1u &lt;&lt; OFFSET_BITS) - 1);   /* (2) the low bits are the offset within the page */
+    unsigned vpn = vaddr &gt;&gt; OFFSET_BITS;                   /* (3) everything above is the virtual page number */
+    unsigned top = vpn &gt;&gt; INDEX_BITS;                      /* (4) its high bits pick the top-level entry... */
+    unsigned low = vpn &amp; (ENTRIES - 1);                    /* (5) ...and its low bits pick the entry in that table */
+    leaf_t *leaf = root.leaf[top];
+    if (leaf == NULL) return 1;                            /* (6) NULL pointer = "not present" at the top level */
+    int frame = leaf-&gt;frame[low];
+    if (frame == NOT_PRESENT) return 2;
+    *paddr = ((unsigned)frame &lt;&lt; OFFSET_BITS) | offset;    /* (7) frame number in front of the unchanged offset */
+    return 0;
+}
+
+int main(void) {
+    for (unsigned i = 0; i &lt; 4; i++) map_page(0x00 + i, (int)(5 + 7 * i));    /* code  */
+    for (unsigned i = 0; i &lt; 3; i++) map_page(0x10 + i, (int)(5 + 7 * (4 + i)));  /* heap  */
+    for (unsigned i = 0; i &lt; 2; i++) map_page(0xFE + i, (int)(5 + 7 * (7 + i)));  /* stack */
+
+    const unsigned addresses[] = { 0x0012, 0x03FF, 0x1034, 0xFE80, 0x5000, 0x0412 };
+    for (unsigned k = 0; k &lt; sizeof addresses / sizeof addresses[0]; k++) {
+        unsigned a = addresses[k], vpn = a &gt;&gt; OFFSET_BITS, paddr = 0;
+        unsigned top = vpn &gt;&gt; INDEX_BITS, low = vpn &amp; (ENTRIES - 1);
+        int rc = translate(a, &amp;paddr);
+        printf("0x%04X -&gt; top %2u, second %2u, offset 0x%02X -&gt; ", a, top, low, a &amp; 0xFFu);
+        if (rc == 0) printf("frame %2d -&gt; physical 0x%04X\n", (int)(paddr &gt;&gt; OFFSET_BITS), paddr);
+        else printf("PAGE FAULT (%s)\n", rc == 1 ? "no second-level table" : "page not present");
+    }
+    printf("second-level tables allocated: %d; entries used: %u instead of %u for one flat table\n",
+           pool_used, ENTRIES + pool_used * ENTRIES, 1u &lt;&lt; (2 * INDEX_BITS));
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python is fine for the logic, but it hides the hardware reality.</b> Lists and <code>None</code> play the roles of arrays and the “not present” marker, and Python decides how big each entry is, so it is a little contrived as a model of a real page table. The shifts, masks and the two-step lookup are exactly the same, which is why every numbered comment matches the C tab.</p></div>
+    <pre class="code" data-src="examples/pagetable_translate.py"><code>"""Two-level address translation for a tiny machine: 16-bit addresses = 4 + 4 + 8 bits."""
+
+OFFSET_BITS = 8
+INDEX_BITS = 4
+ENTRIES = 1 &lt;&lt; INDEX_BITS
+
+root = [None] * ENTRIES                 # top level: a second-level table (a list), or None
+tables_created = 0
+
+
+def map_page(vpn, frame):
+    global tables_created
+    top, low = vpn &gt;&gt; INDEX_BITS, vpn &amp; (ENTRIES - 1)
+    if root[top] is None:               # (1) a second-level table is created only when first needed
+        root[top] = [None] * ENTRIES
+        tables_created += 1
+    root[top][low] = frame
+
+
+def translate(vaddr):
+    """Returns (physical address, None) or (None, reason for the fault)."""
+    offset = vaddr &amp; ((1 &lt;&lt; OFFSET_BITS) - 1)   # (2) the low bits are the offset within the page
+    vpn = vaddr &gt;&gt; OFFSET_BITS                  # (3) everything above is the virtual page number
+    top = vpn &gt;&gt; INDEX_BITS                     # (4) its high bits pick the top-level entry...
+    low = vpn &amp; (ENTRIES - 1)                   # (5) ...and its low bits pick the entry in that table
+    leaf = root[top]
+    if leaf is None:                            # (6) None = "not present" at the top level
+        return None, "no second-level table"
+    frame = leaf[low]
+    if frame is None:
+        return None, "page not present"
+    return (frame &lt;&lt; OFFSET_BITS) | offset, None    # (7) frame number in front of the unchanged offset
+
+
+for i in range(4):
+    map_page(0x00 + i, 5 + 7 * i)               # code
+for i in range(3):
+    map_page(0x10 + i, 5 + 7 * (4 + i))         # heap
+for i in range(2):
+    map_page(0xFE + i, 5 + 7 * (7 + i))         # stack
+
+for a in (0x0012, 0x03FF, 0x1034, 0xFE80, 0x5000, 0x0412):
+    vpn = a &gt;&gt; OFFSET_BITS
+    print(f"0x{a:04X} -&gt; top {vpn &gt;&gt; INDEX_BITS:2d}, second {vpn &amp; (ENTRIES - 1):2d}, offset 0x{a &amp; 0xFF:02X} -&gt; ", end="")
+    paddr, why = translate(a)
+    if why is None:
+        print(f"frame {paddr &gt;&gt; OFFSET_BITS:2d} -&gt; physical 0x{paddr:04X}")
+    else:
+        print(f"PAGE FAULT ({why})")
+print(f"second-level tables allocated: {tables_created}; "
+      f"entries used: {ENTRIES + tables_created * ENTRIES} instead of {1 &lt;&lt; (2 * INDEX_BITS)} for one flat table")</code></pre>
+  </div>
+  <p class="small">Expected output (identical in C and Python): addresses in the code, heap and stack translate; <code>0x5000</code> faults because its top-level entry has no second-level table; <code>0x0412</code> faults because its second-level table exists but that page is not mapped. The last line shows 64 entries used instead of 256.</p>
+
+  <h2>What is in a page-table entry?</h2>
+  <p>Each entry holds the frame number and a few <b>flag bits</b> that the hardware checks on every access. A <dfn data-term="Page table entry (PTE)">page-table entry (PTE)</dfn> on x86 includes:</p>
+  <table>
+    <thead><tr><th>Flag</th><th>Meaning</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td>Present</td><td>The page is in a frame right now</td><td>Demand paging: a clear bit raises a <a href="09-virtual-memory.html">page fault</a></td></tr>
+      <tr><td>Read/write</td><td>Writes are allowed</td><td>Protecting code and shared data; <a href="09-virtual-memory.html">copy-on-write</a> starts read-only</td></tr>
+      <tr><td>User/supervisor</td><td>User-mode code may access it</td><td>Keeping the kernel's memory away from programs (<a href="01-fundamentals.html">kernel and user mode</a>)</td></tr>
+      <tr><td>Accessed</td><td>The page was read or written recently</td><td>The reference bit for <a href="09-virtual-memory.html">page replacement</a> (Clock)</td></tr>
+      <tr><td>Dirty</td><td>The page was written since it was loaded</td><td>Knowing whether it must be saved before eviction</td></tr>
+      <tr><td>No-execute</td><td>Instructions may not run from this page</td><td>Stopping injected data from running as code (<a href="02-security.html">security</a>)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Making translation fast: the TLB</h2>
+  <p>A multi-level table saves memory but makes a translation slower: every level is another memory read. Reading a table in memory in order to translate an address is called a <dfn data-term="Page walk">page walk</dfn>. With four levels, one memory access could become five. Programs would crawl, were it not for the <dfn data-term="TLB (translation lookaside buffer)">TLB</dfn>, a small hardware cache of recent translations. A hit skips the walk completely. A miss walks the tables and then caches the result. With TLB hit ratio <i>h</i>, <i>n</i> table levels, TLB lookup time <i>t<sub>TLB</sub></i> and memory time <i>t<sub>mem</sub></i>:</p>
+  <p style="text-align:center"><code>EAT = h × (t<sub>TLB</sub> + t<sub>mem</sub>) + (1 − h) × (t<sub>TLB</sub> + n × t<sub>mem</sub> + t<sub>mem</sub>)</code></p>
+  <p>With a 1 ns TLB, 100 ns memory and a 98% hit ratio, a single-level table gives EAT = 0.98 × 101 + 0.02 × 201 = <b>103 ns</b>. With two levels it is <b>105 ns</b>, and with four levels <b>109 ns</b>. Even with deep tables the cost stays under 10%, as long as the hit ratio is high. It is high because programs show <dfn data-term="Locality of reference">locality of reference</dfn>: they keep reusing a small set of pages. The <dfn data-term="TLB reach">TLB reach</dfn> (entries × page size) is how much memory the TLB can cover at once: 64 entries of 4 KiB cover only 256 KiB.</p>
+
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: how real hardware does it</summary>
+    <ul>
+      <li><b>Page-walk caches.</b> CPUs also cache the upper-level entries, so a TLB miss often needs only one or two memory reads, not <i>n</i>. The EAT formula above is the worst case.</li>
+      <li><b>Address-space identifiers.</b> Each process has its own page tables, so after a context switch the old TLB entries are wrong. Without help the OS must <em>flush</em> the TLB on every switch, so the new process starts with a cold TLB. An <dfn data-term="ASID (address-space identifier)">ASID</dfn> (x86 calls it PCID) tags each entry with its process, so entries from several processes can live together and no flush is needed.</li>
+      <li><b>Huge pages.</b> A <dfn data-term="Huge page">huge page</dfn> of 2 MiB (or 1 GiB) skips the last table level, because the offset grows to 21 bits (or 30). One TLB entry then maps 512× (or 262,144×) more memory, which greatly extends the TLB reach for databases and virtual machines. The cost is internal fragmentation and needing a large contiguous run of frames. Linux can create them automatically (“transparent huge pages”).</li>
+      <li><b>More levels.</b> Newer x86 CPUs support five levels (57-bit addresses) for machines with more than 256 TiB of address space. RISC-V defines Sv39, Sv48 and Sv57 (3, 4 and 5 levels); ARM supports 4 KiB, 16 KiB and 64 KiB page sizes with different level splits. More levels mean longer walks.</li>
+      <li><b>Virtual machines pay twice.</b> A guest OS has its own page tables, and the hypervisor translates guest “physical” addresses again (nested or extended page tables). With 4 levels each, one TLB miss can need up to (4 + 1) × (4 + 1) − 1 = <b>24</b> memory reads, which is why hypervisors rely on huge pages and large TLBs.</li>
+      <li><b>Security trade-offs.</b> After the Meltdown vulnerability, kernels such as Linux began switching to a separate set of page tables on every entry to the kernel (page-table isolation). That made context and mode switches more expensive and made ASIDs more valuable.</li>
+      <li><b>Software-managed TLBs.</b> Some architectures (for example MIPS) leave TLB misses to the OS, which then walks any data structure it likes. Others, like x86 and ARM, walk the tables in hardware, so the table format is fixed by the CPU.</li>
+    </ul>
+  </details>
+
+  <h2>Other designs</h2>
   <ul>
-    <li><b>Hierarchical (multi-level) page tables</b> only allocate the parts of the table that are in use.</li>
-    <li><b>Hashed</b> and <b>inverted</b> page tables trade lookup time for table size.</li>
+    <li><b>Hashed</b> and <b>inverted</b> page tables have one entry per physical frame (or hash bucket) instead of per virtual page, trading lookup time for table size. They suit very large address spaces.</li>
     <li><dfn data-term="Segmentation">Segmentation</dfn> divides memory by logical units (code, stack, heap). Modern systems mostly use paging, sometimes with segment-like protection.</li>
-    <li>Protection bits in each page-table entry (valid, read/write, execute, user/supervisor) let the MMU enforce isolation.</li>
   </ul>
 
   <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=paging">address translation problems</a> · <a href="../problems.html#topic=memalloc">memory allocation problems</a> (random problems with worked solutions).</p></div>
@@ -61,6 +215,11 @@
 <script src="../js/site.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/memory.js"></script>
+<script src="../js/lib/pagetable.js"></script>
+<script src="../js/lib/misc.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 <script src="../js/sims/m08-memory.js"></script>
+<script src="../js/sims/m08-pagetable.js"></script>
 </body>
 </html>

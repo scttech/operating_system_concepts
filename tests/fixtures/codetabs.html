@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Code tab fixture</title><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="test fixture"></head>
+<!-- Test fixture only: two independent C | Python groups and a Python-only block, to test switching, syncing and keyboard use. -->
+<body data-root="../../">
+<main>
+  <h1>Fixture</h1>
+  <div class="code-tabs" aria-label="First sample">
+    <div class="lang-note" data-lang="python"><p>Python note one</p></div>
+    <pre data-lang="c"><code>int main(void) { return 0; }</code></pre>
+    <pre data-lang="python"><code>def main():
+    return 0</code></pre>
+  </div>
+  <div class="code-tabs" aria-label="Second sample">
+    <pre data-lang="python"><code>print("hello")</code></pre>
+    <pre data-lang="c"><code>#include &lt;stdio.h&gt;</code></pre>
+  </div>
+  <div class="code-tabs" aria-label="Single language">
+    <pre data-lang="python"><code>x = 1</code></pre>
+  </div>
+</main>
+<script src="../../js/data/modules.js"></script>
+<script src="../../js/data/glossary.js"></script>
+<script src="../../js/ui.js"></script>
+<script src="../../js/site.js"></script>
+<script src="../../js/vendor/prism.min.js"></script>
+<script src="../../js/code.js"></script>
+</body>
+</html>

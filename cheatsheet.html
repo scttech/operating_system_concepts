@@ -59,7 +59,7 @@
   </table>
 
   <h2>Linux commands for exploring a running system</h2>
-  <pre><code>ps aux                 # all processes          top / htop    # live CPU/memory by process
+  <pre data-lang="bash"><code>ps aux                 # all processes          top / htop    # live CPU/memory by process
 pstree -p              # process tree           kill -TERM &lt;pid&gt;   # ask a process to exit
 free -h                # memory and swap        vmstat 1      # memory, paging, CPU each second
 iostat -x 1            # disk utilization       lsof -p &lt;pid&gt;   # open files of a process
@@ -70,7 +70,7 @@ strace -c ls           # count system calls made by ls
 ulimit -a              # per-process resource limits</code></pre>
 
   <h2>Python: inspecting the system</h2>
-  <pre><code>import os, psutil          # pip install psutil
+  <pre data-lang="python"><code>import os, psutil          # pip install psutil
 
 print(os.getpid(), os.getppid())          # this process and its parent
 p = psutil.Process()
@@ -84,7 +84,7 @@ for proc in psutil.process_iter(["pid", "name", "cpu_percent"]):
     print(proc.info)</code></pre>
 
   <h2>Python: threads and a lock</h2>
-  <pre><code>import threading
+  <pre data-lang="python"><code>import threading
 counter, lock = 0, threading.Lock()
 
 def work(n):
@@ -126,5 +126,7 @@ print(counter)             # 400000 with the lock</code></pre>
 <script src="js/data/glossary.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/site.js"></script>
+<script src="js/vendor/prism.min.js"></script>
+<script src="js/code.js"></script>
 </body>
 </html>

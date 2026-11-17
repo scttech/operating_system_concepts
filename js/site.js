@@ -102,7 +102,10 @@
 
   const footer = document.createElement("footer");
   footer.className = "site";
-  footer.textContent = "Operating System Concepts — an independent, open educational resource. Simulations are simplified for teaching.";
+  const licenseLink = document.createElement("a");
+  licenseLink.href = root + "LICENSE.txt"; licenseLink.textContent = "MIT License";
+  footer.append("Operating System Concepts: an independent, open educational resource. Free to copy and adapt under the ", licenseLink,
+    ". Simulations are simplified for teaching.");
   body.append(footer);
 
   // <dfn data-term="deadlock">…</dfn> -> tooltip + link to glossary

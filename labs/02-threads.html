@@ -25,7 +25,62 @@
 
   <h2>Part A: a race condition</h2>
   <p><b>Predict first:</b> four threads each add 1 to a shared counter 2,000 times. What should the final value be? Without a lock, do you expect exactly that, more, or less?</p>
-  <pre class="code" data-src="labs/code/lab2_threads.py"><code>"""Lab 2a - Threads, race conditions and locks."""
+  <div class="code-tabs" aria-label="Part A language">
+    <div class="lang-note" data-lang="c"><p><b>In C the race needs no help.</b> Python's interpreter lock keeps most threads from running at the same moment, so the Python version calls <code>time.sleep(0)</code> to force a switch, which is a little contrived. In C the four threads really run on different CPU cores at once, so updates are lost on their own, much as they are in real programs. <code>volatile</code> stops the compiler from keeping the counter in a register, so the read and the write really happen. Build it with <code>gcc -std=c99 -D_POSIX_C_SOURCE=200809L -pthread -O0 -o lab2_threads lab2_threads.c</code>. C is so much faster that each thread adds 200,000 times, so the numbers differ from the Python output, but the lesson is the same.</p></div>
+    <pre class="code" data-src="labs/code/lab2_threads.c"><code>/* Lab 2a (C) - Threads, race conditions and locks with POSIX threads. Build with:  gcc -std=c99 -D_POSIX_C_SOURCE=200809L -pthread */
+#include &lt;pthread.h&gt;
+#include &lt;stdio.h&gt;
+
+#define THREADS 4
+#define ITERATIONS 200000
+
+static volatile long counter = 0;           /* volatile: every use is a real read from or write to memory */
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void *unsafe_worker(void *arg) {
+    (void)arg;
+    for (int i = 0; i &lt; ITERATIONS; i++) {
+        long temp = counter;                /* (1) READ the shared value */
+        /* (2) Nothing to add here: the threads really run at the same moment on different CPU cores,
+               so another thread can slip in between the read and the write all by itself. */
+        counter = temp + 1;                 /* (3) WRITE back a possibly stale value */
+    }
+    return NULL;
+}
+
+static void *safe_worker(void *arg) {
+    (void)arg;
+    for (int i = 0; i &lt; ITERATIONS; i++) {
+        pthread_mutex_lock(&amp;lock);          /* (4) only one thread at a time may be between lock and unlock */
+        long temp = counter;
+        counter = temp + 1;
+        pthread_mutex_unlock(&amp;lock);
+    }
+    return NULL;
+}
+
+static long run(void *(*worker)(void *)) {
+    pthread_t threads[THREADS];
+    counter = 0;
+    for (int i = 0; i &lt; THREADS; i++) pthread_create(&amp;threads[i], NULL, worker, NULL);   /* (5) all threads now run at once */
+    for (int i = 0; i &lt; THREADS; i++) pthread_join(threads[i], NULL);                    /* (6) wait for every thread to finish */
+    return counter;
+}
+
+int main(void) {
+    const long expected = (long)THREADS * ITERATIONS;
+    printf("%d threads each add 1 to a shared counter %d times; the right answer is %ld\n", THREADS, ITERATIONS, expected);
+    const char *labels[] = { "without a lock", "with a lock" };
+    void *(*workers[])(void *) = { unsafe_worker, safe_worker };
+    for (int k = 0; k &lt; 2; k++) {
+        long got = run(workers[k]);
+        if (got == expected) printf("  %-15s got %5ld: correct\n", labels[k], got);
+        else printf("  %-15s got %5ld: WRONG (%ld updates lost)\n", labels[k], got, expected - got);
+    }
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p>The <code>time.sleep(0)</code> in <b>(2)</b> is a teaching device. Because only one thread runs Python bytecode at a time, small programs often get lucky without it, which is dangerous: the bug is still there and shows up later under load. The C tab shows the race happening naturally, with no help.</p></div>
+    <pre class="code" data-src="labs/code/lab2_threads.py"><code>"""Lab 2a - Threads, race conditions and locks."""
 import threading
 import time
 
@@ -68,7 +123,8 @@ for label, worker in (("without a lock", unsafe_worker), ("with a lock", safe_wo
     got = run(worker)
     verdict = "correct" if got == expected else f"WRONG ({expected - got} updates lost)"
     print(f"  {label:&lt;15} got {got:&gt;5}: {verdict}")</code></pre>
-  <p>Run it with <code>python lab2_threads.py</code>. Run it several times: the unsafe result changes every run.</p>
+  </div>
+  <p>Run the Python version with <code>python lab2_threads.py</code>, or build the C version shown in its tab. Run either several times: the unsafe result changes every run.</p>
   <h3>Example output</h3>
   <p class="small">Your “without a lock” number will be different every time. The “with a lock” line will always be correct.</p>
 <pre class="output"><code>4 threads each add 1 to a shared counter 2000 times; the right answer is 8000
@@ -164,6 +220,7 @@ all three methods give the same answers: True</code></pre>
 <script src="../js/data/labs.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
-<script src="../js/pages/lab.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 </body>
 </html>

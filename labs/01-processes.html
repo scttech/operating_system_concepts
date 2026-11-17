@@ -83,7 +83,79 @@ started 4 children; all have different pids: True
 
   <h2>Part B: fork, exec and wait (Linux, macOS, WSL or Codio)</h2>
   <p>Windows has no <code>os.fork()</code>, so the script exits with a message there. Run Part B in WSL, in Codio, or on a Linux or macOS computer. <b>Predict first:</b> the program calls <code>fork()</code> three times in a row. How many processes exist at the end? (Check the <a href="../modules/03-processes.html#term-fork">fork tree in Module 3</a>.)</p>
-  <pre class="code" data-src="labs/code/lab1_fork.py"><code>"""Lab 1b - fork, exec and wait (Linux, macOS, WSL or Codio: Windows has no os.fork)."""
+  <div class="code-tabs" aria-label="Part B language">
+    <div class="lang-note" data-lang="c"><p><b>C is the natural language for this part.</b> <code>fork</code>, <code>exec</code> and <code>wait</code> are C library functions, and Python's <code>os.fork</code> is a thin wrapper around them. Build and run it with <code>gcc -std=c99 -D_POSIX_C_SOURCE=200809L -o lab1_fork lab1_fork.c &amp;&amp; ./lab1_fork</code> on Linux, macOS, WSL or Codio. The output is identical to the Python version.</p></div>
+    <pre class="code" data-src="labs/code/lab1_fork.c"><code>/* Lab 1b (C) - fork, exec and wait. Linux, macOS, WSL or Codio: Windows has no fork(). */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;time.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;sys/types.h&gt;
+#include &lt;sys/wait.h&gt;
+
+int main(void) {
+    /* Flush every print immediately. fork() copies the process INCLUDING its unflushed output buffer,
+       so buffered text could be printed twice, or in a surprising order when output goes to a pipe or file. */
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    /* (1) fork() is called once but returns twice: 0 in the child, the child's pid in the parent. */
+    pid_t pid = fork();
+    if (pid == 0) {
+        printf("child : fork() returned 0\n");
+        _exit(7);                                   /* leave immediately; 7 becomes the exit status */
+    }
+    int status = 0;
+    waitpid(pid, &amp;status, 0);                       /* (2) the parent waits, then reads the child's exit status */
+    printf("parent: fork() returned the child's pid (a positive number: %s)\n", pid &gt; 0 ? "True" : "False");
+    printf("parent: the child exited with code %d\n", WEXITSTATUS(status));
+
+    /* (3) exec replaces the child's program. This is how a shell runs "echo". */
+    pid = fork();
+    if (pid == 0) {
+        execlp("echo", "echo", "this line was printed by the echo program", (char *)NULL);
+        _exit(127);                                 /* only reached if exec failed */
+    }
+    waitpid(pid, NULL, 0);
+
+    /* (4) Every fork doubles the number of processes. Each process records itself in a file. */
+    char path[64];
+    snprintf(path, sizeof path, "/tmp/lab1_forks_%d.txt", (int)getpid());
+    FILE *log = fopen(path, "w");
+    if (log) fclose(log);
+    pid_t root = getpid();
+    for (int i = 0; i &lt; 3; i++) fork();
+    log = fopen(path, "a");
+    if (log) { fprintf(log, "%d\n", (int)getpid()); fclose(log); }
+    while (wait(NULL) &gt; 0) { }                      /* wait for our own children (the grandchildren wait for theirs) */
+    if (getpid() != root) _exit(0);
+    int lines = 0, ch;
+    log = fopen(path, "r");
+    while (log &amp;&amp; (ch = fgetc(log)) != EOF) if (ch == '\n') lines++;
+    if (log) fclose(log);
+    printf("3 forks in a row produced %d processes\n", lines);
+    remove(path);
+
+    /* (5) A zombie: a child that has exited but has not been waited for yet. */
+    pid = fork();
+    if (pid == 0) _exit(0);
+    struct timespec pause = { 0, 200 * 1000 * 1000 };
+    nanosleep(&amp;pause, NULL);                        /* give the child time to exit */
+    char cmd[64], state[16] = "";
+    snprintf(cmd, sizeof cmd, "ps -o stat= -p %d 2&gt;/dev/null", (int)pid);
+    FILE *ps = popen(cmd, "r");
+    if (ps) {
+        if (fgets(state, sizeof state, ps)) state[strcspn(state, " \n")] = '\0';
+        pclose(ps);
+    }
+    if (state[0]) printf("before wait(): ps shows the child's state as '%s' (Z means zombie)\n", state);
+    waitpid(pid, NULL, 0);                          /* reaping removes the zombie */
+    printf("after wait(): the zombie is gone\n");
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p>Python's <code>os.fork</code>, <code>os.execvp</code> and <code>os.waitpid</code> make the same system calls, so the behavior and the output are identical to the C tab. <code>os._exit</code> (like C's <code>_exit</code>) ends the child without Python's normal cleanup, which is what you want right after <code>fork</code>.</p></div>
+    <pre class="code" data-src="labs/code/lab1_fork.py"><code>"""Lab 1b - fork, exec and wait (Linux, macOS, WSL or Codio: Windows has no os.fork)."""
 import functools
 import os
 import shutil
@@ -142,7 +214,8 @@ if shutil.which("ps"):
     print(f"before wait(): ps shows the child's state as '{state}' (Z means zombie)")
 os.waitpid(pid, 0)                  # reaping removes the zombie
 print("after wait(): the zombie is gone")</code></pre>
-  <p>Run it with <code>python3 lab1_fork.py</code>.</p>
+  </div>
+  <p>Run the tab you prefer: <code>python3 lab1_fork.py</code> or the C build shown in the C tab. They print the same lines.</p>
   <h3>Example output (from a Linux system)</h3>
 <pre class="output"><code>child : fork() returned 0
 parent: fork() returned the child's pid (a positive number: True)
@@ -194,6 +267,7 @@ after wait(): the zombie is gone</code></pre>
 <script src="../js/data/labs.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
-<script src="../js/pages/lab.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
 </body>
 </html>

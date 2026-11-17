@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Injects the real lab scripts into the lab pages so the code students read is exactly the code they download.
+/* Injects the real source files into lab and lesson pages so the code students read is exactly the code they download.
  *
  * In a lab page, write:   <pre class="code" data-src="labs/code/lab1_processes.py"></pre>
  * This script fills it with the (HTML-escaped) file contents.
@@ -11,7 +11,7 @@
 const fs = require("node:fs"), path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
-const LABS = path.join(ROOT, "labs");
+const DIRS = ["labs", "modules"].map((d) => path.join(ROOT, d));   // lab pages and lesson pages may both contain listings
 const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const BLOCK = /<pre class="code" data-src="([^"]+)">[\s\S]*?<\/pre>/g;
 
@@ -24,7 +24,7 @@ function render(html) {
   });
 }
 
-function pages() { return fs.readdirSync(LABS).filter((f) => f.endsWith(".html")).sort().map((f) => path.join(LABS, f)); }
+function pages() { return DIRS.flatMap((d) => fs.readdirSync(d).filter((f) => f.endsWith(".html")).sort().map((f) => path.join(d, f))); }
 
 function stale() {
   return pages().filter((p) => { const cur = fs.readFileSync(p, "utf8"); return render(cur) !== cur; });
