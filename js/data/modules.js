@@ -36,5 +36,8 @@ window.OSData.modules = [
     tags: ["inode", "FAT", "allocation"] },
   { n: 12, slug: "12-os-landscape",    title: "Beyond Windows, macOS & Linux",
     summary: "Android, iOS, Qubes, Raspberry Pi, real-time systems and IBM mainframes, with a side-by-side compare tool.",
-    tags: ["mobile", "mainframe", "compare"] }
+    tags: ["mobile", "mainframe", "compare"] },
+  { n: 13, slug: "13-ipc",               title: "Inter-Process Communication",
+    summary: "Pipes, message queues, sockets and shared memory: how isolated processes talk, when each side must wait, and what each choice costs.",
+    tags: ["pipe", "sockets", "shared memory"] }
 ];

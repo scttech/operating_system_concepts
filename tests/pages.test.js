@@ -58,7 +58,7 @@
   QUnit.module("pages: structure and loading");
 
   QUnit.test("The site has exactly the expected pages", (assert) => {
-    assert.equal(moduleFiles.length, 12, "12 module pages");
+    assert.equal(moduleFiles.length, 13, "13 module pages");
     globalThis.window = globalThis;
     require("../js/data/modules.js");
     assert.deepEqual(moduleFiles, globalThis.OSData.modules.map((m) => m.slug + ".html"), "module files match js/data/modules.js");
@@ -163,7 +163,7 @@
         // module pages: pager
         if (rel.startsWith("modules/")) {
           const n = +doc.body.dataset.module, pager = doc.querySelectorAll(".pager a");
-          assert.equal(pager.length, n === 1 || n === 12 ? 1 : 2, "prev/next pager");
+          assert.equal(pager.length, n === 1 || n === 13 ? 1 : 2, "prev/next pager");
           assert.ok(doc.querySelector("[data-quiz]"), "has a quiz");
           assert.ok(doc.querySelector("[data-sim]"), "has at least one simulation");
           assert.ok(doc.title.includes(`Module ${n}:`), "title carries module number");
@@ -183,7 +183,7 @@
 
   QUnit.test("Home: one card per module; theme toggle works", async (assert) => {
     await withPage("index.html", ({ window: w, document: doc }) => {
-      assert.equal(doc.querySelectorAll("#module-grid .card").length, 12);
+      assert.equal(doc.querySelectorAll("#module-grid .card").length, 13);
       assert.ok(!/Reflect/i.test(doc.getElementById("module-grid").textContent), "no reflection module");
       doc.getElementById("theme-toggle").click();
       assert.ok(["light", "dark"].includes(doc.documentElement.dataset.theme));
@@ -1117,6 +1117,79 @@
         }
       });
     }
+  });
+
+  QUnit.module("pages: Module 13 (inter-process communication)");
+
+  QUnit.test("IPC explorer: a pipe is a byte stream, a queue keeps messages, and blocking and closing behave as the lesson says", async (assert) => {
+    await withPage("modules/13-ipc.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "ipc"), log = () => [...s.querySelectorAll("ol li")].map((li) => li.textContent);
+      const send = (t) => { setValue(w, s.querySelector('input[type="text"]'), t); button(s, "Writer: write").click(); };
+      const slots = () => [...s.querySelectorAll("g.cell text")].map((t) => t.textContent);
+      send("hello"); send("ab");
+      assert.deepEqual(slots(), ["h", "e", "l", "l", "o", "a"], "capacity 6: the second write fills the buffer with one byte left over");
+      const label = () => s.querySelector("svg").getAttribute("aria-label");
+      assert.ok(/Writer: asleep/.test(label()), "the last byte did not fit, so the writer is asleep");
+      assert.ok(log().some((l) => /goes to sleep with 1 byte/.test(l)), "the log explains the sleep");
+      send("c");
+      assert.ok(/Not possible now/.test(log().pop()), "a sleeping writer cannot write again");
+      button(s, "Reader: read").click();
+      assert.deepEqual(slots(), ["o", "a", "b"], "reader took 4 bytes; the sleeping writer's byte moved in");
+      assert.ok(log().some((l) => /sleeping writer was woken/.test(l) || /woken/.test(l)), "reading wakes the sleeping writer");
+      assert.ok(/Writer: running/.test(label()));
+      // message queue keeps boundaries
+      setValue(w, field(doc, "Mechanism"), "queue", "change");
+      assert.deepEqual(slots(), [], "switching resets the channel");
+      send("one"); send("two");
+      assert.deepEqual(slots(), ["one", "two"]);
+      setValue(w, field(doc, "Reader asks for"), 8);
+      button(s, "Reader: read").click();
+      assert.ok(log().pop().includes('"one"') && /one whole message/.test(log().pop()), "one whole message per read, whatever the requested size");
+      assert.deepEqual(slots(), ["two"]);
+    });
+  });
+
+  QUnit.test("IPC explorer: scenarios, end of file and broken pipe", async (assert) => {
+    await withPage("modules/13-ipc.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "ipc"), log = () => [...s.querySelectorAll("ol li")].map((li) => li.textContent);
+      button(s, "Scenario: end of file").click();
+      assert.ok(log().some((l) => /end of file/.test(l)), "eof reported after the write end closed and the data was read");
+      assert.equal(log().filter((l) => /read returned 2|read returned 3|read returned 1/.test(l)).length, 1, "the three bytes arrive in one read");
+      button(s, "Scenario: broken pipe").click();
+      assert.ok(log().some((l) => /no process can read/.test(l)), "writing with no reader is a broken pipe");
+      button(s, "Scenario: reader waits for data").click();
+      assert.ok(log().some((l) => /goes to sleep/.test(l)) && log().some((l) => /sleeping reader was woken/.test(l)), "reader sleeps and is woken by the write");
+      button(s, "Scenario: writer outruns reader").click();
+      assert.ok(log().some((l) => /goes to sleep/.test(l)));
+      button(s, "Reader: close its end").click();
+      assert.ok(log().some((l) => /sleeping writer was woken with an error/.test(l)), "closing the read end wakes the sleeper with an error");
+      button(s, "Reset").click();
+      assert.equal(log().length, 0);
+    });
+  });
+
+  QUnit.test("Module 13 shows three C and Python example pairs, each with a note for both languages", async (assert) => {
+    await withPage("modules/13-ipc.html", ({ document: doc }) => {
+      const boxes = [...doc.querySelectorAll(".code-tabs")];
+      assert.deepEqual(boxes.map((b) => b.querySelector("pre.code").dataset.src), ["examples/pipe_fork.c", "examples/socket_pair.c", "examples/shared_memory.c"]);
+      boxes.forEach((b) => {
+        assert.deepEqual(tabsOf(b).map((t) => t.textContent), ["C", "Python"]);
+        assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]'));
+        assert.ok(b.querySelectorAll(".marker").length >= 8, "numbered comments are badges in both listings");
+      });
+    });
+  });
+
+  QUnit.test("IPC cost table matches the library and shared memory needs no per-transfer calls", async (assert) => {
+    await withPage("modules/13-ipc.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "ipccost"), rows = () => [...s.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((td) => td.textContent));
+      const L = w.OSLib;
+      const want = L.ipcCost("pipe", 1000, 64);
+      assert.deepEqual(rows()[0], ["Pipe", want.syscalls.toLocaleString(), want.copies.toLocaleString(), want.bytesCopied.toLocaleString(), "no: the kernel orders the operations"]);
+      assert.equal(rows()[3][0], "Shared memory"); assert.equal(rows()[3][1], "2"); assert.equal(rows()[3][2], "0"); assert.ok(/^yes/.test(rows()[3][4]));
+      button(s, "One big transfer").click();
+      assert.equal(rows()[0][1], "2", "one transfer is one write and one read");
+    });
   });
 
   QUnit.test("Page-table walk: translation, faults, TLB behavior and table memory", async (assert) => {

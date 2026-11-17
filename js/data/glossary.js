@@ -122,5 +122,14 @@ window.OSData.glossary = [
   ["Real-time operating system (RTOS)", "Mainframe & systems", "An OS designed to meet timing deadlines predictably, usually with fixed-priority preemptive scheduling and a small footprint."],
   ["Sandbox", "Security", "An isolated environment that restricts what a program can access, limiting the damage if it is buggy or malicious."],
   ["Single-level storage", "Mainframe & systems", "A design (used by IBM i) where main memory and disk are one large address space, and the system moves objects between them automatically."],
+  ["Inter-process communication (IPC)","Processes","Any mechanism that lets separate processes exchange data or signals: pipes, sockets, message queues, shared memory, signals and files."],
+  ["Message passing","Processes","Communication in which processes exchange discrete messages through the kernel with send and receive operations, so they never share memory directly."],
+  ["Shared memory","Processes","A block of memory mapped into the address spaces of two or more processes, so a write by one is visible to the others without a system call or a copy."],
+  ["Message queue","Processes","A kernel-managed queue of whole messages: a read returns exactly one message, so the boundaries between messages are preserved."],
+  ["Socket","Processes","An endpoint for two-way communication, between processes on one machine (a Unix-domain socket) or across a network."],
+  ["Signal","Processes","A small asynchronous notification sent to a process, for example SIGINT from Ctrl+C or SIGTERM to ask it to exit. The process runs a handler or takes the default action."],
+  ["Byte stream","Processes","Data delivered as an unstructured sequence of bytes with no message boundaries, as with pipes and TCP: three writes may arrive as one read, or one write as three."],
+  ["End of file (EOF)","Processes","What a read reports (zero bytes) when no more data will ever arrive: for a pipe, when every write end has been closed and the buffer is empty."],
+  ["Broken pipe","Processes","The error (SIGPIPE or EPIPE) a writer gets when it writes to a pipe or socket that no process can read any more."],
   ["Zombie process", "Processes", "A terminated process that still has a process-table entry because its parent has not collected its exit status."]
 ].map(([term, cat, def]) => ({ term, cat, def }));

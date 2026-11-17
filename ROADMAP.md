@@ -20,7 +20,7 @@ A working list of improvements to build together. Tick items off (`[x]`) as they
 
 ## Where we are today (baseline)
 
-* 12 modules with 25+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
+* 13 modules with 27+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
   fork tree, Banker's, race lab, process states).
 * Module 12: family tree and a compare tool for 14 operating systems (share a comparison via `#compare=windows,zos`).
 * About 100 glossary terms, each linked back to the lesson where it is discussed (`npm run build:glossary`).
@@ -159,7 +159,7 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 - [ ] **C-7 Storage reliability** (M). RAID levels, SSD wear leveling and write amplification, journaling crash recovery.
 - [ ] **C-8 More operating systems for the compare tool** (S each). HarmonyOS, Fuchsia, Solaris/illumos, OpenBSD, z/VM, z/TPF, watchOS/tvOS, Plan 9, Minix.
   Each needs all 15 profile rows and a place in the family tree (the data tests enforce this).
-- [ ] **C-9 Inter-process communication** (M). Pipes, shared memory, message passing, sockets with a visual.
+- [x] **C-9 Inter-process communication** (M). Pipes, shared memory, message passing, sockets with a visual. **Done:** Module 13, with a pipe and message-queue explorer, a cost comparison, and three tested C and Python examples (pipe, socket pair, shared memory).
 
 ## Phase 6: More learning features
 
