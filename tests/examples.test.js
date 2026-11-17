@@ -46,6 +46,8 @@
     pipe_fork: { unix: true, lines: () => ["child read 20 bytes: hello through a pipe", "child saw end of file", "parent wrote 20 bytes and the child exited with status 0"] },
     shared_memory: { unix: true, lines: () => ["ordinary variable after the child set it to 99: 1", "shared memory after the child set it to 99:     99"] },
     socket_pair: { unix: true, lines: () => ["parent sent:     ping", "parent received: PING"] },
+    resource_limits: { unix: true, lines: () => ["address-space limit set to 1024 MiB", "allocating 4 MiB: allowed", "allocating 2048 MiB: refused by the kernel"] },
+    ns_inherit: { unix: true, lines: () => ["every process belongs to one namespace of each kind: ipc, mnt, net, pid, user, uts (all present: True)", "a forked child is in the same namespaces as its parent: True"] },
     inode_links: { unix: true, lines: () => ["created original.txt: link count 1", "after link(): link count 2, same inode: yes", "the symbolic link has its own inode: yes", "after removing the original name: link count 1, data still readable: yes", "the symbolic link now dangles (opening it fails): yes"] }
   };
 
@@ -81,7 +83,7 @@
   });
 
   QUnit.test("each example pair has the same numbered comments in both languages and is plain ASCII", (assert) => {
-    assert.ok(STEMS.length >= 10);
+    assert.ok(STEMS.length >= 12);
     STEMS.forEach((stem) => {
       const markers = (ext) => fs.readFileSync(path.join(EX, `${stem}.${ext}`), "utf8").split("\n").flatMap((line) => { const i = line.search(/\/\*|\/\/|#/); return i < 0 ? [] : [...line.slice(i).matchAll(/\((\d+)\)/g)].map((m) => m[1]); });
       assert.ok(fs.existsSync(path.join(EX, `${stem}.c`)) && fs.existsSync(path.join(EX, `${stem}.py`)), `${stem} exists in both languages`);

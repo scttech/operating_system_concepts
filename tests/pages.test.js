@@ -58,7 +58,7 @@
   QUnit.module("pages: structure and loading");
 
   QUnit.test("The site has exactly the expected pages", (assert) => {
-    assert.equal(moduleFiles.length, 13, "13 module pages");
+    assert.equal(moduleFiles.length, 14, "14 module pages");
     globalThis.window = globalThis;
     require("../js/data/modules.js");
     assert.deepEqual(moduleFiles, globalThis.OSData.modules.map((m) => m.slug + ".html"), "module files match js/data/modules.js");
@@ -163,7 +163,7 @@
         // module pages: pager
         if (rel.startsWith("modules/")) {
           const n = +doc.body.dataset.module, pager = doc.querySelectorAll(".pager a");
-          assert.equal(pager.length, n === 1 || n === 13 ? 1 : 2, "prev/next pager");
+          assert.equal(pager.length, n === 1 || n === 14 ? 1 : 2, "prev/next pager");
           assert.ok(doc.querySelector("[data-quiz]"), "has a quiz");
           assert.ok(doc.querySelector("[data-sim]"), "has at least one simulation");
           assert.ok(doc.title.includes(`Module ${n}:`), "title carries module number");
@@ -183,7 +183,7 @@
 
   QUnit.test("Home: one card per module; theme toggle works", async (assert) => {
     await withPage("index.html", ({ window: w, document: doc }) => {
-      assert.equal(doc.querySelectorAll("#module-grid .card").length, 13);
+      assert.equal(doc.querySelectorAll("#module-grid .card").length, 14);
       assert.ok(!/Reflect/i.test(doc.getElementById("module-grid").textContent), "no reflection module");
       doc.getElementById("theme-toggle").click();
       assert.ok(["light", "dark"].includes(doc.documentElement.dataset.theme));
@@ -1177,6 +1177,86 @@
         assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]'));
         assert.ok(b.querySelectorAll(".marker").length >= 8, "numbered comments are badges in both listings");
       });
+    });
+  });
+
+  QUnit.module("pages: Module 14 (virtualization and containers)");
+
+  QUnit.test("Layer stacks: kernel count follows the approach", async (assert) => {
+    await withPage("modules/14-virtualization.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "virtstack"), kernels = () => s.querySelector(".metric b").textContent;
+      assert.equal(kernels(), "1", "containers share one kernel");
+      setValue(w, field(doc, "Approach"), "type1", "change");
+      assert.equal(kernels(), "3", "three applications in three VMs: three guest kernels");
+      setValue(w, field(doc, "Applications started"), 4);
+      assert.equal(kernels(), "4");
+      setValue(w, field(doc, "Approach"), "type2", "change");
+      assert.equal(kernels(), "5", "the host kernel as well");
+      assert.ok(/virtual machines on a desktop/i.test(text(s)) || /type 2/i.test(text(s)));
+      assert.ok(s.querySelector("svg").getAttribute("aria-label").includes("5 kernels"));
+    });
+  });
+
+  QUnit.test("Namespaces: ticking one changes only its own command; PID shows both numberings", async (assert) => {
+    await withPage("modules/14-virtualization.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "nsview"), rows = () => [...s.querySelectorAll("tbody tr")].map((tr) => [tr.children[0].textContent, tr.children[1].textContent, tr.children[2].textContent]);
+      const before = rows();
+      assert.ok(before.every((r) => r[2] === "the host's"));
+      const cb = [...s.querySelectorAll('input[type="checkbox"]')];
+      cb[0].checked = true; fire(w, cb[0], "change");
+      const after = rows(), changed = after.filter((r, i) => r[1] !== before[i][1]);
+      assert.equal(changed.length, 1, "only one command prints something different");
+      assert.equal(changed[0][0], "ps -e");
+      assert.ok(/^1 /.test(changed[0][1]) && /4150/.test(text(s)) && /Process 1 inside is the container's init/.test(text(s)), "the PID view starts at 1 and explains the numbering");
+      button(s, "Full container").click();
+      assert.ok(rows().every((r) => /private/.test(r[2])) && cb.every((c) => c.checked));
+      button(s, "Ordinary process").click();
+      assert.ok(rows().every((r) => r[2] === "the host's") && cb.every((c) => !c.checked));
+    });
+  });
+
+  QUnit.test("CPU control groups: shares, caps and the explanation of who is held back", async (assert) => {
+    await withPage("modules/14-virtualization.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "cgcpu"), label = () => s.querySelector("svg").getAttribute("aria-label");
+      const L = w.OSLib;
+      const want = L.cgAllocate([{ name: "web", weight: 200, demand: 3, cap: null }, { name: "database", weight: 100, demand: 3, cap: null }, { name: "batch job", weight: 100, demand: 4, cap: 1 }], 4);
+      assert.equal(want[2].state, "capped");
+      assert.ok(label().includes(`batch job ${want[2].alloc.toFixed(2)} of 4 cores`), label());
+      assert.ok(label().includes(`web ${want[0].alloc.toFixed(2)} of 3 cores`));
+      setValue(w, field(doc, "CPU cores in the machine"), 8);
+      assert.ok(label().includes("web 3.00 of 3 cores") && label().includes("database 3.00 of 3 cores"), "with 8 cores web and database are fully served");
+      assert.ok(label().includes("batch job 1.00 of 4 cores"), "the cap still holds the batch job to one core");
+      assert.ok(/held back by its cap/.test(text(s)));
+    });
+  });
+
+  QUnit.test("Memory control group: the OOM kill stays inside the group", async (assert) => {
+    await withPage("modules/14-virtualization.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "cgmem"), result = () => [...s.querySelectorAll("tbody tr")].map((tr) => [tr.children[0].textContent, tr.children[2].textContent]);
+      assert.deepEqual(result().map((r) => r[1]), ["killed (OOM)", "running", "running"], "300 + 120 + 150 = 570 MiB exceeds 512, so the largest (database) is killed and the rest fit");
+      setValue(w, field(doc, "Group memory limit"), 1000);
+      assert.deepEqual(result().map((r) => r[1]), ["running", "running", "running"]);
+      assert.ok(/Everything fits/.test(text(s)));
+      setValue(w, field(doc, "Group memory limit"), 100);
+      assert.ok(result().filter((r) => r[1] === "killed (OOM)").length >= 2, "a tiny limit kills several, largest first");
+    });
+  });
+
+  QUnit.test("VM exits table agrees with the library", async (assert) => {
+    await withPage("modules/14-virtualization.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "vmexits"), exits = () => [...s.querySelectorAll("tbody tr")].map((tr) => tr.children[1].textContent);
+      const L = w.OSLib;
+      assert.deepEqual(exits(), ["7,000", L.vmExits(1000, 32, "virtio", 2000).exits.toLocaleString(), "0"]);
+      setValue(w, field(doc, "Virtio batch size"), 1);
+      assert.equal(exits()[1], "2,000");
+    });
+  });
+
+  QUnit.test("Module 14 shows two C and Python example pairs with notes for both languages", async (assert) => {
+    await withPage("modules/14-virtualization.html", ({ document: doc }) => {
+      const boxes = [...doc.querySelectorAll(".code-tabs")];
+      assert.deepEqual(boxes.map((b) => b.querySelector("pre.code").dataset.src), ["examples/ns_inherit.c", "examples/resource_limits.c"]);
+      boxes.forEach((b) => { assert.deepEqual(tabsOf(b).map((t) => t.textContent), ["C", "Python"]); assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]')); });
     });
   });
 

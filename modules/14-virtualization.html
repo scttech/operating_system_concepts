@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 14: Virtualization and Containers — OS Concepts</title>
+<meta name="description" content="Hypervisors and virtual machines, containers built from namespaces and control groups, and what each one really isolates.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="14">
+<main>
+  <p class="eyebrow">Module 14</p>
+  <h1>Virtualization and Containers</h1>
+  <p class="lead">An operating system already makes one computer look like many: each process believes it has the CPU and its own memory. <b>Virtualization</b> pushes that idea further, so that a whole <em>machine</em> or a whole <em>system environment</em> can be copied, moved, limited and thrown away.</p>
+
+  <div class="toc"><strong>On this page</strong>
+    <ul><li><a href="#why">Why virtualize?</a></li><li><a href="#vm">Virtual machines</a></li><li><a href="#containers">Containers</a></li><li><a href="#cgroups">Limits: control groups</a></li><li><a href="#compare">VM or container?</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
+
+  <h2 id="why">Why virtualize?</h2>
+  <ul>
+    <li><b>Sharing hardware.</b> Most servers sit mostly idle. Several isolated workloads on one machine use it far better.</li>
+    <li><b>Isolation.</b> A crash or compromise in one environment should not spread to its neighbors.</li>
+    <li><b>Packaging and repeatability.</b> An environment that is described exactly (the same libraries, the same settings) behaves the same on a laptop and in a data center.</li>
+    <li><b>Mobility.</b> If a workload is a bundle of state, it can be moved, copied, snapshotted and rolled back.</li>
+  </ul>
+  <p>There are two main answers, and they sit at different levels. A <b>virtual machine</b> virtualizes the <em>hardware</em>, so each environment runs its own whole operating system. A <b>container</b> virtualizes the <em>operating system</em>, so every environment shares one kernel but sees a private view of it.</p>
+  <div data-sim="virtstack"></div>
+  <div class="callout"><p><b>Try it:</b> start four applications with each approach and watch the kernel count. Containers stay at one. Virtual machines pay for one kernel per VM. In the cloud design, a container’s neighbors share a kernel only if they belong to the same customer’s VM.</p></div>
+
+  <h2 id="vm">Virtual machines</h2>
+  <p>A <dfn data-term="Virtual machine">virtual machine (VM)</dfn> is a complete, software-defined computer: virtual CPUs, memory, disks and network cards. A <dfn data-term="Hypervisor">hypervisor</dfn> (also called a virtual machine monitor) creates VMs and shares the real hardware among them. A <b>type 1</b> hypervisor (Xen, ESXi, Hyper-V, or KVM inside Linux) is the lowest layer of software. A <b>type 2</b> hypervisor (the desktop virtualization programs) runs as an ordinary program on a host OS.</p>
+  <h3>How the CPU is shared</h3>
+  <p>The guest operating system believes it runs in kernel mode and may execute privileged instructions, but the hypervisor cannot allow that, or the guest could take over the machine. Early virtualization used <em>trap-and-emulate</em>: the guest actually runs in user mode, the first privileged instruction traps (as in <a href="01-fundamentals.html">Module 1</a>), and the hypervisor emulates what the instruction would have done and resumes the guest. Some older CPUs had instructions that misbehaved silently instead of trapping, so products rewrote the guest’s code on the fly. Modern CPUs (Intel VT-x, AMD-V, ARM virtualization extensions) add a dedicated <em>guest mode</em>, so most guest code runs at full speed and the hardware does the switch for you.</p>
+  <h3>How memory is shared</h3>
+  <p>The guest has its own page tables mapping guest-virtual addresses to what it thinks is physical memory. The hypervisor adds another level of translation behind it (nested or extended page tables), which is the “virtual machines pay twice” point from <a href="08-memory.html">Module 8</a>. The hypervisor can then give each VM a different slice of real RAM, or even promise more than exists.</p>
+  <h3>How I/O is shared</h3>
+  <p>Pretending to be a real network card is simple but slow, because each poke at a pretend register stops the guest: a <dfn data-term="VM exit">VM exit</dfn>. <dfn data-term="Paravirtualization">Paravirtualized</dfn> devices such as <em>virtio</em> trade the pretence for cooperation: the guest knows it is a guest, queues many requests in memory it shares with the hypervisor, and exits once per batch.</p>
+  <div data-sim="vmexits"></div>
+  <div class="callout"><p><b>Try it:</b> send 1,000 packets, then set the batch size to 1 and watch virtio lose most of its advantage. Then raise the exit cost: the more expensive an exit is, the more batching and passthrough matter.</p></div>
+
+  <h2 id="containers">Containers</h2>
+  <p>A <dfn data-term="Container">container</dfn> is not a new kernel feature. It is an ordinary process that the kernel has been asked to <em>restrict</em> in two ways: what it can <b>see</b>, and how much it can <b>use</b>. Add a packaged file tree (a <dfn data-term="Container image">container image</dfn>) as its root directory and it looks like a small private computer.</p>
+  <p>What it can see is controlled by <dfn data-term="Namespace">namespaces</dfn>. There is one for process IDs, one for the file system tree, one for the network, and so on. A process always belongs to one namespace of each kind; a container runtime simply starts it in <em>new</em> ones.</p>
+  <div data-sim="nsview"></div>
+  <div class="callout"><p><b>Try it:</b> start with “Ordinary process” and tick one namespace at a time. Notice that each one changes only its own command. Process isolation is built from independent pieces, which is why runtimes can mix them (for example a pod of containers that share one network namespace). Then try the “Only PID” preset: the process sees only itself, but still shares the host’s network and files.</p></div>
+
+  <h3>Try it: every process is already in namespaces</h3>
+  <div class="code-tabs" aria-label="Namespace example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> the kernel exposes namespaces as symbolic links in <code>/proc/&lt;pid&gt;/ns/</code>, and <code>readlink</code> shows the identifier of each one. Two processes with the same identifier share that namespace. The example shows that <em>every</em> process has one of each kind, and that <code>fork</code> copies the memberships. A container runtime starts its child with <code>clone</code> or <code>unshare</code> flags such as <code>CLONE_NEWPID</code> instead, which is the only difference.</p></div>
+    <pre class="code" data-src="examples/ns_inherit.c"><code>/* Every process already lives inside namespaces; a container is just a process given different ones. Linux only. */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/wait.h&gt;
+#include &lt;unistd.h&gt;
+
+static const char *KINDS[] = { "ipc", "mnt", "net", "pid", "user", "uts" };
+#define NKINDS 6
+
+/* Read where /proc/&lt;pid&gt;/ns/&lt;kind&gt; points, for example "pid:[4026531836]". */
+static int ns_id(const char *pid, const char *kind, char *out, size_t size) {
+    char path[64];
+    snprintf(path, sizeof path, "/proc/%s/ns/%s", pid, kind);
+    ssize_t n = readlink(path, out, size - 1);
+    if (n &lt; 0) return 0;
+    out[n] = '\0';
+    return 1;
+}
+
+int main(void) {
+    int present = 0;
+    char mine[NKINDS][64];
+    for (int i = 0; i &lt; NKINDS; i++) present += ns_id("self", KINDS[i], mine[i], sizeof mine[i]);   /* (1) one link per kind of namespace: this process is in every kind */
+    printf("every process belongs to one namespace of each kind: ipc, mnt, net, pid, user, uts (all present: %s)\n", present == NKINDS ? "True" : "False");
+
+    int gate[2];
+    if (pipe(gate) != 0) return 1;
+    pid_t child = fork();
+    if (child &lt; 0) return 1;
+    if (child == 0) {                                  /* (2) the child just waits, so the parent can look at it */
+        close(gate[1]);
+        char c;
+        if (read(gate[0], &amp;c, 1) &lt; 0) return 1;
+        return 0;
+    }
+    close(gate[0]);
+    char pid[24], theirs[64];
+    snprintf(pid, sizeof pid, "%d", (int)child);
+    int same = 1;
+    for (int i = 0; i &lt; NKINDS; i++)
+        if (!ns_id(pid, KINDS[i], theirs, sizeof theirs) || strcmp(mine[i], theirs) != 0) same = 0;   /* (3) fork copies the namespace memberships: same identifiers */
+    printf("a forked child is in the same namespaces as its parent: %s\n", same ? "True" : "False");
+    close(gate[1]);                                    /* (4) a container runtime would instead start the child with clone() or unshare() flags that give it NEW namespaces */
+    wait(NULL);
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python can do this directly</b> with <code>os.readlink</code>, so it is no more contrived than the C version, and the comparison of the two dictionaries is shorter. Creating new namespaces is possible too (<code>os.unshare</code> arrived in Python 3.12), but it needs elevated privileges, so this example only looks. Linux only: <code>/proc</code> does not exist on macOS or Windows.</p></div>
+    <pre class="code" data-src="examples/ns_inherit.py"><code>"""Every process already lives inside namespaces; a container is just a process given different ones. Linux only."""
+import os
+
+KINDS = ["ipc", "mnt", "net", "pid", "user", "uts"]
+
+
+def ns_ids(pid):
+    """Where /proc/&lt;pid&gt;/ns/&lt;kind&gt; points, for example 'pid:[4026531836]'."""
+    out = {}
+    for kind in KINDS:
+        try:
+            out[kind] = os.readlink(f"/proc/{pid}/ns/{kind}")
+        except OSError:
+            pass
+    return out
+
+
+mine = ns_ids("self")                                              # (1) one link per kind of namespace: this process is in every kind
+print(f"every process belongs to one namespace of each kind: {', '.join(KINDS)} (all present: {len(mine) == len(KINDS)})")
+
+gate_read, gate_write = os.pipe()
+child = os.fork()
+if child == 0:                                                     # (2) the child just waits, so the parent can look at it
+    os.close(gate_write)
+    os.read(gate_read, 1)
+    os._exit(0)
+os.close(gate_read)
+same = ns_ids(child) == mine                                       # (3) fork copies the namespace memberships: same identifiers
+print(f"a forked child is in the same namespaces as its parent: {same}")
+os.close(gate_write)
+# (4) a container runtime would instead start the child with clone() or unshare() flags that give it NEW namespaces
+os.waitpid(child, 0)</code></pre>
+  </div>
+  <p>Because the kernel is shared, a container is limited to what that kernel can run. A Linux container needs a Linux kernel. That is why Docker on a Mac or Windows laptop quietly starts a small Linux virtual machine and runs all containers in it.</p>
+
+  <h2 id="cgroups">Limits: control groups</h2>
+  <p>Namespaces do not stop one container from eating all the memory. That is the job of <dfn data-term="Control group (cgroup)">control groups (cgroups)</dfn>, which let the kernel limit and account for the CPU, memory, disk I/O and number of processes used by a group. Compare the CPU controls to the scheduling algorithms in <a href="04-scheduling.html">Module 4</a>: weights give proportional shares under contention (as in a fair-share scheduler), while a cap is a hard limit.</p>
+  <div data-sim="cgcpu"></div>
+  <div class="callout"><p><b>Try it:</b> set the cap on the batch job to none and watch it take its share. Then make the web group ask for just one core and see the others receive the leftover. That is what <em>work-conserving</em> means. Finally put a cap on a group when the machine is nearly idle: the cap holds it back anyway.</p></div>
+  <div data-sim="cgmem"></div>
+  <div class="callout"><p><b>Try it:</b> lower the limit until the database no longer fits. Memory is different from CPU: a group that wants too much CPU is only slowed down, but memory cannot be taken back from a running program, so something has to die.</p></div>
+
+  <h3>Try it: a limit enforced by the kernel</h3>
+  <div class="code-tabs" aria-label="Resource limit example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>setrlimit</code> is the older, per-process cousin of a cgroup limit, and it shows the key behavior: the kernel enforces the limit, the allocation request <em>fails</em>, and the program can notice and carry on. A cgroup memory limit is the same idea applied to a group, except that it can also kill. (The 1024 MiB figure is the limit; the 2048 MiB request is refused. Linux only, because other systems do not enforce <code>RLIMIT_AS</code> the same way.)</p></div>
+    <pre class="code" data-src="examples/resource_limits.c"><code>/* A kernel-enforced memory limit: the same idea control groups apply to a whole container. Linux only. */
+#define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+#include &lt;stdio.h&gt;
+#include &lt;sys/mman.h&gt;
+#include &lt;sys/resource.h&gt;
+
+static const char *try_allocate(size_t mib) {
+    void *p = mmap(NULL, mib * 1024 * 1024, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (p == MAP_FAILED) return "refused by the kernel";
+    munmap(p, mib * 1024 * 1024);
+    return "allowed";
+}
+
+int main(void) {
+    struct rlimit limit = { 1024UL * 1024 * 1024, 1024UL * 1024 * 1024 };
+    if (setrlimit(RLIMIT_AS, &amp;limit) != 0) return 1;      /* (1) cap this process's address space at 1024 MiB; the kernel enforces it from now on */
+    printf("address-space limit set to 1024 MiB\n");
+    printf("allocating 4 MiB: %s\n", try_allocate(4));         /* (2) well inside the limit: the request succeeds */
+    printf("allocating 2048 MiB: %s\n", try_allocate(2048));   /* (3) over the limit: the kernel says no, and the program is not killed */
+    return 0;                                                  /* (4) a cgroup memory limit works the same way for a group of processes, but it can also kill */
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>The same call is available</b> as <code>resource.setrlimit</code>. In Python the refusal shows up as an exception (<code>OSError</code> or <code>MemoryError</code>) instead of a special return value (<code>MAP_FAILED</code>) that C code must remember to check. Python programs seldom set these limits themselves; a container runtime or the shell’s <code>ulimit</code> does it for them.</p></div>
+    <pre class="code" data-src="examples/resource_limits.py"><code>"""A kernel-enforced memory limit: the same idea control groups apply to a whole container. Linux only."""
+import mmap
+import resource
+
+MIB = 1024 * 1024
+
+
+def try_allocate(mib):
+    try:
+        mmap.mmap(-1, mib * MIB).close()
+    except (OSError, MemoryError):
+        return "refused by the kernel"
+    return "allowed"
+
+
+resource.setrlimit(resource.RLIMIT_AS, (1024 * MIB, 1024 * MIB))      # (1) cap this process's address space at 1024 MiB; the kernel enforces it from now on
+print("address-space limit set to 1024 MiB")
+print(f"allocating 4 MiB: {try_allocate(4)}")                         # (2) well inside the limit: the request succeeds
+print(f"allocating 2048 MiB: {try_allocate(2048)}")                   # (3) over the limit: the kernel says no, and the program is not killed
+# (4) a cgroup memory limit works the same way for a group of processes, but it can also kill</code></pre>
+  </div>
+
+  <h2 id="compare">VM or container?</h2>
+  <div data-sim="isolation"></div>
+  <p>The trade-off is <b>strength of isolation against weight</b>. A container starts in a fraction of a second and costs little memory, but a bug in the shared kernel is a bug for every container on it. A VM puts a hypervisor, a much smaller interface than the whole system-call table, between the tenants, at the price of a kernel per VM. Security-sensitive platforms therefore combine them: containers for packaging and speed, a VM boundary between customers.</p>
+  <div class="callout"><p><b>Optional, on a Linux machine with root access</b> (the site’s tests do not run this): <code>sudo unshare --pid --fork --mount-proc ps -e</code> starts <code>ps</code> in new PID and mount namespaces. It lists only itself, as PID 1. That is the “Only PID” view from the simulator on your own system.</p></div>
+
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: how the pieces really fit</summary>
+    <ul>
+      <li><b>Image layers.</b> A container image is a stack of read-only layers (each one a set of file changes) combined by a union file system such as overlayfs, with a thin writable layer on top. Ten containers from one image share the lower layers on disk and in the page cache, which is much of why they are cheap.</li>
+      <li><b>Capabilities and system-call filters.</b> Container runtimes drop most of root’s powers (see <a href="02-security.html">Module 2</a>) and install a <em>seccomp</em> filter listing which system calls are allowed. A user namespace can also map “root inside” to an unprivileged ID on the host, which is how rootless containers work.</li>
+      <li><b>MicroVMs and sandboxes.</b> Firecracker boots a minimal VM in roughly a tenth of a second with very few virtual devices, so each customer function gets a VM boundary at nearly container speed. gVisor and Kata Containers go the other ways: gVisor intercepts system calls in a user-space “kernel”, and Kata runs each pod in a lightweight VM.</li>
+      <li><b>Hardware assists.</b> Beyond VT-x there are nested page tables (EPT/NPT) for memory, an IOMMU to keep a device inside its owner’s memory, SR-IOV to split one network card into many virtual ones, and confidential-computing extensions that encrypt a VM’s memory even from the hypervisor.</li>
+      <li><b>Live migration.</b> A running VM can move between hosts with almost no pause: the hypervisor copies memory while the guest keeps running, tracks which pages get dirtied (using the page-table dirty bits from <a href="09-virtual-memory.html">Module 9</a>), re-copies them, and finally pauses the guest for a few milliseconds to move the last of its state.</li>
+      <li><b>Memory overcommit in VMs.</b> Hypervisors reclaim memory from idle guests with <em>ballooning</em> (a driver in the guest asks its own OS for pages and hands them back), share identical pages, and compress or swap as a last resort. A guest that does not know it is being squeezed can choose its own page replacement badly.</li>
+      <li><b>Orchestration.</b> Kubernetes schedules <em>pods</em> (groups of containers that share a network namespace) onto machines using the CPU and memory requests that become cgroup settings. It is a cluster-wide scheduler in the sense of <a href="04-scheduling.html">Module 4</a>, placing work rather than time slices.</li>
+    </ul>
+  </details>
+
+  <h2 id="quiz">Check your understanding</h2>
+  <div data-quiz="14"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/virt.js"></script>
+<script src="../js/sims/m14-virt.js"></script>
+</body>
+</html>

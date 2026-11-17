@@ -39,5 +39,8 @@ window.OSData.modules = [
     tags: ["mobile", "mainframe", "compare"] },
   { n: 13, slug: "13-ipc",               title: "Inter-Process Communication",
     summary: "Pipes, message queues, sockets and shared memory: how isolated processes talk, when each side must wait, and what each choice costs.",
-    tags: ["pipe", "sockets", "shared memory"] }
+    tags: ["pipe", "sockets", "shared memory"] },
+  { n: 14, slug: "14-virtualization",   title: "Virtualization & Containers",
+    summary: "Hypervisors and virtual machines, containers built from namespaces and control groups, and what each one really isolates.",
+    tags: ["hypervisor", "namespaces", "cgroups"] }
 ];

@@ -20,7 +20,7 @@ A working list of improvements to build together. Tick items off (`[x]`) as they
 
 ## Where we are today (baseline)
 
-* 13 modules with 27+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
+* 14 modules with 32+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
   fork tree, Banker's, race lab, process states).
 * Module 12: family tree and a compare tool for 14 operating systems (share a comparison via `#compare=windows,zos`).
 * About 100 glossary terms, each linked back to the lesson where it is discussed (`npm run build:glossary`).
@@ -145,7 +145,7 @@ Goal: hands-on practice that matches the syllabus activities (system utility pro
 
 Each new module follows the existing pattern: lesson, one or more simulations (pure logic in `js/lib/` with tests, UI in `js/sims/`), quiz questions, glossary terms with `<dfn>` markers, and FAQ entries.
 
-- [ ] **C-1 Virtualization and containers** (L). Hypervisors (type 1 and 2), VMs vs. containers, namespaces, cgroups, a "what is isolated?" comparison.
+- [x] **C-1 Virtualization and containers** (L). Hypervisors (type 1 and 2), VMs vs. containers, namespaces, cgroups, a "what is isolated?" comparison. **Done:** Module 14, with five simulations and two tested C and Python examples.
 - [ ] **C-2 Boot process** (M). Firmware (BIOS/UEFI), bootloader, kernel start, init. A step-through animation.
 - [x] **C-3 Multi-level page tables and TLB simulator** (L). Module 8 describes these but has no simulation.
   *Result:* a general N-level page-table and TLB library (`js/lib/pagetable.js`, tested against independent BigInt calculations and

@@ -37,6 +37,7 @@ python -m http.server 8000      # or: npm run serve
 | 11 | File systems | Allocation methods, inode capacity calculator |
 | 12 | Beyond Windows, macOS & Linux | OS family tree, **compare tool** for 14 systems: Android, iOS, Qubes OS, Raspberry Pi OS, ChromeOS, FreeBSD, FreeRTOS, QNX and the IBM mainframe/midrange systems z/OS (MVS), z/VSE and IBM i |
 | 13 | Inter-process communication | Pipe and message-queue explorer (blocking, end of file, broken pipe), IPC cost comparison, C and Python examples for pipes, sockets and shared memory |
+| 14 | Virtualization & containers | What-runs-on-what stacks, namespace explorer, CPU and memory control groups, VM-exit counter, C and Python examples for namespaces and resource limits |
 
 ### Animations
 
