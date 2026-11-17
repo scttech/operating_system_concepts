@@ -18,7 +18,7 @@ window.OSData.glossaryIndex = {
   "Boot loader": [{"m":1,"kind":"dfn","id":"term-boot-loader","where":"What an OS does"},{"m":16,"kind":"dfn","id":"term-boot-loader","where":"The stages"}],
   "Bounded waiting": [{"m":6,"kind":"dfn","id":"term-bounded-waiting","where":"The critical-section problem"}],
   "Broken pipe": [{"m":13,"kind":"dfn","id":"term-broken-pipe","where":"Pipes"}],
-  "Buffer": [{"m":10,"kind":"dfn","id":"term-buffer","where":"Talking to devices"},{"m":1,"kind":"mention"},{"m":2,"kind":"mention"},{"m":6,"kind":"mention"},{"m":13,"kind":"mention"},{"m":15,"kind":"mention"}],
+  "Buffer": [{"m":10,"kind":"dfn","id":"term-buffer","where":"Talking to devices"},{"m":1,"kind":"mention"},{"m":2,"kind":"mention"},{"m":6,"kind":"mention"},{"m":13,"kind":"mention"},{"m":14,"kind":"mention"},{"m":15,"kind":"mention"}],
   "Burst time": [{"m":4,"kind":"dfn","id":"term-burst-time","where":"CPU Scheduling"}],
   "Byte stream": [{"m":13,"kind":"dfn","id":"term-byte-stream","where":"Pipes"}],
   "Cache": [{"m":10,"kind":"dfn","id":"term-cache","where":"Talking to devices"},{"m":4,"kind":"mention"},{"m":8,"kind":"mention"},{"m":9,"kind":"mention"},{"m":11,"kind":"mention"},{"m":15,"kind":"mention"},{"m":17,"kind":"mention"}],

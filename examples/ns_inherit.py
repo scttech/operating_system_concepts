@@ -1,5 +1,6 @@
 """Every process already lives inside namespaces; a container is just a process given different ones. Linux only."""
 import os
+import sys
 
 KINDS = ["ipc", "mnt", "net", "pid", "user", "uts"]
 
@@ -18,6 +19,7 @@ def ns_ids(pid):
 mine = ns_ids("self")                                              # (1) one link per kind of namespace: this process is in every kind
 print(f"every process belongs to one namespace of each kind: {', '.join(KINDS)} (all present: {len(mine) == len(KINDS)})")
 
+sys.stdout.flush()                                                 # without this, the child would inherit the unwritten text in the buffer and could print it a second time
 gate_read, gate_write = os.pipe()
 child = os.fork()
 if child == 0:                                                     # (2) the child just waits, so the parent can look at it

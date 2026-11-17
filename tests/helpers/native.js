@@ -15,6 +15,9 @@ const FLAGS = ["-std=c99", "-D_POSIX_C_SOURCE=200809L", "-Wall", "-Wextra", "-We
 /** C files that need C11 (for example <stdatomic.h>) say so in their first lines: a comment containing "build: c11". */
 const flagsFor = (file) => (/build: c11/.test(fs.readFileSync(file, "utf8").slice(0, 200)) ? FLAGS.map((f) => (f === "-std=c99" ? "-std=c11" : f)) : FLAGS);
 const isWindows = process.platform === "win32";
+/** Container image for the opt-in Docker runs. Default Alpine (musl); try EXAMPLES_IMAGE=debian:stable-slim to check against glibc, which is what Linux CI uses. */
+const IMAGE = process.env.EXAMPLES_IMAGE || "alpine:3.20";
+const INSTALL = /alpine/.test(IMAGE) ? "apk add --no-cache gcc musl-dev python3 procps >/dev/null 2>&1" : "apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq gcc libc6-dev python3 procps >/dev/null 2>&1";
 
 /** Can this machine compile and run C that needs a Unix-like system (fork, pthreads)? */
 const nativeUnixC = !!CC && !isWindows;
@@ -48,7 +51,7 @@ function inContainer(dir, files) {
       ? `echo "@@${f}"; if gcc ${flagsFor(path.join(dir, f)).join(" ")} -o /tmp/${base} /src/${f} 2>/tmp/${base}.err; then /tmp/${base}; echo "@@status $?"; else echo "@@compile-failed"; cat /tmp/${base}.err; fi`
       : `echo "@@${f}"; python3 /src/${f}; echo "@@status $?"`;
   }).join("; ");
-  const r = spawnSync("docker", ["run", "--rm", "-v", `${dir}:/src:ro`, "alpine:3.20", "sh", "-c", `apk add --no-cache gcc musl-dev python3 procps >/dev/null 2>&1; ${steps}`],
+  const r = spawnSync("docker", ["run", "--rm", "-v", `${dir}:/src:ro`, IMAGE, "sh", "-c", `${INSTALL}; ${steps}`],
     { encoding: "utf8", timeout: 600000, env: { ...process.env, MSYS_NO_PATHCONV: "1" } });
   // Parse the sections: "@@<file>" starts one, "@@status N" is its exit code, "@@compile-failed" marks a build error (its text follows).
   const result = {};

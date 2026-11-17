@@ -4,6 +4,8 @@
 
 # Operating System Concepts
 
+[![Test and deploy to GitHub Pages](https://github.com/scttech/operating_system_concepts/actions/workflows/pages.yml/badge.svg)](https://github.com/scttech/operating_system_concepts/actions/workflows/pages.yml)
+
 **[Live demo: https://scttech.github.io/operating_system_concepts/](https://scttech.github.io/operating_system_concepts/)**
 
 An interactive, static website for learning operating-system concepts. Each module has a short explanation,
@@ -106,7 +108,7 @@ What is covered:
 * **Lesson code examples** (`tests/examples.test.js`): every example (page-table translation, system call versus stdio, file modes, threads, spinlock, page faults, inode links) is
   compiled in C with `-Wall -Wextra -Werror -pedantic` and run, its Python partner is run, and both must print exactly the expected lines, byte for byte the same (the page-table
   and thread-sum expectations come from independent calculations). A further test requires every example to be shown in a lesson with a note for each language. This needs a C compiler
-  (`CC`, `gcc`, `cc` or `clang`); without one set `EXAMPLES_DOCKER=1` to compile in a throwaway Alpine container, or the C checks are skipped.
+  (`CC`, `gcc`, `cc` or `clang`); without one set `EXAMPLES_DOCKER=1` to compile in a throwaway Alpine container, or the C checks are skipped. Linux CI uses glibc, so also try `EXAMPLES_IMAGE=debian:stable-slim` (with `EXAMPLES_DOCKER=1`) before pushing.
   CI (Linux) has `gcc`.
 * **Python labs** (`tests/labs.test.js`): every lab script is actually executed and its output checked (a lock fixes the
   race, naive philosophers deadlock, fork and zombie behavior on Linux, and so on), and each lab page must show exactly the

@@ -24,6 +24,7 @@ int main(void) {
     for (int i = 0; i < NKINDS; i++) present += ns_id("self", KINDS[i], mine[i], sizeof mine[i]);   /* (1) one link per kind of namespace: this process is in every kind */
     printf("every process belongs to one namespace of each kind: ipc, mnt, net, pid, user, uts (all present: %s)\n", present == NKINDS ? "True" : "False");
 
+    fflush(stdout);                                    /* without this, the child would inherit the unwritten text in the buffer and print it a second time */
     int gate[2];
     if (pipe(gate) != 0) return 1;
     pid_t child = fork();

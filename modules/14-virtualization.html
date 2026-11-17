@@ -74,6 +74,7 @@ int main(void) {
     for (int i = 0; i &lt; NKINDS; i++) present += ns_id("self", KINDS[i], mine[i], sizeof mine[i]);   /* (1) one link per kind of namespace: this process is in every kind */
     printf("every process belongs to one namespace of each kind: ipc, mnt, net, pid, user, uts (all present: %s)\n", present == NKINDS ? "True" : "False");
 
+    fflush(stdout);                                    /* without this, the child would inherit the unwritten text in the buffer and print it a second time */
     int gate[2];
     if (pipe(gate) != 0) return 1;
     pid_t child = fork();
@@ -98,6 +99,7 @@ int main(void) {
     <div class="lang-note" data-lang="python"><p><b>Python can do this directly</b> with <code>os.readlink</code>, so it is no more contrived than the C version, and the comparison of the two dictionaries is shorter. Creating new namespaces is possible too (<code>os.unshare</code> arrived in Python 3.12), but it needs elevated privileges, so this example only looks. Linux only: <code>/proc</code> does not exist on macOS or Windows.</p></div>
     <pre class="code" data-src="examples/ns_inherit.py"><code>"""Every process already lives inside namespaces; a container is just a process given different ones. Linux only."""
 import os
+import sys
 
 KINDS = ["ipc", "mnt", "net", "pid", "user", "uts"]
 
@@ -116,6 +118,7 @@ def ns_ids(pid):
 mine = ns_ids("self")                                              # (1) one link per kind of namespace: this process is in every kind
 print(f"every process belongs to one namespace of each kind: {', '.join(KINDS)} (all present: {len(mine) == len(KINDS)})")
 
+sys.stdout.flush()                                                 # without this, the child would inherit the unwritten text in the buffer and could print it a second time
 gate_read, gate_write = os.pipe()
 child = os.fork()
 if child == 0:                                                     # (2) the child just waits, so the parent can look at it
