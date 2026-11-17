@@ -134,6 +134,11 @@ What is covered:
   gives a hover definition that links to the glossary, and marks the spot the glossary links *back* to ("First discussed in
   Module 7 (…)"). After adding or moving terms in lessons, run `npm run build:glossary` to regenerate
   `js/data/glossary-index.js`. The tests fail if that file is out of date, and every term must be discussed in some lesson.
+* **Search:** the site-wide search (`search.html`) reads the glossary, FAQ, labs, module list and OS profiles directly, and the text of
+  every lesson section, lab guide and cheat-sheet section from `js/data/search-index.js`. After editing any page text, run
+  `npm run build:search`; the tests fail if it is out of date. Headings get link targets automatically, so you do not need to give them ids.
+* **Course parts:** `OSData.parts` in `js/data/modules.js` groups the modules into parts and sets the reading order (the home page,
+  the Modules menu and the Previous/Next links all follow it). A new module must be listed in exactly one part; a test checks this.
 * **Simulation:** put pure logic in `js/lib/` (with a test), write the UI in `js/sims/` using `OSUI.register("name", fn)`,
   then drop `<div data-sim="name"></div>` into a page and include the scripts.
 * **Code sample in two languages:** put `name.c` and `name.py` in `examples/` with the same `(1)`, `(2)` comment numbers and identical

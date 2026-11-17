@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search — OS Concepts</title>
+<meta name="description" content="Search every lesson, glossary term, FAQ answer, lab and operating-system profile on the site.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="search">
+<main class="narrow">
+  <h1>Search</h1>
+  <p class="lead">Look across the lessons, glossary, FAQ, labs, cheat sheet and operating-system profiles at once. All words you type must appear.</p>
+  <form role="search" id="search-form" class="controls" action="search.html" method="get">
+    <label><span>Search the site</span><input class="search" id="q" name="q" type="search" placeholder="e.g. page fault, semaphore, Android…" autocomplete="off" autofocus></label>
+    <label><span>Show</span><select id="kind"></select></label>
+    <button class="btn" type="submit">Search</button>
+  </form>
+  <p id="status" class="small" aria-live="polite"></p>
+  <ol id="results" class="results"></ol>
+  <noscript><p>Search needs JavaScript. The <a href="glossary.html">glossary</a> and <a href="faq.html">FAQ</a> pages can be read without it.</p></noscript>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/data/faq.js"></script>
+<script src="js/data/labs.js"></script>
+<script src="js/data/oslist.js"></script>
+<script src="js/data/search-index.js"></script>
+<script src="js/lib/search.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+<script src="js/pages/search.js"></script>
+</body>
+</html>

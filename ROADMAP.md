@@ -165,7 +165,7 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 
 - [x] **L-8 "Going deeper" tiers for every module** (L). Add an opt-in advanced block to each lesson (the pattern from Module 8) so readers can move from beginner to advanced inside one site. **Done:** every module 1–12 has one, and a page test requires it.
 - [x] **L-9 C | Python tabs in the labs and older lessons** (M). Where C shows the real thing better (`fork`/`exec`, threads with pthreads, semaphores, signals), add a tested C version next to the Python one, with a note on how the two differ. **Done:** Labs 1, 2 and 4 and seven lesson examples (modules 1, 2, 5, 6, 8, 9, 11) have tested C and Python tabs.
-- [ ] **L-10 Group modules into parts** (M). Foundations, Systems in practice, Security, Modern infrastructure, so the list stays coherent as it grows past 12 modules.
+- [x] **L-10 Group modules into parts** (M). Foundations, Systems in practice, Security, Modern infrastructure, so the list stays coherent as it grows past 12 modules. **Done:** five parts with a reading order; the home page, jump menu and Previous/Next links follow it, and each lesson names its part.
 - [ ] **L-1 Learning objectives, key takeaways and further reading** per module (M). Map objectives to the course competencies. Include free references (for example OSTEP) next to the course text.
 - [ ] **L-2 Flashcards** (S). Built from the glossary, with "I knew it / still learning" piles.
 - [ ] **L-3 Progress tracking** (M). Modules visited and quiz scores kept in the student's own browser. Private by default; the instructor cannot see it, and students can export or clear it.
@@ -176,7 +176,7 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 
 ## Phase 7: Site polish
 
-- [ ] **P-1 Site-wide search** (M). Client-side index of lessons, glossary and FAQ.
+- [x] **P-1 Site-wide search** (M). Client-side index of lessons, glossary and FAQ. **Done:** `search.html`, covering lessons, glossary, FAQ, labs, cheat sheet and OS profiles, with a generated page-text index and highlighted results.
 - [ ] **P-2 Print stylesheet** (S).
 - [ ] **P-3 404 page and social preview** (S). Open Graph/Twitter card meta with the logo (needs the final site URL).
 - [ ] **P-4 Feedback and contribution** (S). "Report an issue" link, `CONTRIBUTING.md`, issue templates.

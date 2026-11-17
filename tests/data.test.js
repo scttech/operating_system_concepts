@@ -17,6 +17,19 @@
     assert.ok(D.modules.every((m) => m.title && m.summary && m.tags.length), "every module has title, summary and tags");
   });
 
+  QUnit.test("Parts: every module is in exactly one part, in a stated reading order", (assert) => {
+    assert.ok(D.parts.length >= 4);
+    assert.equal(new Set(D.parts.map((p) => p.id)).size, D.parts.length, "part ids unique");
+    D.parts.forEach((p) => assert.ok(/^[a-z]+$/.test(p.id) && p.title && p.blurb.length > 20 && p.modules.length >= 2, `part ${p.id} is complete`));
+    const flat = D.parts.flatMap((p) => p.modules);
+    assert.deepEqual([...flat].sort((a, b) => a - b), D.modules.map((m) => m.n), "each module appears once, and none is missing");
+    assert.deepEqual(D.readingOrder, flat);
+    assert.equal(D.partOf(15).part.id, "concurrency");
+    assert.deepEqual([D.partOf(15).index, D.partOf(15).of, D.partOf(15).number], [2, 4, 3]);
+    assert.equal(D.partOf(99), null);
+    assert.ok(D.readingOrder.indexOf(1) === 0, "the course starts with Module 1");
+  });
+
   QUnit.test("Every quiz question is well formed", (assert) => {
     const stems = new Set();
     D.quizzes.forEach((q, i) => {
@@ -92,6 +105,20 @@
     QUnit.test("js/data/glossary-index.js is up to date with the lessons (run `npm run build:glossary` if this fails)", (assert) => {
       const committed = fs.readFileSync(gen.OUT, "utf8");
       assert.true(committed === gen.render(gen.buildIndex()), "the committed index matches what the generator produces from the module HTML");
+    });
+
+    const search = require("../tools/build-search-index.js");
+    QUnit.test("js/data/search-index.js is up to date with the pages (run `npm run build:search` if this fails)", (assert) => {
+      assert.true(fs.readFileSync(search.OUT, "utf8") === search.render(search.buildSections()), "the committed search index matches what the generator produces");
+    });
+
+    QUnit.test("Search index: every module, lab and the cheat sheet is covered, with readable text and no code listings", (assert) => {
+      const sections = search.buildSections();
+      D.modules.forEach((m) => assert.ok(sections.filter((s) => s[0].startsWith(`modules/${m.slug}.html`)).length >= 3, `${m.slug} has several sections`));
+      assert.ok(sections.some((s) => s[4] === "Cheat sheet") && sections.some((s) => s[4] === "Lab"));
+      sections.forEach((s) => { assert.ok(s[3].length > 20 && s[3].length <= 2500 && !/\s{2,}/.test(s[3]), `${s[0]} text is clean`); assert.ok(!/<\/?(p|div|span|code|b|i|em|a|ul|ol|li|table|tr|td|th|pre|br|details|summary)[\s>]/.test(s[3]), `${s[0]} has no markup`); });
+      assert.ok(!sections.some((s) => s[3].includes("#include <stdio.h>")), "code listings are not indexed");
+      assert.equal(new Set(sections.map((s) => s[0])).size, sections.length, "every section has its own link");
     });
 
     QUnit.test("Every glossary term points to a lesson, and most to a marked definition", (assert) => {

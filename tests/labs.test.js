@@ -142,6 +142,7 @@
 
   QUnit.test("every lab in the list has a page, every script is used by a page, and every page is listed", (assert) => {
     globalThis.window = globalThis;
+    delete require.cache[require.resolve("../js/data/labs.js")];   // other test files may already have loaded it into an OSData that was since replaced
     require("../js/data/labs.js");
     const labs = globalThis.OSData.labs, files = fs.readdirSync(path.join(ROOT, "labs")).filter((f) => f.endsWith(".html")).sort();
     assert.deepEqual(files, labs.map((l) => l.slug + ".html").sort(), "labs/*.html matches js/data/labs.js");

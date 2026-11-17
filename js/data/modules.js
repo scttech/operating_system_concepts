@@ -53,3 +53,20 @@ window.OSData.modules = [
     summary: "Multilevel feedback queues, real-time scheduling with deadline guarantees (rate-monotonic and EDF), and balancing work across cores.",
     tags: ["MLFQ", "real-time", "multicore"] }
 ];
+
+/* Parts: the modules grouped by theme, in the order to read them. Module numbers are stable ids (links and quizzes use them),
+ * so a part may list numbers out of numeric order. Every module belongs to exactly one part. */
+window.OSData.parts = [
+  { id: "foundations", title: "Foundations", blurb: "What an operating system is, how it protects itself, and how a machine starts.", modules: [1, 2, 16] },
+  { id: "processes", title: "Processes and the CPU", blurb: "Programs in execution, how the CPU is shared among them, and how to use several cores.", modules: [3, 4, 5, 17] },
+  { id: "concurrency", title: "Concurrency", blurb: "What goes wrong when activities share data, and the tools that make it safe: locks, monitors, messages and deadlock handling.", modules: [6, 15, 7, 13] },
+  { id: "memory", title: "Memory and storage", blurb: "From addresses to pages, to disks and file systems.", modules: [8, 9, 10, 11] },
+  { id: "modern", title: "Modern systems", blurb: "Operating systems beyond the desktop, and virtualization and containers.", modules: [12, 14] }
+];
+/** Module numbers in reading order (part by part). */
+window.OSData.readingOrder = window.OSData.parts.flatMap((p) => p.modules);
+/** The part a module belongs to, with its position: {part, index (1-based), of}. */
+window.OSData.partOf = function (n) {
+  const part = window.OSData.parts.find((p) => p.modules.includes(n));
+  return part ? { part, number: window.OSData.parts.indexOf(part) + 1, index: part.modules.indexOf(n) + 1, of: part.modules.length } : null;
+};

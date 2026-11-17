@@ -16,7 +16,7 @@
   const links = [
     ["index.html", "Home", "home"], ["labs.html", "Labs", "labs"], ["problems.html", "Problems", "problems"], ["practice.html", "Quiz", "practice"],
     ["glossary.html", "Glossary", "glossary"], ["faq.html", "FAQ", "faq"],
-    ["cheatsheet.html", "Cheat sheet", "cheatsheet"]
+    ["cheatsheet.html", "Cheat sheet", "cheatsheet"], ["search.html", "Search", "search"]
   ];
   const nav = document.createElement("nav");
   nav.setAttribute("aria-label", "Main");
@@ -28,8 +28,11 @@
   });
   const modSel = document.createElement("select");
   modSel.setAttribute("aria-label", "Jump to module");
-  modSel.innerHTML = '<option value="">Modules…</option>' +
-    modules.map((m) => `<option value="${m.slug}"${m.n === modNum ? " selected" : ""}>${m.n}. ${m.title}</option>`).join("");
+  const parts = (window.OSData && window.OSData.parts) || [];
+  const optionFor = (m) => `<option value="${m.slug}"${m.n === modNum ? " selected" : ""}>${m.n}. ${m.title}</option>`;
+  modSel.innerHTML = '<option value="">Modules…</option>' + (parts.length
+    ? parts.map((pt, k) => `<optgroup label="Part ${k + 1}: ${pt.title}">${pt.modules.map((n) => modules.find((m) => m.n === n)).filter(Boolean).map(optionFor).join("")}</optgroup>`).join("")
+    : modules.map(optionFor).join(""));
   modSel.addEventListener("change", () => { if (modSel.value) location.href = `${root}modules/${modSel.value}.html`; });
   nav.append(modSel);
 
@@ -62,9 +65,22 @@
   const main = document.querySelector("main");
   if (main) main.id = "main";
 
+  // Give every lesson section a link target: the heading's slug, made unique on the page. tools/build-search-index.js uses the same rule.
+  if (main) {
+    const used = new Set([...document.querySelectorAll("[id]")].map((e) => e.id));
+    main.querySelectorAll("h2").forEach((hd) => {
+      if (hd.id) return;
+      const base = hd.textContent.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "section";
+      let id = base, n = 2;
+      while (used.has(id)) id = `${base}-${n++}`;
+      used.add(id); hd.id = id;
+    });
+  }
+
   // Prev/next pager on module pages
   if (modNum && main) {
-    const i = modules.findIndex((m) => m.n === modNum);
+    const order = ((window.OSData && window.OSData.readingOrder) || modules.map((m) => m.n)).map((n) => modules.find((m) => m.n === n)).filter(Boolean);
+    const i = order.findIndex((m) => m.n === modNum);
     const pager = document.createElement("div");
     pager.className = "pager";
     const mk = (m, label) => {
@@ -72,8 +88,15 @@
       a.className = "btn secondary"; a.href = `${m.slug}.html`; a.textContent = label;
       return a;
     };
-    pager.append(i > 0 ? mk(modules[i - 1], `← ${modules[i - 1].n}. ${modules[i - 1].title}`) : document.createElement("span"));
-    pager.append(i < modules.length - 1 ? mk(modules[i + 1], `${modules[i + 1].n}. ${modules[i + 1].title} →`) : document.createElement("span"));
+    pager.append(i > 0 ? mk(order[i - 1], `← ${order[i - 1].n}. ${order[i - 1].title}`) : document.createElement("span"));
+    pager.append(i >= 0 && i < order.length - 1 ? mk(order[i + 1], `${order[i + 1].n}. ${order[i + 1].title} →`) : document.createElement("span"));
+    // Show where this module sits in the course, next to its number.
+    const where = window.OSData && window.OSData.partOf && window.OSData.partOf(modNum), eyebrow = main.querySelector(".eyebrow");
+    if (where && eyebrow) {
+      const a = document.createElement("a");
+      a.href = `${root}index.html#part-${where.part.id}`; a.textContent = `Part ${where.number}: ${where.part.title}`;
+      eyebrow.append(" · ", a, ` (${where.index} of ${where.of})`);
+    }
     main.append(pager);
   }
 

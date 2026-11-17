@@ -7,7 +7,7 @@
   const { JSDOM, VirtualConsole } = require("jsdom");
   const ROOT = path.resolve(__dirname, "..");
 
-  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html"];
+  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html"];
   const moduleFiles = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => f.endsWith(".html")).sort();
   const labFiles = fs.readdirSync(path.join(ROOT, "labs")).filter((f) => f.endsWith(".html")).sort();
   const allPages = [...rootPages, ...moduleFiles.map((f) => "modules/" + f), ...labFiles.map((f) => "labs/" + f)];
@@ -88,7 +88,7 @@
           const [file, hash] = href.split("#");
           const target = file ? path.resolve(dir, file) : path.join(ROOT, rel);
           if (!fs.existsSync(target)) { missing.push(href); return; }
-          if (!hash || /^term-/.test(hash) || hash.includes("=")) return; // runtime anchors and state hashes (#topic=…, #p=…) are checked by their own tests; // term-… anchors are assigned at run time and verified against each lesson's live DOM below
+          if (!hash || /^(term|part)-/.test(hash) || hash.includes("=")) return; // runtime anchors and state hashes (#topic=…, #p=…) are checked by their own tests; // term-… and part-… anchors are assigned at run time and verified by their own tests's live DOM below
           if (!file) { if (!doc.getElementById(hash)) missing.push(href + " (anchor)"); } // same page: check the live DOM
           else if (target.endsWith(".html") && !/glossary\.html$/.test(target) && !fs.readFileSync(target, "utf8").includes(`id="${hash}"`)) missing.push(href + " (anchor)");
         });
@@ -163,7 +163,8 @@
         // module pages: pager
         if (rel.startsWith("modules/")) {
           const n = +doc.body.dataset.module, pager = doc.querySelectorAll(".pager a");
-          assert.equal(pager.length, n === 1 || n === 17 ? 1 : 2, "prev/next pager");
+          const ro = doc.defaultView.OSData.readingOrder;
+          assert.equal(pager.length, n === ro[0] || n === ro[ro.length - 1] ? 1 : 2, "prev/next pager (first and last in reading order have one link)");
           assert.ok(doc.querySelector("[data-quiz]"), "has a quiz");
           assert.ok(doc.querySelector("[data-sim]"), "has at least one simulation");
           assert.ok(doc.title.includes(`Module ${n}:`), "title carries module number");
@@ -1177,6 +1178,92 @@
         assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]'));
         assert.ok(b.querySelectorAll(".marker").length >= 8, "numbered comments are badges in both listings");
       });
+    });
+  });
+
+  QUnit.module("pages: site-wide search");
+
+  QUnit.test("Search page: results, highlighting, filters, shareable links and untrusted input", async (assert) => {
+    await withPage("search.html", ({ window: w, document: doc }) => {
+      const input = doc.getElementById("q"), results = () => [...doc.querySelectorAll("#results li")], status = () => doc.getElementById("status").textContent;
+      assert.ok(/Type one or more words/.test(status()), "empty at first");
+      setValue(w, input, "deadlock");
+      assert.ok(/results? for “deadlock”/.test(status()));
+      const first = results()[0];
+      assert.equal(first.querySelector(".tag").textContent, "Glossary");
+      assert.equal(first.querySelector("a").getAttribute("href"), "glossary.html#deadlock");
+      assert.ok(first.querySelector("a mark") && first.querySelector("mark").textContent.toLowerCase() === "deadlock", "matches are marked");
+      assert.ok(results().some((li) => li.querySelector("a").getAttribute("href").startsWith("modules/07-deadlocks.html")), "lessons are found too");
+      setValue(w, doc.getElementById("kind"), "FAQ", "change");
+      assert.ok(results().length > 0 && results().every((li) => li.querySelector(".tag").textContent === "FAQ"), "the Show filter keeps one kind");
+      setValue(w, doc.getElementById("kind"), "", "change");
+      setValue(w, input, "zzzzqqqq");
+      assert.ok(/No results for “zzzzqqqq”/.test(status()) && results().length === 0);
+      setValue(w, input, "<img src=x onerror=alert(1)>");
+      assert.equal(doc.querySelectorAll("#results img, #status img").length, 0, "a query is never parsed as HTML");
+      assert.ok(/No results/.test(status()));
+      setValue(w, input, "semaphore");
+      const link = results().find((li) => li.querySelector(".tag").textContent === "Lesson").querySelector("a").getAttribute("href");
+      assert.ok(/^modules\/[A-Za-z0-9-]+\.html#[A-Za-z0-9-]+$/.test(link), "a lesson result links to its section: " + link);
+    });
+    await withPage("search.html", ({ document: doc }) => {
+      assert.equal(doc.getElementById("q").value, "page fault", "?q= fills the box");
+      assert.ok(doc.querySelectorAll("#results li").length > 0);
+    }, "?q=page%20fault");
+    await withPage("search.html", ({ document: doc, errors }) => {
+      assert.deepEqual(errors, [], "a malformed link does not break the page");
+    }, "#q=%E0%A4%A");
+    await withPage("index.html", ({ document: doc }) => {
+      assert.ok([...doc.querySelectorAll("header nav a")].some((a) => a.textContent === "Search" && a.getAttribute("href") === "search.html"), "Search is in the navigation");
+    });
+  });
+
+  QUnit.test("Every search-index link lands on a real heading, and headings get unique ids", async (assert) => {
+    const idx = require("../tools/build-search-index.js").buildSections();
+    const byPage = {};
+    idx.forEach(([url]) => { const [file, id] = url.split("#"); (byPage[file] = byPage[file] || []).push(id); });
+    for (const [file, ids] of Object.entries(byPage)) {
+      await withPage(file, ({ document: doc }) => {
+        ids.filter(Boolean).forEach((id) => assert.ok(doc.getElementById(id) && /^H2$/.test(doc.getElementById(id).tagName), `${file}#${id} is a heading`));
+        const all = [...doc.querySelectorAll("[id]")].map((e) => e.id);
+        assert.equal(new Set(all).size, all.length, `${file}: ids are unique`);
+      });
+    }
+    assert.ok(Object.keys(byPage).length >= 22, "modules, labs and the cheat sheet are indexed");
+  });
+
+  QUnit.module("pages: course parts");
+
+  QUnit.test("Home page groups the modules into parts, in reading order, with every module once", async (assert) => {
+    await withPage("index.html", ({ window: w, document: doc }) => {
+      const D = w.OSData, sections = [...doc.querySelectorAll("#module-grid section.part")];
+      assert.equal(sections.length, D.parts.length);
+      sections.forEach((sec, i) => {
+        assert.equal(sec.querySelector("h3").textContent, `Part ${i + 1}: ${D.parts[i].title}`);
+        assert.equal(sec.getAttribute("aria-labelledby"), sec.querySelector("h3").id, "section is labelled by its heading");
+        assert.equal(sec.querySelector("h3").id, "part-" + D.parts[i].id, "module pages link to this anchor");
+        assert.deepEqual([...sec.querySelectorAll(".card .num")].map((x) => +x.textContent.replace("Module ", "")), D.parts[i].modules, "cards follow the part's order");
+      });
+      assert.equal(doc.querySelectorAll("#module-grid .card").length, D.modules.length, "every module appears exactly once");
+    });
+  });
+
+  QUnit.test("Module pages: the jump menu is grouped by part, the pager follows reading order, and the part is named under the title", async (assert) => {
+    await withPage("modules/15-monitors.html", ({ window: w, document: doc }) => {
+      const D = w.OSData, groups = [...doc.querySelectorAll("header select optgroup")];
+      assert.deepEqual(groups.map((g) => g.label), D.parts.map((p, i) => `Part ${i + 1}: ${p.title}`));
+      assert.equal(doc.querySelectorAll("header select option").length, D.modules.length + 1, "all modules plus the placeholder");
+      assert.equal(doc.querySelector("header select option[selected]").textContent.slice(0, 3), "15.");
+      const pager = [...doc.querySelectorAll(".pager a")].map((a) => a.textContent);
+      assert.ok(pager[0].startsWith("← 6.") && pager[1].startsWith("7."), "in the Concurrency part, Module 15 comes after 6 and before 7: " + pager.join(" | "));
+      const eyebrow = doc.querySelector(".eyebrow");
+      assert.ok(eyebrow.textContent.includes("Module 15 · Part 3: Concurrency (2 of 4)"), eyebrow.textContent);
+      assert.ok(eyebrow.querySelector("a").getAttribute("href").endsWith("index.html#part-concurrency"));
+    });
+    await withPage("modules/14-virtualization.html", ({ document: doc }) => {
+      const pager = [...doc.querySelectorAll(".pager a")].map((a) => a.textContent);
+      assert.equal(pager.length, 1, "Module 14 ends the course: only a Previous link");
+      assert.ok(pager[0].startsWith("← 12."));
     });
   });
 
