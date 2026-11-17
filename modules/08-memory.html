@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 8: Memory Management — OS Concepts</title>
+<meta name="description" content="Contiguous allocation with fragmentation, paging and address translation with interactive simulators.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="8">
+<main>
+  <p class="eyebrow">Module 8</p>
+  <h1>Memory Management</h1>
+  <p class="lead">Programs must be in memory to run. The OS decides where, keeps processes out of each other's memory, and makes limited RAM feel large and private.</p>
+
+  <h2>Logical vs. physical addresses</h2>
+  <p>The CPU generates <dfn data-term="Logical address">logical (virtual) addresses</dfn>. The <dfn data-term="Memory Management Unit (MMU)">MMU</dfn> translates each one into a <dfn data-term="Physical address">physical address</dfn> at run time. That indirection lets the OS relocate programs, enforce protection and share memory without the program noticing.</p>
+
+  <h2>Contiguous allocation</h2>
+  <p>The simplest scheme gives each process one contiguous block. When a request arrives, the OS must pick a free hole:</p>
+  <ul>
+    <li><dfn data-term="First-fit">First-fit</dfn>: first hole that is big enough (fast).</li>
+    <li><dfn data-term="Best-fit">Best-fit</dfn>: smallest hole that fits (leaves tiny leftover slivers).</li>
+    <li><b>Worst-fit</b>: largest hole (leaves big leftovers, but destroys large holes).</li>
+  </ul>
+  <p>Over time, free memory shatters into many small holes: <dfn data-term="External fragmentation">external fragmentation</dfn>. <dfn data-term="Compaction">Compaction</dfn> fixes it by sliding processes together, at the cost of copying and relocating them.</p>
+  <div data-sim="memalloc"></div>
+  <div class="callout"><p><b>Try it:</b> click “Load fragmented example”, then request 150 KB. There are 330 KB free in total but the largest hole is only 100 KB. Try compaction. Then reset and run the same sequence under best-fit and worst-fit.</p></div>
+
+  <h2>Paging</h2>
+  <p><dfn data-term="Paging">Paging</dfn> splits the logical address space into fixed-size <b><dfn data-term="Page">pages</dfn></b> and physical memory into same-size <b><dfn data-term="Frame">frames</dfn></b>. A <dfn data-term="Page table">page table</dfn> maps each page to a frame, so a process's memory need not be contiguous. This removes external fragmentation; the cost is <dfn data-term="Internal fragmentation">internal fragmentation</dfn> in each process's last page (about half a page on average).</p>
+  <p>A logical address splits into two parts: <b>page number</b> (high bits, index into the page table) and <b>offset</b> (low bits, position inside the page). For a page size of 2<sup>n</sup> bytes, the offset is n bits. For example, a 32-bit address with 4 KiB pages has a 20-bit page number and 12-bit offset.</p>
+  <div data-sim="paging"></div>
+
+  <h2>Making translation fast</h2>
+  <p>A page table lives in memory, so each access would need two memory references. The <dfn data-term="TLB (translation lookaside buffer)">TLB</dfn> caches recent translations in hardware. With TLB hit ratio <i>h</i>:</p>
+  <p style="text-align:center"><code>EAT = h × (t<sub>TLB</sub> + t<sub>mem</sub>) + (1 − h) × (t<sub>TLB</sub> + 2 × t<sub>mem</sub>)</code></p>
+  <p>With a 1 ns TLB, 100 ns memory and a 98% hit ratio: EAT = 0.98 × 101 + 0.02 × 201 = <b>103 ns</b>, only 3% slower than raw memory.</p>
+
+  <h2>Large address spaces</h2>
+  <ul>
+    <li><b>Hierarchical (multi-level) page tables</b> only allocate the parts of the table that are in use.</li>
+    <li><b>Hashed</b> and <b>inverted</b> page tables trade lookup time for table size.</li>
+    <li><dfn data-term="Segmentation">Segmentation</dfn> divides memory by logical units (code, stack, heap). Modern systems mostly use paging, sometimes with segment-like protection.</li>
+    <li>Protection bits in each page-table entry (valid, read/write, execute, user/supervisor) let the MMU enforce isolation.</li>
+  </ul>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=paging">address translation problems</a> · <a href="../problems.html#topic=memalloc">memory allocation problems</a> (random problems with worked solutions).</p></div>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: reading memory use with psutil</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="8"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/memory.js"></script>
+<script src="../js/sims/m08-memory.js"></script>
+</body>
+</html>

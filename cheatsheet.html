@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cheat Sheet — OS Concepts</title>
+<meta name="description" content="Formulas, tables and commands for operating-system study.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="cheatsheet">
+<main class="narrow">
+  <h1>Cheat Sheet</h1>
+  <p class="lead">Formulas, quick tables and handy commands.</p>
+
+  <h2>Formulas</h2>
+  <table>
+    <thead><tr><th>Topic</th><th>Formula</th></tr></thead>
+    <tbody>
+      <tr><td>Turnaround time</td><td><code>completion − arrival</code></td></tr>
+      <tr><td>Waiting time</td><td><code>turnaround − burst</code></td></tr>
+      <tr><td>Response time</td><td><code>first run − arrival</code></td></tr>
+      <tr><td>Context-switch efficiency</td><td><code>q / (q + s)</code></td></tr>
+      <tr><td>Amdahl's law</td><td><code>1 / ((1 − p) + p/N)</code>; limit <code>1/(1 − p)</code></td></tr>
+      <tr><td>Page number / offset</td><td><code>page = addr ÷ pageSize</code>, <code>offset = addr mod pageSize</code></td></tr>
+      <tr><td>Physical address</td><td><code>frame × pageSize + offset</code></td></tr>
+      <tr><td>Page-table entries</td><td><code>2<sup>address bits</sup> / pageSize</code></td></tr>
+      <tr><td>Internal fragmentation</td><td><code>pages × pageSize − process size</code></td></tr>
+      <tr><td>EAT with page faults</td><td><code>(1 − p)·t<sub>mem</sub> + p·t<sub>fault</sub></code></td></tr>
+      <tr><td>EAT with TLB</td><td><code>h·(t<sub>tlb</sub> + t<sub>m</sub>) + (1 − h)·(t<sub>tlb</sub> + 2·t<sub>m</sub>)</code></td></tr>
+      <tr><td>Disk access time</td><td><code>seek + rotational latency + transfer</code>; avg. rotational latency = ½ × 60/RPM</td></tr>
+      <tr><td>Pointers per indirect block</td><td><code>blockSize / pointerSize</code></td></tr>
+      <tr><td>Max file size (inode)</td><td><code>(direct + k + k² + k³) × blockSize</code> where k = pointers per block</td></tr>
+      <tr><td>Banker's need</td><td><code>Need = Max − Allocation</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Powers of two</h2>
+  <table>
+    <thead><tr><th>Power</th><th>Value</th><th>Power</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>2<sup>10</sup></td><td>1 KiB (1,024)</td><td>2<sup>30</sup></td><td>1 GiB</td></tr>
+      <tr><td>2<sup>12</sup></td><td>4 KiB (typical page)</td><td>2<sup>32</sup></td><td>4 GiB</td></tr>
+      <tr><td>2<sup>16</sup></td><td>64 KiB</td><td>2<sup>40</sup></td><td>1 TiB</td></tr>
+      <tr><td>2<sup>20</sup></td><td>1 MiB</td><td>2<sup>48</sup></td><td>256 TiB (x86-64 virtual)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Unix permissions</h2>
+  <table>
+    <thead><tr><th>Octal</th><th>Symbolic</th><th>Typical use</th></tr></thead>
+    <tbody>
+      <tr><td>755</td><td>rwxr-xr-x</td><td>Programs, public directories</td></tr>
+      <tr><td>644</td><td>rw-r--r--</td><td>Ordinary files</td></tr>
+      <tr><td>600</td><td>rw-------</td><td>Private files (SSH keys)</td></tr>
+      <tr><td>700</td><td>rwx------</td><td>Private directories</td></tr>
+      <tr><td>1777</td><td>rwxrwxrwt</td><td><code>/tmp</code> (sticky bit)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Linux commands for exploring a running system</h2>
+  <pre><code>ps aux                 # all processes          top / htop    # live CPU/memory by process
+pstree -p              # process tree           kill -TERM &lt;pid&gt;   # ask a process to exit
+free -h                # memory and swap        vmstat 1      # memory, paging, CPU each second
+iostat -x 1            # disk utilization       lsof -p &lt;pid&gt;   # open files of a process
+cat /proc/&lt;pid&gt;/status # PCB-like details      cat /proc/meminfo
+ls -li                 # show inode numbers     stat file     # inode metadata
+df -h  /  du -sh .     # file system and directory usage
+strace -c ls           # count system calls made by ls
+ulimit -a              # per-process resource limits</code></pre>
+
+  <h2>Python: inspecting the system</h2>
+  <pre><code>import os, psutil          # pip install psutil
+
+print(os.getpid(), os.getppid())          # this process and its parent
+p = psutil.Process()
+print(p.status(), p.num_threads(), p.memory_info().rss)
+
+print(psutil.cpu_count(logical=True), psutil.cpu_percent(interval=1, percpu=True))
+vm = psutil.virtual_memory();  print(vm.total, vm.available, vm.percent)
+print(psutil.swap_memory())
+print(psutil.disk_usage("/"))
+for proc in psutil.process_iter(["pid", "name", "cpu_percent"]):
+    print(proc.info)</code></pre>
+
+  <h2>Python: threads and a lock</h2>
+  <pre><code>import threading
+counter, lock = 0, threading.Lock()
+
+def work(n):
+    global counter
+    for _ in range(n):
+        with lock:          # remove the lock and run with large n to see lost updates
+            counter += 1
+
+ts = [threading.Thread(target=work, args=(100_000,)) for _ in range(4)]
+[t.start() for t in ts]; [t.join() for t in ts]
+print(counter)             # 400000 with the lock</code></pre>
+  <p class="small">Note: in some CPython versions the GIL hides many races for simple operations. The lock is still required for correctness.</p>
+
+  <h2>Common signals</h2>
+  <table>
+    <thead><tr><th>Signal</th><th>Number</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>SIGINT</td><td>2</td><td>Interrupt (Ctrl+C)</td></tr>
+      <tr><td>SIGKILL</td><td>9</td><td>Kill immediately (cannot be caught)</td></tr>
+      <tr><td>SIGSEGV</td><td>11</td><td>Invalid memory reference (segmentation fault)</td></tr>
+      <tr><td>SIGTERM</td><td>15</td><td>Polite termination request</td></tr>
+      <tr><td>SIGCHLD</td><td>17 (Linux)</td><td>A child process changed state</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Algorithms at a glance</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Algorithms</th><th>Remember</th></tr></thead>
+    <tbody>
+      <tr><td>CPU scheduling</td><td>FCFS, SJF, SRTF, RR, Priority, MLFQ</td><td>SJF minimizes average wait; RR trades overhead for response; add aging to stop starvation</td></tr>
+      <tr><td>Memory placement</td><td>First-, best-, worst-fit</td><td>First-fit is usually the best compromise</td></tr>
+      <tr><td>Page replacement</td><td>FIFO, OPT, LRU, Clock</td><td>FIFO can show Belady's anomaly; OPT is a benchmark</td></tr>
+      <tr><td>Disk scheduling</td><td>FCFS, SSTF, SCAN, C-SCAN, LOOK</td><td>SSTF can starve; C-SCAN is uniform</td></tr>
+      <tr><td>Deadlock</td><td>Prevention, avoidance (Banker's), detection, ignore</td><td>Break one of mutual exclusion, hold-and-wait, no preemption, circular wait</td></tr>
+    </tbody>
+  </table>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+</body>
+</html>

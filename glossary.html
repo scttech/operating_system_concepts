@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossary — OS Concepts</title>
+<meta name="description" content="Searchable glossary of operating-system terms.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="glossary">
+<main class="narrow">
+  <h1>Glossary</h1>
+  <p class="lead">Common operating-system terminology. Search, or filter by topic.</p>
+  <div class="controls">
+    <label><span>Search</span><input class="search" id="q" type="search" placeholder="e.g. paging, semaphore…" autocomplete="off"></label>
+    <label><span>Topic</span><select id="cat"></select></label>
+    <label><span>Discussed in</span><select id="mod"></select></label>
+    <p id="count" class="small" aria-live="polite"></p>
+  </div>
+  <div id="list"></div>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/data/glossary-index.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+<script src="js/pages/glossary.js"></script>
+</body>
+</html>

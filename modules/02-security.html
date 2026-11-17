@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 2: Security &amp; Access Control — OS Concepts</title>
+<meta name="description" content="Protection domains, Unix permissions with an interactive calculator, access-control matrices, ACLs and capabilities.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="2">
+<main>
+  <p class="eyebrow">Module 2</p>
+  <h1>Security &amp; Access Control</h1>
+  <p class="lead">Protection is the mechanism that controls who can do what to which resource. Security is the broader goal of defending against threats, including attackers that exploit weak protection.</p>
+
+  <h2>Goals and principles</h2>
+  <ul>
+    <li><b>Confidentiality, integrity, availability</b> (the CIA triad): keep secrets secret, keep data correct, keep services usable.</li>
+    <li><b>Authentication</b> answers “who are you?” (passwords, keys, biometrics, MFA). <b>Authorization</b> answers “what may you do?” (permissions, ACLs).</li>
+    <li><dfn data-term="Least privilege">Least privilege</dfn>: give every user and program only the rights it needs, for only as long as it needs them.</li>
+    <li><b>Defense in depth</b>: several independent layers, so one failure does not mean compromise.</li>
+    <li><b>Separation of policy and mechanism</b>: the kernel provides the checking mechanism; administrators set the policy.</li>
+  </ul>
+
+  <h2>Unix file permissions</h2>
+  <p>Every file has an owner, a group, and three sets of read/write/execute bits: for the <b>owner</b>, the <b>group</b> and <b>others</b>. Each set is written as one octal digit (r=4, w=2, x=1).</p>
+  <div data-sim="perms"></div>
+  <p>Special bits: <b>setuid</b> (run with the file owner's privileges), <b>setgid</b>, and the <b>sticky bit</b> (in a shared directory like <code>/tmp</code>, only a file's owner may delete it).</p>
+  <pre><code>$ ls -l report.txt
+-rw-r----- 1 alice staff 2048 Nov 3 09:12 report.txt
+$ chmod 640 report.txt      # rw-r-----
+$ chmod g+w,o-r report.txt  # symbolic form
+$ umask 022                 # new files default to 644, directories to 755</code></pre>
+
+  <h2>Access-control matrix</h2>
+  <p>Conceptually, protection is a matrix: rows are <em>subjects</em> (users, processes), columns are <em>objects</em> (files, devices), and each cell lists the permitted operations. Real systems never store the full sparse matrix. They store it by column (<dfn data-term="Access control list (ACL)">ACLs</dfn>) or by row (<dfn data-term="Capability">capabilities</dfn>).</p>
+  <div data-sim="acm"></div>
+
+  <h2>Typical attacks and defenses</h2>
+  <table>
+    <thead><tr><th>Threat</th><th>What happens</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Buffer overflow</td><td>Input larger than a buffer overwrites adjacent memory (e.g., a return address)</td><td>Bounds checking, stack canaries, NX/DEP, ASLR, memory-safe languages</td></tr>
+      <tr><td>Privilege escalation</td><td>A flaw in a privileged (setuid/root) program gives an attacker more rights</td><td>Least privilege, drop privileges early, patching, sandboxing</td></tr>
+      <tr><td>Malware</td><td>Viruses, worms, trojans, ransomware</td><td>Permissions, code signing, updates, backups, user training</td></tr>
+      <tr><td>Password attacks</td><td>Guessing, credential stuffing, stolen hashes</td><td>Salted slow hashing, rate limiting, MFA</td></tr>
+      <tr><td>Denial of service</td><td>Exhaust CPU, memory, disk or network</td><td>Quotas, rate limits, cgroups, redundancy</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><p><b>Trade-off to discuss:</b> stronger isolation (containers, sandboxes, mandatory access control like SELinux) costs convenience and sometimes performance. Security decisions are always about balancing risk, usability and cost.</p></div>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=perms">Unix permissions problems</a> (random problems with worked solutions).</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="2"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/misc.js"></script>
+<script src="../js/sims/m02-security.js"></script>
+</body>
+</html>

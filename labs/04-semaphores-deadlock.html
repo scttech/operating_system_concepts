@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 4: Semaphores and deadlock prevention — OS Concepts</title>
+<meta name="description" content="Build a bounded buffer with semaphores, then create a real deadlock with dining philosophers and fix it with resource ordering.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-lab="4">
+<main>
+  <p class="eyebrow">Lab 4</p>
+  <h1>Semaphores and deadlock prevention</h1>
+  <p class="lead">Coordinate producers and consumers with semaphores so a bounded buffer never overflows or underflows. Then build the classic dining-philosophers deadlock, detect it, and prevent it by breaking one of the four deadlock conditions.</p>
+  <div class="lab-meta"><span>About 50 minutes</span><span>Any system</span><span>Related: <a href="../modules/06-synchronization.html">Module 6 Synchronization</a>, <a href="../modules/07-deadlocks.html">Module 7 Deadlocks</a></span></div>
+
+  <h2>What you will practice</h2>
+  <ul>
+    <li>Using <dfn data-term="Semaphore">semaphores</dfn> as counters of free and filled slots.</li>
+    <li>Combining a semaphore-based protocol with a mutex that protects the buffer.</li>
+    <li>Creating a <dfn data-term="Deadlock">deadlock</dfn> on purpose and recognizing its symptoms.</li>
+    <li>Preventing it by removing <dfn data-term="Circular wait">circular wait</dfn> with a resource ordering.</li>
+  </ul>
+
+  <h2>The script</h2>
+  <p>One script has two parts: the bounded buffer (producers and consumers), then the dining philosophers. <b>Predict first:</b> in Part B all five philosophers pick up their left fork first. What do you expect to happen?</p>
+  <pre class="code" data-src="labs/code/lab4_sync.py"><code>"""Lab 4 - Semaphores, the bounded buffer, and preventing deadlock."""
+import collections
+import threading
+import time
+
+# ---------- Part A: bounded buffer (producers and consumers) ----------
+BUFFER_SIZE, PRODUCERS, CONSUMERS, ITEMS_EACH = 3, 2, 2, 6
+buffer = collections.deque()
+empty = threading.Semaphore(BUFFER_SIZE)    # (1) counts FREE slots; starts at the buffer size
+full = threading.Semaphore(0)               # (2) counts FILLED slots; starts at zero
+mutex = threading.Lock()                    # (3) protects the deque itself
+consumed = []
+peak = 0
+
+
+def producer(pid):
+    global peak
+    for i in range(ITEMS_EACH):
+        empty.acquire()                     # wait(empty): block if the buffer is full
+        with mutex:
+            buffer.append((pid, i))
+            peak = max(peak, len(buffer))
+        full.release()                      # signal(full): one more item is available
+
+
+def consumer(count):
+    for _ in range(count):
+        full.acquire()                      # wait(full): block if the buffer is empty
+        with mutex:
+            consumed.append(buffer.popleft())
+        empty.release()                     # signal(empty): one more free slot
+
+
+threads = [threading.Thread(target=producer, args=(p,)) for p in range(PRODUCERS)]
+threads += [threading.Thread(target=consumer, args=(PRODUCERS * ITEMS_EACH // CONSUMERS,)) for _ in range(CONSUMERS)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+in_order = all([i for p, i in consumed if p == who] == list(range(ITEMS_EACH)) for who in range(PRODUCERS))
+print(f"bounded buffer: produced {PRODUCERS * ITEMS_EACH}, consumed {len(consumed)}, "
+      f"largest buffer size seen {peak} (limit {BUFFER_SIZE}), each producer's items stayed in order: {in_order}")
+
+# ---------- Part B: dining philosophers ----------
+N, MEALS, PATIENCE = 5, 3, 2.0
+
+
+def dinner(name, pick_order):
+    forks = [threading.Lock() for _ in range(N)]
+    sit_down = threading.Barrier(N)
+    abort = threading.Event()
+    meals = [0] * N
+
+    def philosopher(i):
+        first, second = pick_order(i, (i + 1) % N)          # which fork to pick up first
+        sit_down.wait()                                     # everyone starts at the same moment
+        for _ in range(MEALS):
+            forks[first].acquire()
+            time.sleep(0.05)                                # (4) think while holding one fork: this makes deadlock likely
+            while not forks[second].acquire(timeout=0.05):  # (5) wait for the second fork, but keep checking for the alarm
+                if abort.is_set():
+                    forks[first].release()
+                    return
+            meals[i] += 1                                   # eat
+            forks[second].release()
+            forks[first].release()
+
+    people = [threading.Thread(target=philosopher, args=(i,), daemon=True) for i in range(N)]
+    for p in people:
+        p.start()
+    deadline = time.time() + PATIENCE
+    for p in people:
+        p.join(timeout=max(0.0, deadline - time.time()))
+    stuck = sum(p.is_alive() for p in people)
+    if stuck:
+        print(f"{name}: DEADLOCK after {PATIENCE:.0f} s: {stuck} of {N} philosophers stuck, meals eaten {sum(meals)} of {N * MEALS}")
+        abort.set()                                         # sound the alarm so the program can end
+        for p in people:
+            p.join()
+    else:
+        print(f"{name}: all {N} philosophers finished, {sum(meals)} meals eaten, no deadlock")
+
+
+dinner("naive (left fork first)", lambda left, right: (left, right))
+dinner("ordered (lower-numbered fork first)", lambda left, right: (min(left, right), max(left, right)))</code></pre>
+  <p>Run it with <code>python lab4_sync.py</code>. It takes about three seconds, mostly spent waiting for the deadlock to be declared.</p>
+  <h3>Example output</h3>
+<pre class="output"><code>bounded buffer: produced 12, consumed 12, largest buffer size seen 3 (limit 3), each producer's items stayed in order: True
+naive (left fork first): DEADLOCK after 2 s: 5 of 5 philosophers stuck, meals eaten 0 of 15
+ordered (lower-numbered fork first): all 5 philosophers finished, 15 meals eaten, no deadlock</code></pre>
+
+  <h2>Part A: what to notice (bounded buffer)</h2>
+  <ol>
+    <li><b>(1) <code>empty</code></b> counts free slots and starts at the buffer size. A producer must <code>acquire</code> (wait on) it before adding an item, so it blocks when the buffer is full.</li>
+    <li><b>(2) <code>full</code></b> counts filled slots and starts at 0. A consumer must <code>acquire</code> it before removing an item, so it blocks when the buffer is empty.</li>
+    <li><b>(3) <code>mutex</code></b> is a separate lock that protects the deque itself. The semaphores decide <em>when</em> a thread may proceed; the mutex makes the actual insert or remove safe.</li>
+    <li>These are exactly the <code>empty = N</code>, <code>full = 0</code>, <code>mutex = 1</code> initial values from the <a href="../modules/06-synchronization.html">lesson</a>. <code>acquire()</code> is <code>wait()</code> (P) and <code>release()</code> is <code>signal()</code> (V).</li>
+    <li>The “largest buffer size seen” can never exceed the limit. That is the guarantee the <code>empty</code> semaphore provides.</li>
+  </ol>
+
+  <h2>Part B: what to notice (dining philosophers)</h2>
+  <ol>
+    <li><b>(4) Holding one fork while waiting for the second</b> (<dfn data-term="Hold and wait">hold and wait</dfn>) is what makes deadlock possible. The short <code>sleep</code> makes sure every philosopher is holding a fork before anyone tries for the second one, so the deadlock happens every time.</li>
+    <li><b>All four deadlock conditions are present in the naive version:</b> forks are exclusive (mutual exclusion), each philosopher holds one and waits for another (hold and wait), forks cannot be taken away (no preemption), and philosopher 0 waits for 1 waits for 2 … waits for 4 waits for 0 (circular wait). See the <a href="../modules/07-deadlocks.html">four conditions</a>.</li>
+    <li><b>(5) Detecting the deadlock.</b> The program cannot know a deadlock exists. It only sees that nobody has finished after two seconds. Real systems use timeouts and watchdogs the same way, then recover (here by sounding an alarm so the threads give up).</li>
+    <li><b>The fix:</b> if every philosopher picks up the lower-numbered fork first, philosopher 4 reaches for fork 0 before fork 4. A cycle of waiting can no longer form (circular wait is impossible), so at least one philosopher can always eat. Try the <a href="../modules/07-deadlocks.html#philosophers">dining-philosophers simulator</a> to see the same two strategies.</li>
+  </ol>
+
+  <h2>Try it</h2>
+  <ol>
+    <li><b>Make the bounded buffer deadlock.</b> In <code>producer</code>, swap the order so it takes <code>mutex</code> <em>before</em> <code>empty.acquire()</code>. Run it with a small buffer. What happens, and why? (The <a href="../modules/06-synchronization.html">lesson</a> warns about exactly this.)</li>
+    <li><b>Try a different fix.</b> Add a third strategy: a <code>Semaphore(N - 1)</code> “waiter” that only lets four philosophers sit at once. Which deadlock condition does that break?</li>
+    <li>Change <code>PATIENCE</code> to 0.5. Does the naive version still report a deadlock? What if it is too short for the ordered version to finish?</li>
+    <li>Change <code>BUFFER_SIZE</code> to 1 and then 10. Does the “largest size seen” follow it?</li>
+    <li>Give each philosopher a random thinking time with <code>random.uniform</code>. Is the naive version still deadlocked <em>every</em> time? What does that tell you about intermittent deadlocks in real programs?</li>
+  </ol>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><b>Acquiring in the wrong order.</b> Taking the mutex before the semaphore can block everyone while holding the lock.</li>
+    <li><b>Forgetting to release</b> (especially when an exception happens). Use <code>with lock:</code> so release is automatic.</li>
+    <li><b>Releasing a semaphore too many times</b> silently raises its count. <code>threading.BoundedSemaphore</code> raises an error instead, which helps catch the bug.</li>
+    <li><b>Joining threads without a timeout.</b> A deadlocked program just hangs and gives you no clue. Timeouts turn a hang into a message.</li>
+  </ul>
+
+  <h2>Reflection questions (good journal entries)</h2>
+  <ol>
+    <li>Why are two kinds of synchronization (semaphores <em>and</em> a mutex) needed in the bounded buffer? What could go wrong with only the semaphores?</li>
+    <li>The deadlock was easy to cause here and might be rare in a real program. Why do intermittent deadlocks make better evidence of a design flaw than a one-off hang?</li>
+    <li>Compare prevention (ordering the forks) with avoidance (the <a href="../modules/07-deadlocks.html">Banker's algorithm</a>). Which would you choose for this problem and why?</li>
+  </ol>
+
+  <h2>Extension</h2>
+  <p>Implement the readers–writers problem: many reader threads may read a shared value at once, but a writer needs exclusive access. First make it work, then add a “writer waiting” rule so readers cannot starve the writer. What did you have to change?</p>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/labs.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/pages/lab.js"></script>
+</body>
+</html>

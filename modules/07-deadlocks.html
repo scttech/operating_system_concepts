@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 7: Deadlocks — OS Concepts</title>
+<meta name="description" content="The four deadlock conditions, dining philosophers strategies, and an interactive Banker's algorithm.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="7">
+<main>
+  <p class="eyebrow">Module 7</p>
+  <h1>Deadlocks</h1>
+  <p class="lead">A <dfn data-term="Deadlock">deadlock</dfn> is a set of processes that are each waiting for a resource held by another in the set, so none of them will ever proceed.</p>
+
+  <h2>Four necessary conditions (Coffman)</h2>
+  <p>All four must hold at the same time for deadlock to occur. Break any one and deadlock is impossible.</p>
+  <table>
+    <thead><tr><th>Condition</th><th>Meaning</th><th>How to break it</th></tr></thead>
+    <tbody>
+      <tr><td>Mutual exclusion</td><td>A resource can be used by only one process at a time</td><td>Make resources sharable (read-only files, lock-free structures). Not always possible.</td></tr>
+      <tr><td><dfn data-term="Hold and wait">Hold and wait</dfn></td><td>A process holds some resources while waiting for others</td><td>Request everything at once, or release before requesting more</td></tr>
+      <tr><td><dfn data-term="No preemption">No preemption</dfn></td><td>Resources can only be released voluntarily</td><td>Allow the OS to take resources back (works for CPU/memory, not for printers or locks)</td></tr>
+      <tr><td><dfn data-term="Circular wait">Circular wait</dfn></td><td>A cycle P1→P2→…→P1 of waiting</td><td>Impose a global ordering on resources and always acquire in that order</td></tr>
+    </tbody>
+  </table>
+  <p>A <dfn data-term="Resource allocation graph">resource-allocation graph</dfn> shows these relationships: an edge from a process to a resource means “requests”; from a resource to a process means “held by”. With one instance of each resource, a cycle means deadlock. With multiple instances, a cycle is necessary but not sufficient.</p>
+
+  <h2 id="philosophers">Dining philosophers</h2>
+  <p>Five philosophers sit around a table with one fork between each pair. A philosopher needs both adjacent forks to eat. This small puzzle contains all four deadlock conditions. Run the naive strategy a few times with different seeds. If every philosopher grabs their left fork at the same moment, nobody can ever eat. Then compare the fixes.</p>
+  <div data-sim="philosophers"></div>
+  <ul>
+    <li><b>Resource ordering</b> removes circular wait: one philosopher picks up forks in the opposite order from the others.</li>
+    <li><b>Limiting the table to N−1</b> philosophers guarantees at least one can get both forks.</li>
+    <li><b>Asymmetric</b> pickup order (odd vs. even) also breaks the cycle.</li>
+  </ul>
+
+  <h2>Handling deadlock: four strategies</h2>
+  <table>
+    <thead><tr><th>Strategy</th><th>Idea</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>Prevention</td><td>Design so that one of the four conditions can never hold</td><td>May reduce resource utilization or concurrency</td></tr>
+      <tr><td>Avoidance</td><td>Grant a request only if the system stays in a <dfn data-term="Safe state">safe state</dfn></td><td>Needs advance knowledge of maximum demands</td></tr>
+      <tr><td>Detection &amp; recovery</td><td>Let it happen, find the cycle, kill or roll back a victim</td><td>Detection overhead; lost work</td></tr>
+      <tr><td>Ignore it (“ostrich”)</td><td>Assume it's rare; let users reboot</td><td>Used by many general-purpose OSes</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Banker's algorithm</h2>
+  <p>The <dfn data-term="Banker's algorithm">Banker's algorithm</dfn> keeps matrices <b>Allocation</b>, <b>Max</b> and <b>Available</b>, and derives <b>Need = Max − Allocation</b>. A state is safe if some ordering lets every process obtain its Need, finish, and release its resources. To check a request, pretend to grant it and test the safety of the resulting state.</p>
+  <div data-sim="banker"></div>
+  <div class="callout"><p><b>Try it:</b> in the safe preset, ask P4 for (3, 3, 0). There are enough available resources, but granting it leaves no process able to finish, so the Banker refuses. Then switch to the unsafe preset to see the safety search fail.</p></div>
+  <p class="small">Safe ⇒ no deadlock. Unsafe does <em>not</em> mean deadlock has happened, just that it can no longer be ruled out.</p>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=banker">Banker's algorithm problems</a> (random problems with worked solutions).</p></div>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/04-semaphores-deadlock.html">Lab 4: create a real deadlock and prevent it</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="7"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/banker.js"></script>
+<script src="../js/lib/misc.js"></script>
+<script src="../js/sims/m07-deadlocks.js"></script>
+</body>
+</html>

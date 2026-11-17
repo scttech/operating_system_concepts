@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 11: File Systems — OS Concepts</title>
+<meta name="description" content="File allocation methods, inodes, indirect blocks, links and journaling with interactive visualizations.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="11">
+<main>
+  <p class="eyebrow">Module 11</p>
+  <h1>File Systems</h1>
+  <p class="lead">A file system turns a raw array of disk <dfn data-term="Block">blocks</dfn> into named, persistent, protected files and directories.</p>
+
+  <h2>Files and directories</h2>
+  <ul>
+    <li>A <b>file</b> is a named collection of bytes plus metadata: size, owner, permissions, timestamps, location of its blocks.</li>
+    <li>A <b>directory</b> is itself a file that maps names to files (in Unix: names to inode numbers).</li>
+    <li>Programs refer to open files via a <dfn data-term="File descriptor">file descriptor</dfn>, an index into a per-process table that points to system-wide open-file entries.</li>
+    <li><b>Access methods:</b> sequential (read next), direct/random (read block <i>k</i>) and indexed.</li>
+  </ul>
+
+  <h2>Allocating blocks to files</h2>
+  <p>How a file's blocks are placed on disk determines speed, space efficiency and how well files can grow.</p>
+  <div data-sim="alloc"></div>
+  <ul>
+    <li><b>Contiguous:</b> fast and simple, but suffers external fragmentation and growth problems (like contiguous memory allocation).</li>
+    <li><b>Linked:</b> no external fragmentation; terrible random access, and one lost pointer loses the rest of the file.</li>
+    <li><b>FAT:</b> moves the links into a table (the File Allocation Table), usually cached in memory; simple and robust but the table can grow large.</li>
+    <li><b>Indexed / inode-based:</b> an index structure lists the blocks; good random access with no external fragmentation.</li>
+  </ul>
+
+  <h2>Inodes</h2>
+  <p>An <dfn data-term="Inode">inode</dfn> stores everything about a file <em>except its name</em>: permissions, owner, timestamps, size and block pointers. A classic Unix inode has about 12 <b>direct</b> pointers (fast for small files) followed by <b>single</b>, <b>double</b> and <b>triple indirect</b> pointers that point to blocks of pointers. Small files stay quick, while huge files remain possible.</p>
+  <div data-sim="inode"></div>
+  <p>Check the quiz answer yourself: 4 KiB blocks and 4-byte pointers give 1024 pointers per indirect block. With 12 direct and one single-indirect pointer that's (12 + 1024) × 4 KiB = 4,144 KiB. Switch on double-indirect and the maximum jumps to about 4 GiB.</p>
+
+  <h2>Links</h2>
+  <ul>
+    <li><dfn data-term="Hard link">Hard link</dfn>: another directory entry pointing to the same inode. The inode keeps a link count; data is freed when it reaches 0. Cannot cross file systems.</li>
+    <li><dfn data-term="Symbolic link">Symbolic link</dfn>: a small file containing a path. It can cross file systems and point to directories, but dangles if the target goes away.</li>
+  </ul>
+
+  <h2>Free space and reliability</h2>
+  <ul>
+    <li><b>Free-space tracking:</b> bitmaps (1 bit per block) or free lists/extents.</li>
+    <li><b>Crash consistency:</b> a single logical operation (creating a file) touches several structures (bitmap, inode, directory). A crash in the middle leaves them inconsistent. Old systems ran <code>fsck</code> over the whole disk; modern file systems use <dfn data-term="Journaling">journaling</dfn> (write-ahead log) or copy-on-write designs to recover quickly.</li>
+    <li><b>Performance:</b> the buffer cache, read-ahead, delayed writes and extents (ranges of blocks instead of single pointers, as in ext4 and NTFS).</li>
+    <li><b>Layering:</b> a Virtual File System (VFS) layer lets the same system calls work across ext4, NTFS, NFS and others.</li>
+  </ul>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=inode">maximum file size problems</a> (random problems with worked solutions).</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="11"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/misc.js"></script>
+<script src="../js/sims/m11-filesystems.js"></script>
+</body>
+</html>

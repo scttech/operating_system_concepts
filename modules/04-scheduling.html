@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 4: CPU Scheduling — OS Concepts</title>
+<meta name="description" content="Interactive CPU scheduling simulator: FCFS, SJF, SRTF, Round Robin and Priority with Gantt charts and metrics.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="4">
+<main>
+  <p class="eyebrow">Module 4</p>
+  <h1>CPU Scheduling</h1>
+  <p class="lead">With more runnable processes than CPU cores, the scheduler decides who runs, when and for how long. Different goals lead to different algorithms.</p>
+
+  <p>A process alternates between computing and waiting for I/O. One continuous run on the CPU is a <dfn data-term="Burst time">CPU burst</dfn>, and a process that mostly waits for devices is <dfn data-term="I/O-bound">I/O-bound</dfn>. The scheduler chooses the next process and the <dfn data-term="Dispatcher">dispatcher</dfn> hands it the CPU (performing the context switch). <dfn data-term="Preemption">Preemption</dfn> means the OS can take the CPU away from a running process before its burst is over.</p>
+
+  <h2>Scheduling criteria</h2>
+  <table>
+    <thead><tr><th>Metric</th><th>Definition</th><th>We want it…</th></tr></thead>
+    <tbody>
+      <tr><td>CPU utilization</td><td>Fraction of time the CPU is busy</td><td>high</td></tr>
+      <tr><td><dfn data-term="Throughput">Throughput</dfn></td><td>Processes completed per unit time</td><td>high</td></tr>
+      <tr><td><dfn data-term="Turnaround time">Turnaround time</dfn></td><td>completion − arrival</td><td>low</td></tr>
+      <tr><td><dfn data-term="Waiting time">Waiting time</dfn></td><td>time spent in the ready queue = turnaround − burst</td><td>low</td></tr>
+      <tr><td><dfn data-term="Response time">Response time</dfn></td><td>first run − arrival</td><td>low (important for interactive systems)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>The algorithms</h2>
+  <table>
+    <thead><tr><th>Algorithm</th><th>Preemptive?</th><th>Idea</th><th>Watch out for</th></tr></thead>
+    <tbody>
+      <tr><td><dfn data-term="FCFS">FCFS</dfn></td><td>No</td><td>Run in arrival order</td><td><dfn data-term="Convoy effect">Convoy effect</dfn></td></tr>
+      <tr><td><dfn data-term="SJF">SJF</dfn></td><td>No</td><td>Run the shortest next burst</td><td>Needs burst prediction; <dfn data-term="Starvation">starves</dfn> long jobs</td></tr>
+      <tr><td>SRTF</td><td>Yes</td><td>Preemptive SJF: run the least remaining time</td><td>More context switches; starvation</td></tr>
+      <tr><td><dfn data-term="Round Robin">Round Robin</dfn></td><td>Yes</td><td>Each process gets a <dfn data-term="Time quantum">quantum</dfn> in turn</td><td>Quantum too small means overhead; too large means FCFS</td></tr>
+      <tr><td>Priority</td><td>Either</td><td>Highest priority first</td><td>Starvation, fixed with <dfn data-term="Aging">aging</dfn></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Simulator</h2>
+  <p>Load a preset or edit the process table. For example, load <em>Convoy effect</em> and compare FCFS to SJF and Round Robin, then try different quanta.</p>
+  <div data-sim="scheduling"></div>
+
+  <h2>Things to try</h2>
+  <ol>
+    <li>On the <em>Textbook</em> preset, switch FCFS → SJF. Average waiting time drops from 6.67 to 4.00. SJF is provably optimal for average waiting time when bursts are known.</li>
+    <li>On <em>Round Robin example</em>, slide the quantum from 1 to 12. What happens to context switches? To response time? Where does RR start to look like FCFS?</li>
+    <li>Add a long process arriving at time 0 and several short ones arriving at time 1. Which algorithms suffer the most?</li>
+    <li>On <em>Staggered arrivals</em>, compare SJF with SRTF. When does preemption help?</li>
+  </ol>
+
+  <h2>Beyond the textbook</h2>
+  <ul>
+    <li><b>Multilevel feedback queues (MLFQ)</b> approximate SJF without knowing burst lengths: new jobs start at high priority and sink if they use their whole quantum.</li>
+    <li><b>Linux</b> uses a fair scheduler (CFS, and more recently EEVDF) that tracks how much CPU time each task has received and picks the one furthest behind.</li>
+    <li><b>Real-time</b> systems use algorithms such as rate-monotonic or earliest-deadline-first, where meeting deadlines matters more than average speed.</li>
+    <li><b>Multicore</b> schedulers add load balancing and processor affinity, because migrating a task throws away its warm caches.</li>
+  </ul>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=scheduling">CPU scheduling problems</a> (random problems with worked solutions).</p></div>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: reading CPU use and process states with psutil</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="4"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/scheduling.js"></script>
+<script src="../js/sims/m04-scheduling.js"></script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 9: Virtual Memory — OS Concepts</title>
+<meta name="description" content="Demand paging, page replacement algorithms (FIFO, LRU, OPT, Clock), Belady's anomaly and effective access time.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="9">
+<main>
+  <p class="eyebrow">Module 9</p>
+  <h1>Virtual Memory</h1>
+  <p class="lead"><dfn data-term="Virtual memory">Virtual memory</dfn> separates what a program thinks it has (a huge private address space) from the RAM that actually exists. Only the pages in active use need to be resident.</p>
+
+  <h2>Demand paging</h2>
+  <p>With <dfn data-term="Demand paging">demand paging</dfn> a page is loaded only when first referenced. Each page-table entry has a <b>valid</b> bit. When the CPU touches an invalid page, a <dfn data-term="Page fault">page fault</dfn> traps to the OS:</p>
+  <ol>
+    <li>Check that the reference is legal (otherwise: segmentation fault).</li>
+    <li>Find a free frame. If none, <b>choose a victim</b> with a replacement algorithm (writing it out first if its <dfn data-term="Dirty bit">dirty bit</dfn> is set).</li>
+    <li>Schedule a disk read for the needed page; the process blocks meanwhile.</li>
+    <li>Update the page table and TLB, then restart the faulting instruction.</li>
+  </ol>
+  <p>This works because of <dfn data-term="Locality of reference">locality of reference</dfn>: programs reuse nearby and recently used memory, so faults are rare.</p>
+
+  <h2>Page-replacement algorithms</h2>
+  <table>
+    <thead><tr><th>Algorithm</th><th>Evicts</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>FIFO</td><td>The oldest page in memory</td><td>Simple; suffers <dfn data-term="Belady's anomaly">Belady's anomaly</dfn></td></tr>
+      <tr><td>OPT</td><td>The page not needed for the longest time in the future</td><td>Optimal, but needs the future, so it is a yardstick</td></tr>
+      <tr><td><dfn data-term="LRU">LRU</dfn></td><td>The page least recently used</td><td>Good approximation of OPT; costly to track exactly</td></tr>
+      <tr><td><dfn data-term="Clock algorithm">Clock</dfn> (second chance)</td><td>First page found with reference bit 0, clearing bits as the hand sweeps</td><td>Cheap LRU approximation used in practice</td></tr>
+    </tbody>
+  </table>
+  <div data-sim="pagerepl"></div>
+  <div class="callout"><p><b>Experiments:</b> (1) Use the <em>Belady</em> preset with FIFO and watch the faults-vs-frames chart rise from 3 to 4 frames. (2) Switch to LRU and OPT: they never get worse with more frames. (3) Use the <em>Sequential scan</em> preset with LRU and 4 frames. Why does LRU do terribly on a loop slightly larger than memory?</p></div>
+
+  <h2>Effective access time</h2>
+  <p>If memory takes <i>t<sub>m</sub></i> and a page fault costs <i>t<sub>f</sub></i> (milliseconds for a disk, so about 100,000× slower), then <code>EAT = (1 − p) × t<sub>m</sub> + p × t<sub>f</sub></code>. A fault rate of 1 in 1000 on a 100 ns memory with an 8 ms fault already slows the system 81×.</p>
+  <div data-sim="eat"></div>
+
+  <h2>Thrashing and the working set</h2>
+  <p>If a process doesn't have enough frames for its current locality, it faults constantly, and the CPU sits idle waiting for the disk. The OS then (wrongly) adds more processes and makes it worse: <dfn data-term="Thrashing">thrashing</dfn>. The cure is the <dfn data-term="Working set">working-set</dfn> model (give each process the pages it has used in the last Δ references) or page-fault-frequency control, combined with suspending some processes when memory is overcommitted.</p>
+
+  <h2>Other virtual-memory ideas</h2>
+  <ul>
+    <li><dfn data-term="Swapping">Swapping</dfn> moves whole processes (or, in modern systems, individual pages) between RAM and the backing store on disk.</li>
+    <li><b>Copy-on-write</b> makes <code>fork()</code> cheap by sharing pages until someone writes.</li>
+    <li><b>Memory-mapped files</b> let you access file data through ordinary loads and stores.</li>
+    <li><b>Prepaging, huge pages</b> and <b>NUMA</b> policies are performance refinements on the same foundation.</li>
+  </ul>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=pagerepl">page replacement problems</a> · <a href="../problems.html#topic=eat">effective access time problems</a> (random problems with worked solutions).</p></div>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: RAM, swap and process memory (RSS)</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="9"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/paging.js"></script>
+<script src="../js/sims/m09-virtual.js"></script>
+</body>
+</html>

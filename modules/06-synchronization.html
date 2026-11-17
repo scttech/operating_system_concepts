@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 6: Process Synchronization — OS Concepts</title>
+<meta name="description" content="Race conditions, critical sections, mutexes and semaphores, with a race-condition lab and a bounded-buffer simulator.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="6">
+<main>
+  <p class="eyebrow">Module 6</p>
+  <h1>Process Synchronization</h1>
+  <p class="lead">When <dfn data-term="Concurrency">concurrent</dfn> threads or processes share data, the result can depend on exact timing. Synchronization tools enforce order and exclusive access.</p>
+
+  <h2>The race condition</h2>
+  <p>A <dfn data-term="Race condition">race condition</dfn> exists when the outcome depends on how operations interleave. Even <code>counter++</code> is three machine steps (load, add, store), so two threads can both load the same old value and one increment disappears.</p>
+  <div data-sim="race"></div>
+  <p>Step the threads by hand: run thread 1's LOAD, then thread 2's LOAD, then everything else. Then switch on the mutex and notice that thread 2 is forced to wait.</p>
+
+  <h2>The critical-section problem</h2>
+  <p>The code that touches shared data is the <dfn data-term="Critical section">critical section</dfn>. A correct solution must provide:</p>
+  <ol>
+    <li><dfn data-term="Mutual exclusion">Mutual exclusion</dfn>: only one thread inside at a time.</li>
+    <li><b>Progress</b>: if no one is inside, a thread that wants in is not delayed forever by threads that don't.</li>
+    <li><dfn data-term="Bounded waiting">Bounded waiting</dfn>: a limit on how often others can overtake a waiting thread.</li>
+  </ol>
+  <pre><code>do {
+    acquire(lock);      // entry section
+    /* critical section: touch shared data */
+    release(lock);      // exit section
+    /* remainder section */
+} while (true);</code></pre>
+
+  <h2>Tools</h2>
+  <table>
+    <thead><tr><th>Tool</th><th>How it works</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><dfn data-term="Atomic operation">Atomic</dfn> instructions</td><td>Hardware test-and-set / compare-and-swap</td><td>Foundation for all other locks</td></tr>
+      <tr><td><dfn data-term="Mutex">Mutex</dfn></td><td>Lock with an owner; waiters sleep</td><td>Best for longer critical sections</td></tr>
+      <tr><td><dfn data-term="Spinlock">Spinlock</dfn></td><td>Waiter busy-loops until the lock is free</td><td>Good for very short sections on multicore; wasteful otherwise</td></tr>
+      <tr><td><dfn data-term="Semaphore">Semaphore</dfn></td><td>Integer with atomic <code>wait()</code> (P) and <code>signal()</code> (V)</td><td>Binary (mutex-like) or counting (resource pools)</td></tr>
+      <tr><td>Monitor / condition variable</td><td>Language-level lock plus wait/notify queues</td><td>Java <code>synchronized</code>, Python <code>threading.Condition</code></td></tr>
+    </tbody>
+  </table>
+  <pre><code>wait(S):   while (S &lt;= 0) block;  S--;   // must be atomic
+signal(S): S++;  wake one waiter;          // must be atomic</code></pre>
+
+  <h2>Bounded buffer (producer–consumer)</h2>
+  <p>Producers add items to a buffer of N slots and consumers remove them. Three semaphores solve it: <code>empty = N</code> (free slots), <code>full = 0</code> (filled slots) and <code>mutex = 1</code> (protects the buffer structure).</p>
+  <pre><code>producer:                     consumer:
+  wait(empty)                   wait(full)
+  wait(mutex)                   wait(mutex)
+  insert item                   remove item
+  signal(mutex)                 signal(mutex)
+  signal(full)                  signal(empty)</code></pre>
+  <div class="callout warn"><p><b>Order matters:</b> if a producer does <code>wait(mutex)</code> <em>before</em> <code>wait(empty)</code> and the buffer is full, it sleeps while holding the mutex, so the consumer can never get in to make room. That is a deadlock. See <a href="07-deadlocks.html">Module 7</a>.</p></div>
+  <div data-sim="boundedbuffer"></div>
+
+  <h2>Other classic problems</h2>
+  <ul>
+    <li><b>Readers–writers:</b> many readers may share data, but writers need exclusive access (beware writer starvation).</li>
+    <li><b>Dining philosophers:</b> see <a href="07-deadlocks.html#philosophers">Module 7</a>.</li>
+    <li><b><dfn data-term="Priority inversion">Priority inversion</dfn>:</b> a high-priority task blocked on a lock held by a low-priority task that is preempted by a medium one. Fix with priority inheritance.</li>
+  </ul>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/02-threads.html">Lab 2: a race condition and a lock</a> · <a href="../labs/04-semaphores-deadlock.html">Lab 4: semaphores and a bounded buffer</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="6"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/sync.js"></script>
+<script src="../js/sims/m06-sync.js"></script>
+</body>
+</html>

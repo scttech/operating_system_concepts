@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 10: Disk Scheduling &amp; I/O — OS Concepts</title>
+<meta name="description" content="I/O hardware, DMA, disk geometry and an interactive disk scheduling simulator (FCFS, SSTF, SCAN, C-SCAN, LOOK).">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="10">
+<main>
+  <p class="eyebrow">Module 10</p>
+  <h1>Disk Scheduling &amp; I/O</h1>
+  <p class="lead">Devices are slow, diverse and unpredictable. The OS hides their differences behind uniform interfaces and arranges requests so the hardware is used efficiently.</p>
+
+  <h2>Talking to devices</h2>
+  <table>
+    <thead><tr><th>Technique</th><th>How it works</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td>Polling</td><td>CPU repeatedly checks a device's status register</td><td>Simple, low latency for fast devices; wastes CPU on slow ones</td></tr>
+      <tr><td>Interrupts</td><td>Device signals the CPU when ready</td><td>CPU does useful work meanwhile; each interrupt has overhead</td></tr>
+      <tr><td><dfn data-term="Direct memory access (DMA)">DMA</dfn></td><td>A controller moves whole blocks between device and memory</td><td>CPU involved only at start and finish; ideal for bulk transfers</td></tr>
+      <tr><td><dfn data-term="Memory-mapped I/O">Memory-mapped I/O</dfn></td><td>Device registers appear as memory addresses</td><td>Uniform load/store programming model</td></tr>
+    </tbody>
+  </table>
+  <p>The kernel's I/O subsystem adds <dfn data-term="Buffer">buffering</dfn> (smoothing speed differences), <dfn data-term="Cache">caching</dfn> (keeping hot data in RAM), <b>spooling</b> (queueing output for exclusive devices such as printers) and <dfn data-term="Device driver">device drivers</dfn> that translate generic requests into device-specific commands.</p>
+  <p>With <dfn data-term="Asynchronous I/O">asynchronous I/O</dfn> a program starts a request and keeps running, and the OS reports completion later (usually through an interrupt or callback). With synchronous (blocking) I/O the process waits until the request is done.</p>
+
+  <h2>How a hard disk spends its time</h2>
+  <p><b>Access time = seek + rotational latency + transfer.</b> <dfn data-term="Seek time">Seek time</dfn> (moving the head to the right <dfn data-term="Cylinder">cylinder</dfn>) is by far the largest term, a few milliseconds. Rotational latency averages half a revolution (about 4.2 ms at 7200 RPM). Transfer of a block is tiny by comparison. So the OS reorders requests to minimize head movement.</p>
+
+  <h2>Disk-scheduling algorithms</h2>
+  <table>
+    <thead><tr><th>Algorithm</th><th>Rule</th><th>Strength / weakness</th></tr></thead>
+    <tbody>
+      <tr><td>FCFS</td><td>Serve in arrival order</td><td>Fair, but lots of back-and-forth movement</td></tr>
+      <tr><td>SSTF</td><td>Nearest request next</td><td>Low movement; can starve distant requests</td></tr>
+      <tr><td><dfn data-term="SCAN">SCAN</dfn> (elevator)</td><td>Sweep to one end, then reverse</td><td>No starvation; favors the middle cylinders</td></tr>
+      <tr><td>C-SCAN</td><td>Sweep one way; jump back and sweep again</td><td>More uniform waiting time</td></tr>
+      <tr><td>LOOK / C-LOOK</td><td>Like SCAN/C-SCAN but turn around at the last request, not the disk edge</td><td>Slightly less movement</td></tr>
+    </tbody>
+  </table>
+  <div data-sim="disk"></div>
+  <div class="callout"><p><b>Try it:</b> load the textbook queue (head at 53) and confirm FCFS = 640 and SSTF = 236 cylinders. Then use <em>Random queue</em> several times. Does SSTF always beat FCFS? Is SCAN ever worse than SSTF? Increase the queue near the head and imagine a request at cylinder 199 waiting. That is the starvation risk.</p></div>
+
+  <h2>Beyond spinning disks</h2>
+  <ul>
+    <li><b>SSDs</b> have no seek time. Their schedulers care about parallelism across flash channels, and the controller handles wear leveling, garbage collection and write amplification. Simple “none” or deadline schedulers are common.</li>
+    <li><b>RAID</b> combines disks for speed or reliability: RAID 0 stripes (fast, no redundancy), RAID 1 mirrors, RAID 5 stripes with distributed parity (survives one failure), RAID 6 survives two.</li>
+    <li><b>Block layer</b> merges adjacent requests and reorders them before they reach the device. Linux's <code>mq-deadline</code>, <code>bfq</code> and <code>none</code> are examples.</li>
+  </ul>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=disk">disk scheduling problems</a> (random problems with worked solutions).</p></div>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: disk usage and I/O counters</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="10"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/disk.js"></script>
+<script src="../js/sims/m10-disk.js"></script>
+</body>
+</html>

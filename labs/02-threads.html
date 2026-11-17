@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 2: Threads, races and the GIL — OS Concepts</title>
+<meta name="description" content="Watch a race condition lose updates, fix it with a lock, and measure when threads and processes speed up Python code.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-lab="2">
+<main>
+  <p class="eyebrow">Lab 2</p>
+  <h1>Threads, race conditions and the GIL</h1>
+  <p class="lead">Create threads, make them share a counter, watch updates disappear, and fix the problem with a lock. Then measure when threads actually make Python faster, and when you need separate processes instead.</p>
+  <div class="lab-meta"><span>About 45 minutes</span><span>Any system</span><span>Related: <a href="../modules/05-threads.html">Module 5 Threads</a>, <a href="../modules/06-synchronization.html">Module 6 Synchronization</a></span></div>
+
+  <h2>What you will practice</h2>
+  <ul>
+    <li>Creating, starting and joining <dfn data-term="Thread">threads</dfn>.</li>
+    <li>Causing and observing a <dfn data-term="Race condition">race condition</dfn>.</li>
+    <li>Protecting a <dfn data-term="Critical section">critical section</dfn> with a lock (<dfn data-term="Mutual exclusion">mutual exclusion</dfn>).</li>
+    <li>Explaining why threads do not speed up CPU-bound Python code but processes do (Python's Global Interpreter Lock).</li>
+  </ul>
+
+  <h2>Part A: a race condition</h2>
+  <p><b>Predict first:</b> four threads each add 1 to a shared counter 2,000 times. What should the final value be? Without a lock, do you expect exactly that, more, or less?</p>
+  <pre class="code" data-src="labs/code/lab2_threads.py"><code>"""Lab 2a - Threads, race conditions and locks."""
+import threading
+import time
+
+THREADS, ITERATIONS = 4, 2000
+counter = 0
+lock = threading.Lock()
+
+
+def unsafe_worker():
+    global counter
+    for _ in range(ITERATIONS):
+        temp = counter              # (1) READ the shared value
+        time.sleep(0)               # (2) yield the CPU: another thread can run between the read and the write
+        counter = temp + 1          # (3) WRITE back a possibly stale value
+
+
+def safe_worker():
+    global counter
+    for _ in range(ITERATIONS):
+        with lock:                  # (4) only one thread at a time may be inside this block
+            temp = counter
+            time.sleep(0)
+            counter = temp + 1
+
+
+def run(worker):
+    global counter
+    counter = 0
+    threads = [threading.Thread(target=worker) for _ in range(THREADS)]
+    for t in threads:
+        t.start()                   # (5) all threads now run at once
+    for t in threads:
+        t.join()                    # (6) wait for every thread to finish
+    return counter
+
+
+expected = THREADS * ITERATIONS
+print(f"{THREADS} threads each add 1 to a shared counter {ITERATIONS} times; the right answer is {expected}")
+for label, worker in (("without a lock", unsafe_worker), ("with a lock", safe_worker)):
+    got = run(worker)
+    verdict = "correct" if got == expected else f"WRONG ({expected - got} updates lost)"
+    print(f"  {label:&lt;15} got {got:&gt;5}: {verdict}")</code></pre>
+  <p>Run it with <code>python lab2_threads.py</code>. Run it several times: the unsafe result changes every run.</p>
+  <h3>Example output</h3>
+  <p class="small">Your “without a lock” number will be different every time. The “with a lock” line will always be correct.</p>
+<pre class="output"><code>4 threads each add 1 to a shared counter 2000 times; the right answer is 8000
+  without a lock  got  2082: WRONG (5918 updates lost)
+  with a lock     got  8000: correct</code></pre>
+
+  <h3>What to notice</h3>
+  <ol>
+    <li><b>(1)–(3)</b> <code>counter += 1</code> is really three steps: read, add, write (the same load, add, store you stepped through in the <a href="../modules/06-synchronization.html">race-condition lab</a>). Here they are spelled out as separate lines.</li>
+    <li><b>(2)</b> <code>time.sleep(0)</code> makes the thread give up the CPU between the read and the write. That makes the race easy to see. Without it, Python's interpreter lock hides many races on small programs, which is dangerous because the bug is still there and shows up later under load.</li>
+    <li><b>(3)</b> Two threads that read the same old value both write back the same new value, so one increment is lost. Many updates are lost because each thread usually reads a value that another thread has already made stale.</li>
+    <li><b>(4)</b> The <code>with lock:</code> block makes read, add and write behave as one indivisible step. Only one thread can be inside at a time.</li>
+    <li><b>(5) and (6)</b> <code>start()</code> lets the threads run; <code>join()</code> waits for each one. Forgetting <code>join()</code> would print the counter before the threads finish.</li>
+  </ol>
+
+  <h2>Part B: threads versus processes (the GIL)</h2>
+  <p>CPython (the standard Python) has a <b>Global Interpreter Lock</b>: only one thread can run Python bytecode at a time. <b>Predict first:</b> will four threads finish four CPU-heavy tasks faster than doing them one after another? Will four processes?</p>
+  <pre class="code" data-src="labs/code/lab2_gil.py"><code>"""Lab 2b - Threads versus processes for CPU-bound work (the Global Interpreter Lock)."""
+import time
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+
+TASKS, SIZE = 4, 6_000_000
+
+
+def work(n):
+    """(1) Pure CPU work: no waiting for I/O at all."""
+    return sum(i * i for i in range(n))
+
+
+def timed(label, executor_class):
+    start = time.perf_counter()
+    with executor_class(max_workers=TASKS) as pool:
+        results = list(pool.map(work, [SIZE] * TASKS))
+    elapsed = time.perf_counter() - start
+    print(f"{label:&lt;22} {elapsed:5.2f} s")
+    return results, elapsed
+
+
+if __name__ == "__main__":          # required on Windows and macOS so new processes can import this file safely
+    start = time.perf_counter()
+    expected = [work(SIZE) for _ in range(TASKS)]          # (2) baseline: one task after another
+    print(f"{'one after another':&lt;22} {time.perf_counter() - start:5.2f} s")
+    by_threads, t_threads = timed(f"{TASKS} threads", ThreadPoolExecutor)          # (3) threads share one interpreter lock
+    by_processes, t_processes = timed(f"{TASKS} processes", ProcessPoolExecutor)   # (4) each process has its own interpreter
+    print("all three methods give the same answers:", expected == by_threads == by_processes)</code></pre>
+  <p>Run it with <code>python lab2_gil.py</code>. The tasks are pure calculation with no waiting.</p>
+  <h3>Example output</h3>
+  <p class="small">From a 16-thread Windows PC. Your times will differ, but the pattern should match.</p>
+<pre class="output"><code>one after another       1.99 s
+4 threads               1.91 s
+4 processes             0.76 s
+all three methods give the same answers: True</code></pre>
+  <h3>What to notice</h3>
+  <ul>
+    <li><b>(1) and (2)</b> The task is pure calculation, and (2) is the baseline of running it four times in a row.</li>
+    <li><b>(3) Threads gave almost no speedup</b> for CPU-bound work, because the interpreter lock lets only one thread compute at a time.</li>
+    <li><b>(4) Processes were faster</b> (about 2.6× here). Each has its own interpreter and its own lock, so they truly run on different cores. They did not reach 4× because starting processes costs time and the work is split across only four tasks: compare this with <a href="../modules/05-threads.html">Amdahl's law</a>, where the serial part (here, starting up) limits the speedup.</li>
+    <li><b>Processes do not share memory.</b> Arguments and results are copied between them, which costs time and means they cannot simply update a shared variable. That is the trade-off for their isolation (see <a href="../modules/05-threads.html">Module 5</a>).</li>
+    <li>The <code>if __name__ == "__main__":</code> guard is required on Windows and macOS because new processes re-import the file.</li>
+  </ul>
+  <div class="callout warn"><p><b>Newer Python:</b> Python 3.13 and later offer an experimental “free-threaded” build without the interpreter lock, and the results of Part B can differ there. The ideas, though (shared memory needs locks; processes isolate), apply to every language.</p></div>
+
+  <h2>Try it</h2>
+  <ol>
+    <li>Change <code>THREADS</code> to 1. Is the unsafe version still wrong? Why?</li>
+    <li>Remove <code>time.sleep(0)</code> from the unsafe worker and run it a few times. Is it still wrong? What does that tell you about testing for race conditions?</li>
+    <li>Move the <code>with lock:</code> so that it covers only the <code>counter = temp + 1</code> line. Is it correct now? (Hint: think about which steps must be indivisible.)</li>
+    <li>In Part B replace the work function with <code>time.sleep(0.5)</code> (waiting, not computing). Now do threads help? What kind of program benefits from threads in Python?</li>
+    <li>Change <code>TASKS</code> in Part B to 8, then to 2. Predict the process time each time.</li>
+  </ol>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><b>Trusting a test that passed once.</b> Races are timing-dependent. A passing run proves very little.</li>
+    <li><b>Locking too little.</b> The lock must cover the whole read-modify-write, not just the write.</li>
+    <li><b>Locking too much.</b> Holding a lock during slow work (disk, network) makes every other thread wait.</li>
+    <li><b>Forgetting <code>join()</code>.</b> The main program may print or exit before the work is done.</li>
+    <li><b>Using threads for CPU-bound work in CPython</b> and expecting a speedup.</li>
+  </ul>
+
+  <h2>Reflection questions (good journal entries)</h2>
+  <ol>
+    <li>Explain the unsafe result in your own words, using the three steps read, add and write. Why was the result so much smaller than 8000, not just a little smaller?</li>
+    <li>A locked counter is correct but each increment now waits for the lock. Using ideas from <a href="../modules/05-threads.html">Amdahl's law</a>, explain how heavy locking can erase the benefit of adding more threads.</li>
+    <li>When would you choose threads, and when processes, for a real program? Give one example of each.</li>
+  </ol>
+
+  <h2>Extension</h2>
+  <p>Replace the shared counter with a <code>queue.Queue</code>: worker threads put <code>1</code> on the queue and one collector thread adds them up. Why is there now no need for a lock in your own code? (The queue does the locking for you.) Then compare the speed of the lock version and the queue version.</p>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/labs.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/pages/lab.js"></script>
+</body>
+</html>

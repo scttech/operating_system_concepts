@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculation Practice — OS Concepts</title>
+<meta name="description" content="Randomized operating-system practice problems with instant checking and step-by-step worked solutions: scheduling, page replacement, disk scheduling, paging, Banker's algorithm and more.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="problems">
+<main class="narrow">
+  <p class="eyebrow">Practice</p>
+  <h1>Calculation Practice</h1>
+  <p class="lead">A fresh problem every time, checked instantly, with a step-by-step worked solution. These are the calculations that appear on exams: scheduling, page replacement, disk scheduling, address translation and more.</p>
+
+  <div class="controls">
+    <label><span>Topic</span><select id="topic"></select></label>
+    <label><span>Difficulty</span><select id="level"><option value="1">Warm-up</option><option value="2">Exam-style</option></select></label>
+    <button class="btn" id="new" type="button">New problem</button>
+  </div>
+
+  <section id="problem" class="sim" aria-live="off" aria-label="Current problem"></section>
+
+  <p id="score" class="score" aria-live="polite"></p>
+  <details class="faq">
+    <summary>How this works</summary>
+    <ul>
+      <li>Every problem comes from a <b>problem code</b> (for example <code>disk:48213:2</code>). The same code always gives the same problem, so you can send a link to a classmate or use one in an assignment.</li>
+      <li><b>Warm-up</b> problems use fewer and smaller numbers. <b>Exam-style</b> problems add more processes, more algorithms and trickier cases.</li>
+      <li>Try it yourself first. A wrong answer does not reveal the solution, and “Show solution steps” does. Problems you solve on the first try count toward your score for this visit (nothing is saved).</li>
+      <li>Conventions are stated in each problem, for example how ties are broken and whether the return trip of C-SCAN counts. Different textbooks sometimes differ, so use the rules given here.</li>
+    </ul>
+  </details>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+<script src="js/lib/scheduling.js"></script>
+<script src="js/lib/paging.js"></script>
+<script src="js/lib/disk.js"></script>
+<script src="js/lib/banker.js"></script>
+<script src="js/lib/memory.js"></script>
+<script src="js/lib/misc.js"></script>
+<script src="js/lib/problems.js"></script>
+<script src="js/pages/problems.js"></script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 1: OS Fundamentals &amp; System Calls — OS Concepts</title>
+<meta name="description" content="What an operating system does, kernel vs. user mode, interrupts, and a step-by-step system call walkthrough.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="1">
+<main>
+  <p class="eyebrow">Module 1</p>
+  <h1>OS Fundamentals &amp; System Calls</h1>
+  <p class="lead">An operating system sits between applications and hardware. It shares the machine fairly, hides hardware details behind clean abstractions, and protects programs from one another.</p>
+
+  <div class="toc"><strong>On this page</strong>
+    <ul><li><a href="#roles">What an OS does</a></li><li><a href="#modes">Kernel mode and user mode</a></li><li><a href="#events">Interrupts, traps and exceptions</a></li><li><a href="#syscall">System calls</a></li><li><a href="#structure">OS structure</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
+
+  <h2 id="roles">What an OS does</h2>
+  <ul>
+    <li><b>Resource manager:</b> allocates CPU time, memory, storage and I/O devices among competing programs.</li>
+    <li><b>Abstraction layer:</b> turns messy hardware into files, processes, sockets and virtual memory.</li>
+    <li><b>Protector:</b> prevents one program (or user) from damaging another or the system.</li>
+    <li><b>Control program:</b> supervises execution to prevent errors and improper use of the computer.</li>
+  </ul>
+  <p>The <dfn data-term="Kernel">kernel</dfn> is the always-resident core that performs these jobs. Everything else (shells, compilers, browsers, even the GUI) is just a program that asks the kernel for help.</p>
+  <p>The kernel does not start itself. When the machine powers on, firmware runs a <dfn data-term="Boot loader">boot loader</dfn>, a small program that finds the kernel on disk, loads it into memory and starts it.</p>
+
+  <h2 id="modes">Kernel mode and user mode</h2>
+  <p>The CPU has a <em>mode bit</em>. In <dfn data-term="User mode">user mode</dfn> only a safe subset of instructions is allowed. In <dfn data-term="Kernel mode">kernel mode</dfn> every instruction and every memory address is available. Privileged instructions (changing page tables, disabling interrupts, talking to devices, halting the CPU) fault if tried in user mode. That hardware enforcement is what makes protection possible.</p>
+  <div class="callout"><p><b>Key idea:</b> a program can never simply “jump into the kernel”. The only ways in are hardware-controlled <dfn data-term="Entry point">entry points</dfn>: interrupts, exceptions and traps (system calls).</p></div>
+
+  <h2 id="events">Interrupts, traps and exceptions</h2>
+  <table>
+    <thead><tr><th>Event</th><th>Source</th><th>Synchronous?</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><dfn data-term="Interrupt">Interrupt</dfn></td><td>Hardware</td><td>No</td><td>Timer tick, keyboard press, disk completed</td></tr>
+      <tr><td><dfn data-term="Exception">Exception</dfn> (fault)</td><td>CPU, the current instruction</td><td>Yes</td><td>Divide by zero, page fault, illegal instruction</td></tr>
+      <tr><td><dfn data-term="Trap">Trap</dfn></td><td>Software, deliberately</td><td>Yes</td><td>System call instruction</td></tr>
+    </tbody>
+  </table>
+  <p>In every case the CPU saves enough state, switches to kernel mode, and jumps to a handler found in the <dfn data-term="Interrupt vector">interrupt vector</dfn>. The <b>timer interrupt</b> is especially important: it lets the OS retake the CPU from a program that never gives it up.</p>
+
+  <h2 id="syscall">System calls</h2>
+  <p>A <dfn data-term="System call">system call</dfn> is the API through which programs request kernel services: files, processes, memory, networking. Programs normally call a library wrapper (like <code>read()</code> in libc) instead of issuing the trap themselves.</p>
+  <div data-sim="syscall"></div>
+  <p>Try different system calls. The kernel-side work differs, but the mode switch, argument validation and return path are always the same. That fixed cost is why batching I/O (bigger reads and writes) is faster than many tiny calls.</p>
+  <pre><code>// What a shell does to run "ls", in terms of system calls
+pid = fork();          // create a child process
+if (pid == 0) {
+    execvp("ls", argv); // replace the child's program with ls
+}
+waitpid(pid, &amp;status, 0); // parent waits for the child to finish</code></pre>
+
+  <h2 id="structure">OS structure</h2>
+  <table>
+    <thead><tr><th>Design</th><th>Idea</th><th>Pros</th><th>Cons</th><th>Examples</th></tr></thead>
+    <tbody>
+      <tr><td><dfn data-term="Monolithic kernel">Monolithic</dfn></td><td>All services in one kernel address space</td><td>Fast: direct function calls</td><td>A driver bug can crash everything</td><td>Linux, traditional UNIX</td></tr>
+      <tr><td><dfn data-term="Microkernel">Microkernel</dfn></td><td>Minimal kernel; other services run in user space</td><td>Isolation, reliability, flexibility</td><td>Message-passing overhead</td><td>Minix, QNX, seL4</td></tr>
+      <tr><td><dfn data-term="Hybrid kernel">Hybrid</dfn></td><td>Microkernel ideas with many services in kernel</td><td>Compromise</td><td>Complex</td><td>Windows NT, macOS (XNU)</td></tr>
+      <tr><td>Layered / modular</td><td>Strict layers or loadable modules</td><td>Easier to reason about and extend</td><td>Layering overhead</td><td>Linux kernel modules</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><p><b>Common confusion:</b> the OS is not the shell, the GUI or the whole distribution. The kernel is the privileged core; the rest is user-space software.</p></div>
+  <div class="callout"><p><b>Beyond the big three:</b> phones, cars, single-board computers and mainframes make very different choices about these same ideas. See <a href="12-os-landscape.html">Module 12</a> to compare Android, iOS, Qubes OS, Raspberry Pi OS, real-time systems and IBM's z/OS, z/VSE and IBM i.</p></div>
+
+  <h2 id="quiz">Check your understanding</h2>
+  <div data-quiz="1"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/sims/m01-syscall.js"></script>
+</body>
+</html>

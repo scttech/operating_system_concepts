@@ -1,0 +1,144 @@
+/* Site chrome: header, footer, module pager, theme toggle, glossary tooltips. */
+(function () {
+  "use strict";
+  const body = document.body;
+  const root = body.dataset.root || "";
+  const modules = (window.OSData && window.OSData.modules) || [];
+  const page = body.dataset.page || "";
+  const modNum = body.dataset.module ? +body.dataset.module : null;
+
+  // Theme (persisted, but never required)
+  try {
+    const saved = localStorage.getItem("osc-theme");
+    if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+  } catch (e) { /* storage unavailable */ }
+
+  const links = [
+    ["index.html", "Home", "home"], ["labs.html", "Labs", "labs"], ["problems.html", "Problems", "problems"], ["practice.html", "Quiz", "practice"],
+    ["glossary.html", "Glossary", "glossary"], ["faq.html", "FAQ", "faq"],
+    ["cheatsheet.html", "Cheat sheet", "cheatsheet"]
+  ];
+  const nav = document.createElement("nav");
+  nav.setAttribute("aria-label", "Main");
+  links.forEach(([href, text, key]) => {
+    const a = document.createElement("a");
+    a.href = root + href; a.textContent = text;
+    if (page === key) a.setAttribute("aria-current", "page");
+    nav.append(a);
+  });
+  const modSel = document.createElement("select");
+  modSel.setAttribute("aria-label", "Jump to module");
+  modSel.innerHTML = '<option value="">Modules…</option>' +
+    modules.map((m) => `<option value="${m.slug}"${m.n === modNum ? " selected" : ""}>${m.n}. ${m.title}</option>`).join("");
+  modSel.addEventListener("change", () => { if (modSel.value) location.href = `${root}modules/${modSel.value}.html`; });
+  nav.append(modSel);
+
+  const toggle = document.createElement("button");
+  toggle.id = "theme-toggle"; toggle.type = "button"; toggle.textContent = "Theme";
+  toggle.setAttribute("aria-label", "Toggle light or dark theme");
+  toggle.addEventListener("click", () => {
+    const cur = document.documentElement.dataset.theme ||
+      (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = cur === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("osc-theme", next); } catch (e) { /* ignore */ }
+  });
+
+  const header = document.createElement("header");
+  header.className = "site";
+  const inner = document.createElement("div");
+  inner.className = "inner";
+  const brand = document.createElement("a");
+  brand.className = "brand"; brand.href = root + "index.html";
+  const mark = document.createElement("img");
+  mark.src = root + "images/favicon.png"; mark.alt = ""; mark.width = 32; mark.height = 32; // decorative; the link text names it
+  brand.append(mark, document.createTextNode("OS Concepts"));
+  inner.append(brand, nav, toggle);
+  header.append(inner);
+
+  const skip = document.createElement("a");
+  skip.className = "skip"; skip.href = "#main"; skip.textContent = "Skip to content";
+  body.prepend(header); body.prepend(skip);
+  const main = document.querySelector("main");
+  if (main) main.id = "main";
+
+  // Prev/next pager on module pages
+  if (modNum && main) {
+    const i = modules.findIndex((m) => m.n === modNum);
+    const pager = document.createElement("div");
+    pager.className = "pager";
+    const mk = (m, label) => {
+      const a = document.createElement("a");
+      a.className = "btn secondary"; a.href = `${m.slug}.html`; a.textContent = label;
+      return a;
+    };
+    pager.append(i > 0 ? mk(modules[i - 1], `← ${modules[i - 1].n}. ${modules[i - 1].title}`) : document.createElement("span"));
+    pager.append(i < modules.length - 1 ? mk(modules[i + 1], `${modules[i + 1].n}. ${modules[i + 1].title} →`) : document.createElement("span"));
+    main.append(pager);
+  }
+
+  // Wide content must scroll inside its own box, never sideways across the whole page (phones), and be keyboard reachable.
+  if (main) {
+    main.querySelectorAll("table").forEach((t) => {
+      if (t.closest(".sim, .compare-wrap, .table-scroll")) return;
+      const box = document.createElement("div");
+      box.className = "table-scroll";
+      t.parentNode.insertBefore(box, t); box.append(t);
+    });
+    main.querySelectorAll("pre, .table-scroll").forEach((el) => { if (window.OSUI && OSUI.watchScroll) OSUI.watchScroll(el); });
+  }
+
+  // Prev/next pager on lab pages
+  const labNum = body.dataset.lab ? +body.dataset.lab : null;
+  if (labNum && main) {
+    const labs = (window.OSData && window.OSData.labs) || [], i = labs.findIndex((l) => l.n === labNum);
+    const pager = document.createElement("div");
+    pager.className = "pager";
+    const mk = (l, label) => { const a = document.createElement("a"); a.className = "btn secondary"; a.href = `${l.slug}.html`; a.textContent = label; return a; };
+    pager.append(i > 0 ? mk(labs[i - 1], `← Lab ${labs[i - 1].n}: ${labs[i - 1].title}`) : document.createElement("span"));
+    pager.append(i >= 0 && i < labs.length - 1 ? mk(labs[i + 1], `Lab ${labs[i + 1].n}: ${labs[i + 1].title} →`) : document.createElement("span"));
+    main.append(pager);
+  }
+
+  const footer = document.createElement("footer");
+  footer.className = "site";
+  footer.textContent = "Operating System Concepts — an independent, open educational resource. Simulations are simplified for teaching.";
+  body.append(footer);
+
+  // <dfn data-term="deadlock">…</dfn> -> tooltip + link to glossary
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const glossary = (window.OSData && window.OSData.glossary) || [];
+  // Safe to call repeatedly (simulations add <dfn>s after the page loads).
+  function enhanceTerms(scope) {
+    (scope || document).querySelectorAll("dfn[data-term]").forEach((el) => {
+      if (el.title) return;
+      const key = el.dataset.term.toLowerCase();
+      const entry = glossary.find((g) => g.term.toLowerCase() === key);
+      if (!entry) return;
+      el.title = entry.def;
+      // The first <dfn> for a term on a page becomes its anchor, so the glossary can link straight to it (modules/…#term-deadlock).
+      const anchor = `term-${slug(entry.term)}`;
+      if (!document.getElementById(anchor)) el.id = anchor;
+      const a = document.createElement("a");
+      a.href = `${root}glossary.html#${slug(entry.term)}`;
+      a.append(...el.childNodes);
+      el.append(a);
+    });
+  }
+  enhanceTerms();
+
+  /** decodeURIComponent throws on malformed input such as "%E0%A4%A"; a bad link must never break a page. */
+  function safeDecode(s) { try { return decodeURIComponent(s); } catch (e) { return s; } }
+
+  /** Arriving from the glossary (#term-…): bring the term into view and flash it. Re-run once simulations have changed the layout. */
+  function focusHash() {
+    if (!/^#term-/.test(location.hash)) return;
+    const el = document.getElementById(safeDecode(location.hash.slice(1)));
+    if (!el) return;
+    if (el.scrollIntoView) el.scrollIntoView({ block: "center" });
+    el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+  }
+  focusHash();
+
+  window.OSSite = { slug, enhance: enhanceTerms, focusHash, safeDecode };
+})();

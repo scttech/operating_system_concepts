@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 1: Processes — OS Concepts</title>
+<meta name="description" content="Launch, wait for and fork processes from Python: PIDs, exit codes, inherited environments, parallel children, fork, exec and zombies.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-lab="1">
+<main>
+  <p class="eyebrow">Lab 1</p>
+  <h1>Processes: launching, waiting and forking</h1>
+  <p class="lead">Use Python to create and manage processes the way a shell does. You will see process IDs, exit codes, inherited environments and parallel children. On Linux or macOS you will also use <code>fork</code>, <code>exec</code> and <code>wait</code> directly and catch a zombie.</p>
+  <div class="lab-meta"><span>About 45 minutes</span><span>Part A: any system</span><span>Part B: Linux, macOS, WSL or Codio</span><span>Related: <a href="../modules/03-processes.html">Module 3 Processes</a>, <a href="../modules/04-scheduling.html">Module 4 CPU Scheduling</a></span></div>
+
+  <h2>What you will practice</h2>
+  <ul>
+    <li>Reading a <dfn data-term="Process">process</dfn>'s id and its parent's id.</li>
+    <li>Starting a <dfn data-term="Child process">child process</dfn>, waiting for it, and reading its exit code.</li>
+    <li>Seeing that a child inherits its parent's environment.</li>
+    <li>Running several children at once and measuring the difference from running them one after another.</li>
+    <li>Using <dfn data-term="Fork">fork</dfn>, <code>exec</code> and <code>wait</code>, and recognizing a <dfn data-term="Zombie process">zombie process</dfn>.</li>
+  </ul>
+
+  <h2>Part A: launching processes (any system)</h2>
+  <p><b>Predict first:</b> if you start four children that each sleep for half a second, how long will your program take if they run one after another? If they run at the same time?</p>
+  <pre class="code" data-src="labs/code/lab1_processes.py"><code>"""Lab 1a - Processes: inspect and launch them from Python (Windows, macOS and Linux)."""
+import os
+import subprocess
+import sys
+import time
+
+# (1) Every process has an id, and a parent that created it.
+print(f"this process: pid={os.getpid()}  parent pid={os.getppid()}")
+
+# (2) Start a child program and wait for it to finish (like fork + exec + wait).
+child = subprocess.run(
+    [sys.executable, "-c", "import os; print('hello from child, pid', os.getpid())"],
+    capture_output=True, text=True)
+print(f"child said:     {child.stdout.strip()}")
+print(f"child exit code: {child.returncode}")
+
+# (3) A child reports success or failure through its exit code.
+failing = subprocess.run([sys.executable, "-c", "raise SystemExit(3)"])
+print(f"a failing child exits with code {failing.returncode}")
+
+# (4) A child inherits a copy of its parent's environment (part of the PCB).
+env = {**os.environ, "LAB_GREETING": "inherited!"}
+shown = subprocess.run([sys.executable, "-c", "import os; print(os.environ['LAB_GREETING'])"],
+                       env=env, capture_output=True, text=True)
+print(f"child saw LAB_GREETING = {shown.stdout.strip()}")
+
+# (5) Popen starts a child WITHOUT waiting, so several can run at the same time.
+start = time.perf_counter()
+kids = [subprocess.Popen([sys.executable, "-c", "import time; time.sleep(0.5)"]) for _ in range(4)]
+print(f"started {len(kids)} children; all have different pids: {len({k.pid for k in kids}) == 4}")
+for kid in kids:
+    kid.wait()                      # collect each child's exit status
+elapsed = time.perf_counter() - start
+print(f"4 children that each sleep 0.5 s finished in {elapsed:.1f} s "
+      f"({'in parallel' if elapsed &lt; 1.6 else 'one after another'}; sequential would take 2.0 s or more)")</code></pre>
+  <p>Run it with <code>python lab1_processes.py</code> (on Windows you can also use <code>py</code>).</p>
+  <h3>Example output</h3>
+  <p class="small">Process ids will be different on your machine.</p>
+<pre class="output"><code>this process: pid=252260  parent pid=243352
+child said:     hello from child, pid 252720
+child exit code: 0
+a failing child exits with code 3
+child saw LAB_GREETING = inherited!
+started 4 children; all have different pids: True
+4 children that each sleep 0.5 s finished in 0.6 s (in parallel; sequential would take 2.0 s or more)</code></pre>
+
+  <h3>What to notice</h3>
+  <ol>
+    <li><b>(1)</b> Your own program is a process with a parent. The parent is whatever started it: your terminal, shell or editor.</li>
+    <li><b>(2)</b> <code>subprocess.run</code> starts a child <em>and waits</em>, like the shell does after <code>fork</code> and <code>exec</code>. The exit code <code>0</code> means success by convention.</li>
+    <li><b>(3)</b> Any non-zero exit code means failure, and the parent can read it. This is how scripts and build tools know a step failed.</li>
+    <li><b>(4)</b> The child received a <em>copy</em> of the parent's environment variables. Changing the copy would not change the parent's. This inheritance is part of what the kernel's <dfn data-term="PCB (process control block)">process control block</dfn> records.</li>
+    <li><b>(5)</b> <code>Popen</code> starts a child without waiting, so the four sleepers overlap and the total is about 0.5 s, not 2 s. Sleeping children use almost no CPU, which is why running more of them than you have cores still works.</li>
+  </ol>
+
+  <h2>Part B: fork, exec and wait (Linux, macOS, WSL or Codio)</h2>
+  <p>Windows has no <code>os.fork()</code>, so the script exits with a message there. Run Part B in WSL, in Codio, or on a Linux or macOS computer. <b>Predict first:</b> the program calls <code>fork()</code> three times in a row. How many processes exist at the end? (Check the <a href="../modules/03-processes.html#term-fork">fork tree in Module 3</a>.)</p>
+  <pre class="code" data-src="labs/code/lab1_fork.py"><code>"""Lab 1b - fork, exec and wait (Linux, macOS, WSL or Codio: Windows has no os.fork)."""
+import functools
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+# Flush every print immediately. fork() copies the process INCLUDING its unflushed output buffer,
+# so buffered text could be printed twice, or in a surprising order when output goes to a pipe or file.
+print = functools.partial(print, flush=True)
+
+if not hasattr(os, "fork"):
+    sys.exit("os.fork() is not available here. Run this lab on Linux, macOS, WSL or Codio.")
+
+# (1) fork() is called once but returns twice: 0 in the child, the child's pid in the parent.
+pid = os.fork()
+if pid == 0:
+    print("child : fork() returned 0")
+    os._exit(7)                     # leave immediately; 7 becomes the exit status
+_, status = os.waitpid(pid, 0)      # (2) the parent waits, then reads the child's exit status
+print(f"parent: fork() returned the child's pid (a positive number: {pid &gt; 0})")
+print(f"parent: the child exited with code {os.WEXITSTATUS(status)}")
+
+# (3) exec replaces the child's program. This is how a shell runs "echo".
+pid = os.fork()
+if pid == 0:
+    os.execvp("echo", ["echo", "this line was printed by the echo program"])
+os.waitpid(pid, 0)
+
+# (4) Every fork doubles the number of processes. Each process records itself in a file.
+path = os.path.join(tempfile.gettempdir(), f"lab1_forks_{os.getpid()}.txt")
+open(path, "w").close()
+root = os.getpid()
+for _ in range(3):
+    os.fork()
+with open(path, "a") as log:
+    log.write(f"{os.getpid()}\n")
+try:
+    while True:
+        os.wait()                   # wait for our own children (the grandchildren wait for theirs)
+except ChildProcessError:
+    pass
+if os.getpid() != root:
+    os._exit(0)
+print(f"3 forks in a row produced {len(open(path).read().split())} processes")
+os.remove(path)
+
+# (5) A zombie: a child that has exited but has not been waited for yet.
+pid = os.fork()
+if pid == 0:
+    os._exit(0)
+if shutil.which("ps"):
+    time.sleep(0.2)                 # give the child time to exit
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+    print(f"before wait(): ps shows the child's state as '{state}' (Z means zombie)")
+os.waitpid(pid, 0)                  # reaping removes the zombie
+print("after wait(): the zombie is gone")</code></pre>
+  <p>Run it with <code>python3 lab1_fork.py</code>.</p>
+  <h3>Example output (from a Linux system)</h3>
+<pre class="output"><code>child : fork() returned 0
+parent: fork() returned the child's pid (a positive number: True)
+parent: the child exited with code 7
+this line was printed by the echo program
+3 forks in a row produced 8 processes
+before wait(): ps shows the child's state as 'Z' (Z means zombie)
+after wait(): the zombie is gone</code></pre>
+
+  <h3>What to notice</h3>
+  <ol>
+    <li><b>(1)</b> <code>fork()</code> is called once but <em>returns twice</em>: <code>0</code> in the new child and the child's pid in the parent. That is how the same code tells the two apart.</li>
+    <li><b>(2)</b> <code>waitpid</code> blocks the parent until the child ends, then returns its exit status. Without it you get a zombie (see (5)).</li>
+    <li><b>(3)</b> <code>exec</code> does not create a process. It <em>replaces</em> the current program with another one in the same process. A shell runs a command with <code>fork</code> then <code>exec</code> in the child and <code>wait</code> in the parent.</li>
+    <li><b>(4)</b> Three forks in a row make 2<sup>3</sup> = 8 processes, because every process that exists runs the next <code>fork()</code> too.</li>
+    <li><b>(5)</b> A finished child stays in the process table as a <b>zombie</b> (state <code>Z</code>) until its parent collects its exit status. Zombies use almost no memory but they do use a process-table slot.</li>
+    <li><b>Why the script flushes every print:</b> <code>fork</code> copies the process, including text waiting in its output buffer. Without flushing, that text can be printed twice or out of order, especially when output goes to a file or pipe.</li>
+  </ol>
+
+  <h2>Try it</h2>
+  <ol>
+    <li>In Part B change <code>range(3)</code> to <code>range(4)</code>. <b>Predict</b> the number of processes, then run it.</li>
+    <li>In Part A, change <code>range(4)</code> in step (5) to <code>range(8)</code>. Does the total time change? Why or why not?</li>
+    <li>In Part A, change step (5) so that each child is started <em>and waited for</em> before the next one starts (use <code>subprocess.run</code> instead of <code>Popen</code>). Compare the total time.</li>
+    <li>In Part B, delete the <code>os.waitpid(pid, 0)</code> in step (5). What does <code>ps</code> show if you check after the program ends? (The orphaned zombie is adopted and reaped by the init process.)</li>
+    <li>Make the child exit with a different code and confirm the parent reports it.</li>
+  </ol>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><b>Forgetting to wait.</b> Children become zombies and you never see their exit codes.</li>
+    <li><b>Forgetting that both processes run the code after <code>fork()</code>.</b> Use <code>if pid == 0</code> to separate them, and make the child <code>exit</code> so it does not continue into the parent's code.</li>
+    <li><b>Calling <code>fork</code> in a program that already uses threads.</b> Only the calling thread exists in the child, which can leave locks permanently held. Prefer <code>subprocess</code> or <code>multiprocessing</code> in threaded programs.</li>
+    <li><b>Running Part B on Windows.</b> There is no <code>os.fork</code> there. Use WSL, Codio or a Linux or macOS machine.</li>
+  </ul>
+
+  <h2>Reflection questions (good journal entries)</h2>
+  <ol>
+    <li>Explain in your own words why <code>fork()</code> returns two different values. What would be impossible if it returned the same value in both processes?</li>
+    <li>A shell has a built-in <code>cd</code> command instead of running a separate <code>cd</code> program. Using what you saw about children and inheritance, explain why a separate program could not work.</li>
+    <li>Which process states from the <a href="../modules/03-processes.html">state diagram</a> did your children pass through while they were sleeping? When were they running on the CPU?</li>
+  </ol>
+
+  <h2>Extension</h2>
+  <p>Write a tiny shell: loop forever, read a line, split it into words, run it with <code>subprocess.run</code> (or <code>fork</code> + <code>execvp</code> + <code>waitpid</code> on Linux), and print the exit code. Then add a built-in <code>cd</code> and <code>exit</code>. You have just built the core of every command-line shell.</p>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/labs.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/pages/lab.js"></script>
+</body>
+</html>

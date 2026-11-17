@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practice Questions — OS Concepts</title>
+<meta name="description" content="Mixed practice questions across all operating-system modules, with instant answers and explanations.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="practice">
+<main class="narrow">
+  <h1>Practice Questions</h1>
+  <p class="lead">Mix questions from any modules. Click an answer for instant feedback, or reveal the answer. Choices are shuffled each time.</p>
+  <div class="controls">
+    <label><span>Module</span><select id="mod"></select></label>
+    <label><span>How many</span><select id="num"><option value="10">10</option><option value="20">20</option><option value="all">All</option></select></label>
+    <button class="btn" id="go" type="button">New quiz</button>
+  </div>
+  <div id="quiz" class="quiz"></div>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/data/quizzes.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/pages/practice.js"></script>
+</body>
+</html>

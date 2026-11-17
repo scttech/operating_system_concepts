@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Labs — OS Concepts</title>
+<meta name="description" content="Hands-on Python labs on processes, threads, system resources, semaphores and deadlock, with runnable scripts and real sample output.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="labs">
+<main>
+  <p class="eyebrow">Hands-on practice</p>
+  <h1>Python Labs</h1>
+  <p class="lead">Short, runnable experiments that make operating-system ideas visible. Each lab has a script you run on your own computer, a guided tour of what to notice, experiments to try, and questions to reflect on.</p>
+
+  <h2>The labs</h2>
+  <ul class="grid" id="lab-grid"></ul>
+  <noscript><p>The lab list needs JavaScript. The lab pages are in the <code>labs/</code> folder.</p></noscript>
+
+  <h2>How the labs work</h2>
+  <ol>
+    <li><b>Read the lesson first</b> (each lab links to its related modules). The simulations on those pages show the idea; the labs show the real thing.</li>
+    <li><b>Predict, then run.</b> Before running a script, write down what you expect to see. The learning is in the gap between prediction and result.</li>
+    <li><b>Change one thing at a time</b> in the “Try it” section and explain what changed.</li>
+    <li><b>Answer the reflection questions</b> in your own words (they work well as journal entries).</li>
+  </ol>
+
+  <h2>Getting set up</h2>
+  <table>
+    <thead><tr><th>You are using</th><th>Run Python with</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Windows</td><td><code>py lab1_processes.py</code> or <code>python …</code></td><td><code>os.fork</code> does not exist on Windows. Use WSL or Codio for the fork lab.</td></tr>
+      <tr><td>macOS / Linux</td><td><code>python3 lab1_processes.py</code></td><td>Everything works.</td></tr>
+      <tr><td>Codio or another Linux workspace</td><td><code>python3 …</code></td><td>Everything works; install <code>psutil</code> if it is missing.</td></tr>
+    </tbody>
+  </table>
+  <pre><code># one-time setup for the resources lab (use a virtual environment if you prefer)
+python -m pip install psutil
+
+# check your Python version (3.8 or newer is fine)
+python --version</code></pre>
+  <div class="callout">
+    <p><b>Why not run Python inside this page?</b> Browsers cannot run <code>os.fork</code>, real threads with locks, or system tools like <code>psutil</code> the way a real computer does, and those are exactly the things these labs explore. Running the scripts yourself also means you see your own machine's behavior.</p>
+  </div>
+  <p>Every script on these pages is a real file you can <b>download</b> and run. They have been tested on Windows and on Linux, and the sample output you see is from real runs.</p>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/data/labs.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+<script src="js/pages/labs.js"></script>
+</body>
+</html>

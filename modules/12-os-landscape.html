@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 12: Beyond Windows, macOS and Linux — OS Concepts</title>
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+<meta name="description" content="Compare Android, iOS, Qubes OS, Raspberry Pi OS, real-time systems and IBM mainframe systems (z/OS, z/VSE, IBM i) with Windows, macOS and Linux.">
+</head>
+<body data-root="../" data-module="12">
+<main>
+  <p class="eyebrow">Module 12</p>
+  <h1>Beyond Windows, macOS and Linux</h1>
+  <p class="lead">Every operating system is a set of trade-offs shaped by what it is for. A phone, a car's dashboard, a bank's transaction engine and a journalist's laptop each push the same ideas (scheduling, memory, files, protection) in very different directions.</p>
+
+  <div class="toc"><strong>On this page</strong>
+    <ul><li><a href="#pressures">Why systems differ</a></li><li><a href="#tree">Family tree</a></li><li><a href="#compare">Compare tool</a></li><li><a href="#mobile">Mobile</a></li><li><a href="#secure">Security-focused</a></li><li><a href="#embedded">Embedded and real-time</a></li><li><a href="#mainframe">Mainframe and midrange</a></li><li><a href="#checklist">Questions to ask about any OS</a></li></ul></div>
+
+  <h2 id="pressures">Why systems differ</h2>
+  <p>The concepts from Modules 1–11 apply everywhere, but the <em>priorities</em> change. Compare what each kind of system optimizes for:</p>
+  <table>
+    <thead><tr><th>Kind of system</th><th>Main goal</th><th>What that does to the design</th></tr></thead>
+    <tbody>
+      <tr><td>Desktop / server (Windows, macOS, Linux)</td><td>Run many different programs well</td><td>General-purpose scheduling, large virtual memory, broad driver support</td></tr>
+      <tr><td>Mobile (Android, iOS)</td><td>Battery life, responsiveness, safe third-party apps</td><td>Strict app sandboxes, the OS controls app lifecycle and may kill background apps, aggressive power management</td></tr>
+      <tr><td>Security-focused (Qubes)</td><td>Limit the damage when something is compromised</td><td>Isolation first: whole-VM compartments, convenience second</td></tr>
+      <tr><td>Embedded / real-time (FreeRTOS, QNX)</td><td>Meet deadlines predictably, with tiny resources</td><td>Fixed-priority scheduling, little or no virtual memory, minimal features</td></tr>
+      <tr><td>Single-board / education (Raspberry Pi OS)</td><td>Low cost, hackable, connect to the physical world</td><td>A general-purpose Linux plus easy access to hardware pins</td></tr>
+      <tr><td>Mainframe (z/OS, z/VSE) and midrange (IBM i)</td><td>Reliability, throughput and compatibility for business-critical work</td><td>Workload management, offloaded I/O, strong accounting and security, decades of backward compatibility</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="tree">Where did they come from?</h2>
+  <p>Many systems are relatives. Android, ChromeOS and Raspberry Pi OS all share the Linux kernel; macOS and iOS share Apple's Darwin core. IBM's mainframe world has two parallel families (OS/360 and DOS/360), and its midrange line grew from a different idea altogether (System/38).</p>
+  <div data-sim="oslineage"></div>
+
+  <h2 id="compare">Compare the systems</h2>
+  <p>Add any systems to the comparison and read them side by side. Tip: after you choose systems, the address in your browser changes to something like <code>#compare=windows,zos</code>. Copy it to share your comparison with a classmate or turn it into a discussion prompt.</p>
+  <div data-sim="oscompare"></div>
+  <p class="small">The profiles are simplified summaries. Specific details (such as default schedulers or storage options) change from version to version, so check the vendor's documentation for exact, current facts.</p>
+
+  <h2 id="mobile">Mobile: Android and iOS</h2>
+  <ul>
+    <li><b>Apps do not own the machine.</b> The OS starts, pauses and kills apps to protect battery and memory. A mobile app must save its state whenever it is sent to the background, because it may never be resumed.</li>
+    <li><b>Strong <dfn data-term="Sandbox">sandboxes</dfn>.</b> Each app is isolated from the others and gets only the permissions the user grants (camera, location, contacts).</li>
+    <li><b>Same ideas, different kernels.</b> Android uses a modified <dfn data-term="Kernel">kernel</dfn> from Linux; iOS uses Apple's XNU. Both rely on the hardware's <dfn data-term="User mode">user</dfn>/<dfn data-term="Kernel mode">kernel</dfn> separation from <a href="01-fundamentals.html">Module 1</a>.</li>
+    <li><b>Memory pressure is handled by terminating apps</b> rather than paging to a slow flash drive.</li>
+  </ul>
+
+  <h2 id="secure">Security-focused: Qubes OS</h2>
+  <p>Most operating systems try to make one big system trustworthy. Qubes does the opposite and assumes something <em>will</em> be hacked, then limits the blast radius. A <dfn data-term="Hypervisor">hypervisor</dfn> runs separate <dfn data-term="Virtual machine">virtual machines</dfn> (“qubes”) for work, personal browsing, banking and untrusted downloads. A bug in a browser in the “untrusted” qube cannot read files in the “work” qube. This is <a href="02-security.html">least privilege</a> applied to whole operating systems. The price is higher hardware needs and a more complex workflow, which is the central <em>security versus usability</em> trade-off.</p>
+
+  <h2 id="embedded">Embedded and real-time</h2>
+  <p>A <dfn data-term="Real-time operating system (RTOS)">real-time operating system</dfn> guarantees that important work finishes <em>on time</em>, not that it finishes fast on average. That pushes the design toward predictable <a href="04-scheduling.html">fixed-priority scheduling</a> and away from features such as virtual memory, whose page faults make timing unpredictable. At the small end (FreeRTOS), the “OS” is a library compiled into the firmware on a microcontroller. At the larger end (QNX), a <dfn data-term="Microkernel">microkernel</dfn> runs drivers as separate processes so that a driver failure in a car does not crash the whole system.</p>
+  <p><b>Raspberry Pi OS</b> sits between worlds: a full Linux system on a tiny, inexpensive board whose GPIO pins let your code blink LEDs or read sensors. It is excellent for learning but, being standard Linux, it is not a hard real-time system.</p>
+
+  <h2 id="mainframe">Mainframe and midrange systems</h2>
+  <p>Mainframes are not museum pieces. They process a very large share of the world's banking and airline transactions, and their operating systems reflect that job. A few ideas that look different from what you see on a PC:</p>
+  <table>
+    <thead><tr><th>Idea</th><th>PC-style OS</th><th>Mainframe-style OS (z/OS, z/VSE)</th></tr></thead>
+    <tbody>
+      <tr><td>Typical work</td><td>Interactive programs</td><td>Huge <dfn data-term="Batch processing">batch</dfn> runs (described in <dfn data-term="JCL (Job Control Language)">JCL</dfn>) plus thousands of simultaneous online transactions</td></tr>
+      <tr><td>I/O</td><td>CPU drives devices via drivers and DMA</td><td>A dedicated <em>channel subsystem</em> handles I/O so the CPUs stay busy computing</td></tr>
+      <tr><td>Scheduling goal</td><td>Fairness and responsiveness</td><td>Meet business goals (“payments must complete in 0.2 s”) through the Workload Manager</td></tr>
+      <tr><td>Sharing the hardware</td><td>Processes, maybe VMs</td><td>Logical partitions (<dfn data-term="LPAR (logical partition)">LPARs</dfn>) in hardware, each running its own OS, plus z/VM for more virtual machines</td></tr>
+      <tr><td>Files</td><td>Hierarchical directories</td><td>Datasets located by catalogs (and a UNIX file system alongside)</td></tr>
+      <tr><td>Text encoding</td><td>ASCII / Unicode</td><td><dfn data-term="EBCDIC">EBCDIC</dfn> traditionally, so data is converted when exchanged with other systems</td></tr>
+      <tr><td>Reliability</td><td>Reboot occasionally</td><td>Designed for continuous operation and clustering (Parallel Sysplex)</td></tr>
+      <tr><td>Compatibility</td><td>Often broken by major upgrades</td><td>Programs from the 1960s still run, a core selling point</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>z/OS</b> descends from OS/360 and MVS. It is the large-scale flagship.</li>
+    <li><b>z/VSE</b> descends from the separate DOS/360 line: smaller, simpler and cheaper to operate, often used by smaller organizations.</li>
+    <li><b>IBM i</b> (formerly AS/400, iSeries, System i) is a midrange system with a database built into the OS, an <em>object-based</em> design, and <dfn data-term="Single-level storage">single-level storage</dfn>: memory and disk form one address space, so applications never manage paging or files the way they do on a PC.</li>
+  </ul>
+  <div class="callout"><p><b>Connect it back:</b> single-level storage is <a href="09-virtual-memory.html">virtual memory</a> taken to its logical extreme, and the channel subsystem is a more powerful version of the <a href="10-disk-io.html">DMA</a> idea.</p></div>
+
+  <h2 id="checklist">Questions to ask about any new OS</h2>
+  <ol>
+    <li>What is it <em>for</em>, and what does it sacrifice to do that well?</li>
+    <li>Where is the line between kernel and user space? Is it a monolithic kernel, a microkernel, or a hypervisor?</li>
+    <li>How does it schedule work: fairness, priorities, deadlines, or business goals?</li>
+    <li>Does it give each program its own virtual memory? What happens when memory runs short: swap, kill, or nothing?</li>
+    <li>What is a “file” here, and how are names organized?</li>
+    <li>What is the unit of isolation and trust: user, app, container, VM, partition?</li>
+    <li>Who controls updates and software installation?</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="12"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/data/oslist.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/sims/m12-os.js"></script>
+</body>
+</html>

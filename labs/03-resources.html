@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab 3: Exploring system resources — OS Concepts</title>
+<meta name="description" content="Read CPU, memory, swap, disk and process information with Python and psutil, and connect each number to an operating-system concept.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-lab="3">
+<main>
+  <p class="eyebrow">Lab 3</p>
+  <h1>Exploring system resources with Python</h1>
+  <p class="lead">Ask the operating system what it knows about your computer: CPU use, memory, swap, disk space and the processes that are running. Then explain what each number means in terms of the concepts from the lessons.</p>
+  <div class="lab-meta"><span>About 40 minutes</span><span>Any system</span><span>Needs the <code>psutil</code> package</span><span>Related: <a href="../modules/04-scheduling.html">Module 4</a>, <a href="../modules/08-memory.html">Module 8</a>, <a href="../modules/09-virtual-memory.html">Module 9</a>, <a href="../modules/10-disk-io.html">Module 10</a></span></div>
+
+  <h2>What you will practice</h2>
+  <ul>
+    <li>Using the standard library (<code>os</code>, <code>platform</code>, <code>shutil</code>) for basic system facts.</li>
+    <li>Using <code>psutil</code> to read CPU, memory, swap and process information.</li>
+    <li>Telling apart <em>free</em> and <em>available</em> memory, logical and physical cores, and resident and virtual memory.</li>
+    <li>Handling processes you are not allowed to inspect, or that disappear while you look.</li>
+  </ul>
+
+  <h2>Setup</h2>
+  <pre><code>python -m pip install psutil</code></pre>
+  <p>On Windows you can use <code>py -m pip install psutil</code>. On Codio it may already be installed. If it is missing the script still prints the standard-library facts and tells you what to install.</p>
+
+  <h2>The script</h2>
+  <p><b>Predict first:</b> before running it, estimate how much RAM your computer has, how much is in use, and which program uses the most memory. Then compare.</p>
+  <pre class="code" data-src="labs/code/lab3_resources.py"><code>"""Lab 3 - Exploring system resources with Python (standard library first, then psutil)."""
+import os
+import platform
+import shutil
+import sys
+import time
+
+try:
+    import psutil                   # install with:  python -m pip install psutil
+except ImportError:
+    psutil = None
+
+print("== The basics (standard library only) ==")
+print(f"operating system: {platform.system()} {platform.release()}")
+print(f"logical CPUs:     {os.cpu_count()}")
+total, used, free = shutil.disk_usage(os.path.abspath(os.sep))
+print(f"disk:             {used / 2**30:.0f} GiB used of {total / 2**30:.0f} GiB ({used / total:.0%})")
+
+if psutil is None:
+    print("\npsutil is not installed. Run:  python -m pip install psutil   then run this lab again.")
+    sys.exit(0)
+
+print("\n== CPU ==")
+print(f"physical cores: {psutil.cpu_count(logical=False)}   logical cores: {psutil.cpu_count()}")
+busy = psutil.cpu_percent(interval=1, percpu=True)          # (1) measured over 1 second
+print(f"busy % per logical core over 1 s: {busy}")
+
+print("\n== Memory ==")
+ram, swap = psutil.virtual_memory(), psutil.swap_memory()
+print(f"RAM:  {ram.total / 2**30:.1f} GiB total, {ram.available / 2**30:.1f} GiB available ({ram.percent}% in use)")
+print(f"swap: {swap.total / 2**30:.1f} GiB total ({swap.percent}% in use)")
+
+print("\n== Processes ==")
+rows = []
+for proc in psutil.process_iter(["pid", "name", "memory_info", "num_threads", "status"]):   # (2)
+    info = proc.info
+    if info["memory_info"]:         # None when the OS refuses access: always handle that case
+        rows.append((info["memory_info"].rss, info["pid"], info["name"] or "?", info["num_threads"], info["status"]))
+rows.sort(reverse=True)
+print(f"{len(rows)} processes visible. Top 5 by resident memory (RSS):")
+for rss, pid, name, threads, status in rows[:5]:
+    print(f"  pid {pid:&gt;6}  {name[:24]:&lt;24} {rss / 2**20:8.1f} MiB  {threads:&gt;3} threads  {status}")
+
+print("\n== This process ==")
+me = psutil.Process()                                       # (3) no argument means "myself"
+print(f"pid {me.pid}, {me.num_threads()} thread(s), started at {time.strftime('%H:%M:%S', time.localtime(me.create_time()))}")
+print("ancestors:", " &lt;- ".join(f"{p.name()}({p.pid})" for p in [me, *me.parents()]))   # (4) parent, grandparent, ...</code></pre>
+  <p>Run it with <code>python lab3_resources.py</code>.</p>
+
+  <h3>Example output</h3>
+  <p class="small">An <em>illustrative</em> example from a Linux laptop. Your numbers and process names will be different.</p>
+<pre class="output"><code>== The basics (standard library only) ==
+operating system: Linux 6.8.0
+logical CPUs:     8
+disk:             212 GiB used of 468 GiB (45%)
+
+== CPU ==
+physical cores: 4   logical cores: 8
+busy % per logical core over 1 s: [12.0, 3.1, 8.0, 2.0, 21.0, 1.0, 4.0, 0.0]
+
+== Memory ==
+RAM:  15.5 GiB total, 9.8 GiB available (36.8% in use)
+swap: 2.0 GiB total (3.4% in use)
+
+== Processes ==
+312 processes visible. Top 5 by resident memory (RSS):
+  pid   2210  firefox                    1480.2 MiB   94 threads  sleeping
+  pid   1893  gnome-shell                 410.7 MiB   18 threads  sleeping
+  pid   3345  python3                     96.4 MiB    7 threads  running
+  pid   1021  Xorg                        88.0 MiB    6 threads  sleeping
+  pid    790  systemd-journald            42.5 MiB    1 threads  sleeping
+
+== This process ==
+pid 3345, 7 thread(s), started at 10:04:12
+ancestors: python3(3345) &lt;- bash(3301) &lt;- gnome-terminal-(2980) &lt;- systemd(1)</code></pre>
+
+  <h3>What to notice</h3>
+  <ol>
+    <li><b>Logical versus physical cores.</b> A <dfn data-term="Thread">hardware thread</dfn> (hyper-threading) lets one physical core look like two logical CPUs to the scheduler. The scheduler in <a href="../modules/04-scheduling.html">Module 4</a> schedules onto <em>logical</em> CPUs.</li>
+    <li><b>(1) <code>cpu_percent(interval=1)</code></b> measures busy time <em>over a period</em>. Calling it without an interval returns a meaningless first value because there is nothing to compare against.</li>
+    <li><b>Available is not free.</b> Free memory is memory nobody is using at all. <em>Available</em> also counts memory the OS can take back instantly, such as disk cache. A healthy system often has almost no free memory: the OS uses spare RAM as a cache (see <a href="../modules/09-virtual-memory.html">Module 9</a>).</li>
+    <li><b>Swap</b> is the backing store for <dfn data-term="Virtual memory">virtual memory</dfn>. Heavy swap use together with a busy disk is a sign of <dfn data-term="Thrashing">thrashing</dfn>.</li>
+    <li><b>(2) <code>process_iter</code> with a list of attributes</b> fetches them efficiently, and it returns <code>None</code> for any value the OS refuses to show. Checking for <code>None</code> prevents crashes on protected processes.</li>
+    <li><b>RSS (resident set size)</b> is the memory a process currently has in RAM. It is not the same as its virtual size, which includes memory that is mapped but not loaded.</li>
+    <li><b>(3) and (4)</b> <code>psutil.Process()</code> with no argument means “this process”, and <code>parents()</code> walks up the process tree you built in <a href="01-processes.html">Lab 1</a>, all the way to <code>init</code>/<code>systemd</code> or the system's first process.</li>
+  </ol>
+
+  <h3>Which operating-system concept is behind each number?</h3>
+  <table>
+    <thead><tr><th>You read…</th><th>It reflects…</th><th>Where it is taught</th></tr></thead>
+    <tbody>
+      <tr><td>CPU % per core</td><td>How busy the scheduler keeps each CPU</td><td><a href="../modules/04-scheduling.html">Module 4</a></td></tr>
+      <tr><td>Threads per process</td><td>Concurrency inside one address space</td><td><a href="../modules/05-threads.html">Module 5</a></td></tr>
+      <tr><td>RAM total, available, RSS</td><td>Physical memory management and the page cache</td><td><a href="../modules/08-memory.html">Module 8</a></td></tr>
+      <tr><td>Swap in use</td><td>Pages evicted by page replacement</td><td><a href="../modules/09-virtual-memory.html">Module 9</a></td></tr>
+      <tr><td>Disk used</td><td>File-system capacity and allocation</td><td><a href="../modules/11-file-systems.html">Module 11</a></td></tr>
+      <tr><td>Process status (running, sleeping, zombie)</td><td>The process state diagram</td><td><a href="../modules/03-processes.html">Module 3</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Try it</h2>
+  <ol>
+    <li>Run the script, then open a few big programs (a browser with many tabs) and run it again. Which numbers changed the most?</li>
+    <li>Add a sample of CPU use for the <em>whole system</em> every second for ten seconds. Start something heavy halfway through and watch the numbers.</li>
+    <li>List the five processes with the most <em>threads</em>. Is it the same list as the top memory users?</li>
+    <li>Print how many processes have each <code>status</code> (running, sleeping, and so on) using <code>collections.Counter</code>. Do you ever see a zombie? Where would you expect one (see <a href="01-processes.html">Lab 1</a>)?</li>
+    <li>Use <code>psutil.disk_io_counters()</code> or <code>psutil.net_io_counters()</code> before and after downloading a large file. What is the difference?</li>
+  </ol>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><b>Reading <code>cpu_percent()</code> once with no interval.</b> The first call is not meaningful.</li>
+    <li><b>Treating “free” as “available”.</b> A system with 200 MB free may have gigabytes available.</li>
+    <li><b>Not handling <code>AccessDenied</code> and <code>NoSuchProcess</code>.</b> Processes can vanish between listing them and reading their details, and some are protected.</li>
+    <li><b>Assuming every field exists on every OS.</b> Some values (such as load average) are missing or different on Windows or macOS.</li>
+  </ul>
+
+  <h2>Reflection questions (good journal entries)</h2>
+  <ol>
+    <li>Your computer shows 95% of RAM “in use” but runs smoothly. Using the idea of the page cache, explain how that can be normal. What numbers would make you worried instead?</li>
+    <li>Pick the process using the most memory. Explain, using RSS and virtual memory, what that number does and does not tell you.</li>
+    <li>Which resource (CPU, memory, disk) was the busiest on your machine, and what evidence from the script shows it?</li>
+  </ol>
+
+  <h2>Extension</h2>
+  <p>Build a small <code>top</code>-style monitor: clear the screen every two seconds and show CPU %, memory %, and the five busiest processes by CPU. (Hint: call <code>proc.cpu_percent(None)</code> once for all processes to prime it, sleep, then read it again.) Save each sample to a CSV file and chart it afterward.</p>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/labs.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/pages/lab.js"></script>
+</body>
+</html>

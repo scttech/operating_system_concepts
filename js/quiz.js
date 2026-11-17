@@ -1,0 +1,75 @@
+/* Quiz renderer. Answers are available immediately: click a choice for feedback, or reveal. */
+(function () {
+  "use strict";
+  const { h } = window.OSUI;
+
+  function shuffled(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function renderQuestion(q, idx, opts, onAnswer) {
+    let order = q.choices.map((_, i) => i);
+    if (opts.shuffleChoices !== false) order = shuffled(order); // shuffled by default so the answer position can't be guessed
+    const stemId = window.OSUI.nextId("q");
+    const buttons = [];
+    let answered = false;
+    const explain = h("div", { class: "explain", hidden: true, role: "status" });
+    const modTitle = (window.OSData.modules.find((m) => m.n === q.mod) || {}).title;
+
+    function reveal(chosen) {
+      if (answered && chosen !== null) return;
+      const first = !answered;
+      answered = true;
+      buttons.forEach((b) => {
+        b.disabled = true;
+        if (+b.dataset.i === q.answer) b.classList.add("correct");
+        else if (+b.dataset.i === chosen) b.classList.add("wrong");
+      });
+      explain.hidden = false;
+      explain.replaceChildren(
+        h("strong", { text: chosen === null ? "Answer: " : (chosen === q.answer ? "Correct. " : "Not quite. ") }),
+        h("span", { text: (chosen === null || chosen !== q.answer ? `The answer is “${q.choices[q.answer]}”. ` : "") + q.explain }));
+      if (first && onAnswer) onAnswer(chosen === q.answer);
+      revealBtn.hidden = true;
+    }
+
+    const list = h("ul", { "aria-labelledby": stemId },
+      order.map((ci) => {
+        const b = h("button", { type: "button", class: "choice", "data-i": ci, text: q.choices[ci], onclick: () => reveal(ci) });
+        buttons.push(b);
+        return h("li", {}, b);
+      }));
+    const revealBtn = h("button", { type: "button", class: "btn secondary reveal", text: "Show answer", onclick: () => reveal(null) });
+
+    return h("div", { class: "q" },
+      h("p", { class: "stem", id: stemId },
+        `${idx + 1}. ${q.q} `,
+        opts.showModule && modTitle ? h("span", { class: "meta", text: `(Module ${q.mod}: ${modTitle})` }) : null),
+      list, revealBtn, explain);
+  }
+
+  function render(container, questions, opts = {}) {
+    container.replaceChildren();
+    let right = 0, done = 0;
+    const score = h("p", { class: "score", "aria-live": "polite" });
+    const update = () => { score.textContent = done ? `Score: ${right} / ${done} answered (${questions.length} questions)` : `${questions.length} questions`; };
+    update();
+    container.append(score);
+    questions.forEach((q, i) => container.append(renderQuestion(q, i, opts, (ok) => { done++; if (ok) right++; update(); })));
+    if (!questions.length) container.append(h("p", { text: "No questions match this filter." }));
+  }
+
+  window.OSQuiz = { render, shuffled };
+
+  document.querySelectorAll("[data-quiz]").forEach((el) => {
+    const n = +el.dataset.quiz;
+    const qs = (window.OSData.quizzes || []).filter((q) => q.mod === n);
+    el.classList.add("quiz");
+    render(el, qs, {});
+  });
+})();

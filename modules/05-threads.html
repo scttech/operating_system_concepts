@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 5: Threads &amp; Parallel Performance — OS Concepts</title>
+<meta name="description" content="Threads vs. processes, Amdahl's law explorer and context-switch overhead calculator.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="5">
+<main>
+  <p class="eyebrow">Module 5</p>
+  <h1>Threads &amp; Parallel Performance</h1>
+  <p class="lead">A <dfn data-term="Thread">thread</dfn> is a unit of CPU execution inside a process. Threads share the process's memory, so they can cooperate cheaply, but that sharing is also where the danger lies.</p>
+
+  <h2>Threads vs. processes</h2>
+  <table>
+    <thead><tr><th><span class="sr-only">Property</span></th><th>Process</th><th>Thread (within a process)</th></tr></thead>
+    <tbody>
+      <tr><td>Address space</td><td>Own</td><td>Shared with the other threads</td></tr>
+      <tr><td>Heap, globals, open files</td><td>Own</td><td>Shared</td></tr>
+      <tr><td>Stack, registers, program counter</td><td>Own</td><td>Own (per thread)</td></tr>
+      <tr><td>Creation / switch cost</td><td>Higher</td><td>Lower (no address-space switch)</td></tr>
+      <tr><td>Isolation</td><td>Strong: a crash stays in one process</td><td>Weak: one bad thread can corrupt or crash all</td></tr>
+    </tbody>
+  </table>
+  <p><b>Benefits:</b> responsiveness (UI stays alive while work runs), resource sharing, cheaper creation, and scalability across cores.</p>
+
+  <h2>Threading models</h2>
+  <ul>
+    <li><b>User-level threads</b> are managed by a library. They are fast, but the kernel sees one thread, so a blocking system call stalls all of them (many-to-one).</li>
+    <li><b>Kernel-level threads</b> are scheduled by the OS. A blocking call only blocks one thread and threads can use several cores (one-to-one, used by Linux, Windows and macOS).</li>
+    <li><b>Thread pools</b> reuse a fixed set of worker threads, avoiding creation cost and bounding resource use.</li>
+  </ul>
+  <pre><code># Python: threads vs. processes
+import threading, multiprocessing
+
+def work(n): return sum(i*i for i in range(n))
+
+# CPython's Global Interpreter Lock (GIL) lets only one thread run Python bytecode
+# at a time, so threads help I/O-bound code but not CPU-bound code.
+# For CPU-bound work, use processes:
+with multiprocessing.Pool() as pool:
+    results = pool.map(work, [10**6] * 8)</code></pre>
+
+  <h2>How much speedup can you expect?</h2>
+  <p><dfn data-term="Amdahl's law">Amdahl's law</dfn> says that if a fraction <i>p</i> of a program can be parallelized across <i>N</i> cores, then</p>
+  <p style="text-align:center"><code>speedup = 1 / ((1 − p) + p / N)</code></p>
+  <p>The serial fraction (1 − p) sets a hard ceiling of 1/(1 − p) no matter how many cores you add. Gustafson's law gives the more optimistic view that when you have more cores you usually also solve bigger problems.</p>
+  <div data-sim="amdahl"></div>
+  <div class="callout"><p><b>Try it:</b> set p = 90% and add cores. The curve flattens near 10×. Going from 8 to 16 cores buys little, so work on the serial part instead.</p></div>
+
+  <h2>The price of switching</h2>
+  <p>Each context switch costs time without doing useful work. If the quantum is <i>q</i> and a switch costs <i>s</i>, the useful fraction is <code>q / (q + s)</code>. But a longer quantum makes every process wait longer between turns.</p>
+  <div data-sim="switchcost"></div>
+
+  <div class="callout"><p><b>Practice the calculations:</b> <a href="../problems.html#topic=amdahl">Amdahl's law problems</a> (random problems with worked solutions).</p></div>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/02-threads.html">Lab 2: threads, races and the GIL</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="5"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/misc.js"></script>
+<script src="../js/sims/m05-threads.js"></script>
+</body>
+</html>

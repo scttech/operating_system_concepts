@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 3: Processes — OS Concepts</title>
+<meta name="description" content="Process states, the PCB, context switches, and an interactive fork() process tree.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="3">
+<main>
+  <p class="eyebrow">Module 3</p>
+  <h1>Processes</h1>
+  <p class="lead">A program is a file on disk. A <dfn data-term="Process">process</dfn> is that program in execution, with its own <dfn data-term="Address space">address space</dfn>, open files and CPU state.</p>
+
+  <h2>What a process contains</h2>
+  <ul>
+    <li><b>Text</b> (code), <b>data</b> (globals), <b><dfn data-term="Heap">heap</dfn></b> (dynamic memory, grows up) and <b><dfn data-term="Stack">stack</dfn></b> (function frames, grows down).</li>
+    <li>CPU state: program counter, registers, stack pointer.</li>
+    <li>Kernel bookkeeping in the <dfn data-term="PCB (process control block)">process control block (PCB)</dfn>: PID, state, scheduling info, memory maps, open-file table, accounting.</li>
+  </ul>
+
+  <h2>Process states</h2>
+  <p>As a process runs, it moves between states. Only one process per CPU core can be <em>Running</em>; the rest are <em>Ready</em> (waiting in the <dfn data-term="Ready queue">ready queue</dfn> for a CPU) or <em>Waiting</em> (blocked for I/O or an event).</p>
+  <div data-sim="procstates"></div>
+  <div class="callout"><p><b>Notice:</b> a process whose I/O completes goes to <em>Ready</em>, not <em>Running</em>. The scheduler alone decides who runs next. A process can never go Waiting → Running directly.</p></div>
+
+  <h2>Context switching</h2>
+  <p>A <dfn data-term="Context switch">context switch</dfn> saves the running process's registers into its PCB and loads another's. It is pure overhead (no user work happens), and it also disturbs caches and the TLB, so schedulers try not to switch needlessly. See <a href="05-threads.html">Module 5</a> for how the cost trades off against responsiveness.</p>
+
+  <h2>Creating processes: fork, exec, wait</h2>
+  <p><dfn data-term="Fork"><code>fork()</code></dfn> makes a copy of the calling process (using <dfn data-term="Copy-on-write">copy-on-write</dfn> so it's cheap). The copy is the <dfn data-term="Child process">child</dfn> and the original is its parent. It returns 0 in the child and the child's PID in the parent. <code>exec()</code> replaces the process image with a new program. <code>wait()</code> lets the parent collect the child's exit status.</p>
+  <pre><code>#include &lt;unistd.h&gt;
+#include &lt;sys/wait.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    pid_t pid = fork();
+    if (pid &lt; 0)       { perror("fork"); return 1; }
+    else if (pid == 0) { printf("child  pid=%d\n", getpid()); }
+    else               { wait(NULL); printf("parent pid=%d reaped child %d\n", getpid(), pid); }
+    return 0;
+}</code></pre>
+  <p>In Python the same primitives are available as <code>os.fork()</code>, <code>os.execvp()</code> and <code>os.waitpid()</code>, and higher-level as <code>subprocess</code>.</p>
+
+  <h3>How many processes?</h3>
+  <p>Every call to <code>fork()</code> doubles the number of processes, because both the parent and every existing child continue to execute the next line.</p>
+  <div data-sim="forktree"></div>
+
+  <h2>Special cases</h2>
+  <ul>
+    <li><dfn data-term="Zombie process">Zombie</dfn>: finished, but the parent hasn't called <code>wait()</code> yet, so the PCB lingers.</li>
+    <li><b>Orphan</b>: the parent exited first. The child is adopted by <code>init</code>/<code>systemd</code> (PID 1), which reaps it.</li>
+    <li><dfn data-term="Daemon">Daemon</dfn>: background service process with no controlling terminal.</li>
+  </ul>
+
+  <h2>Interprocess communication (IPC)</h2>
+  <table>
+    <thead><tr><th>Mechanism</th><th>How it works</th><th>Good for</th></tr></thead>
+    <tbody>
+      <tr><td>Shared memory</td><td>Processes map the same physical pages</td><td>High-throughput data sharing (needs synchronization, see <a href="06-synchronization.html">Module 6</a>)</td></tr>
+      <tr><td>Message passing</td><td>send / receive through the kernel</td><td>Simpler, safer, works across machines</td></tr>
+      <tr><td><dfn data-term="Pipe">Pipes</dfn></td><td>One-way byte stream between processes</td><td>Shell pipelines (<code>ls | grep txt</code>)</td></tr>
+      <tr><td>Sockets</td><td>Bidirectional, local or network</td><td>Client/server programs</td></tr>
+      <tr><td>Signals</td><td>Asynchronous notifications</td><td>Interrupt, terminate, reload config</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/01-processes.html">Lab 1: launching, waiting and forking processes</a>.</p></div>
+
+  <h2>Check your understanding</h2>
+  <div data-quiz="3"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/misc.js"></script>
+<script src="../js/sims/m03-processes.js"></script>
+</body>
+</html>
