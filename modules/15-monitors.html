@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 15: Monitors and Readers–Writers — OS Concepts</title>
+<meta name="description" content="Monitors and condition variables, why a wait belongs in a while loop, and read-write locks with their starvation trade-offs.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="15">
+<main>
+  <p class="eyebrow">Module 15</p>
+  <h1>Monitors and Readers–Writers</h1>
+  <p class="lead">Semaphores can solve any synchronization problem, but they are easy to get wrong: swap two calls, forget one, and the program deadlocks or races. This module covers the tools that real programs use instead: the <b>monitor</b> with its <b>condition variables</b>, and the <b>read-write lock</b>, which shows that even “who goes first?” is a design decision with consequences.</p>
+
+  <div class="toc"><strong>On this page</strong>
+    <ul><li><a href="#monitor">Monitors and condition variables</a></li><li><a href="#mesa">Why “while”, not “if”</a></li><li><a href="#queue">A bounded queue, done properly</a></li><li><a href="#rw">Readers and writers</a></li><li><a href="#langs">In real languages</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
+
+  <h2 id="monitor">Monitors and condition variables</h2>
+  <p>Recall the bounded buffer from <a href="06-synchronization.html">Module 6</a>: it needed one semaphore as a mutex and two more to count empty and full slots, and the order of the calls mattered. A <dfn data-term="Monitor">monitor</dfn> packages the same ideas more safely. It bundles the <b>shared data</b>, the <b>lock</b> that protects it, and one or more <dfn data-term="Condition variable">condition variables</dfn> on which threads can sleep until something they need has happened. Because the data can only be touched through the monitor’s own operations, the locking discipline lives in one place instead of in every caller.</p>
+  <p>A condition variable has three operations, always used while holding the lock:</p>
+  <ul>
+    <li><b>wait</b>: <em>atomically</em> release the lock and go to sleep. When woken, reacquire the lock before returning. Doing both at once is essential: if a thread released the lock, then slept, a signal sent in between would be lost forever.</li>
+    <li><b>signal</b> (notify): wake one sleeping thread, if there is one. Signaling with no one waiting does nothing. A condition variable does not remember signals, unlike a semaphore, which counts them.</li>
+    <li><b>broadcast</b> (notify all): wake every sleeping thread, for when the change may help several of them.</li>
+  </ul>
+
+  <h2 id="mesa">Why “while”, not “if”</h2>
+  <p>When a thread signals, who runs next? In the textbook’s original design (<em>Hoare semantics</em>) the signaler hands the lock straight to the waiter, so the condition is guaranteed true when the waiter wakes. That is hard to implement efficiently, and real systems do something simpler, called <dfn data-term="Mesa semantics">Mesa semantics</dfn> after the language where it was first used: the signal only makes the waiter <em>ready</em>. The signaler keeps the lock, and the waiter must queue for it like anyone else. In the gap, another thread can get in and change the data. The wake-up is a <em>hint</em> that the condition may be true, not a promise that it still is. (Some systems also deliver a <dfn data-term="Spurious wakeup">spurious wakeup</dfn>, a return from wait that nobody signaled, which the specification permits.)</p>
+  <p>The rule that follows is simple: <b>always wait inside a loop that re-tests the condition.</b></p>
+  <div data-sim="mesa"></div>
+  <div class="callout"><p><b>Try it:</b> step through the <code>if</code> version. C1 finds the buffer empty and sleeps. P1 adds an item and signals, but keeps the lock. Before C1 gets the lock back, C2 arrives and takes the item. C1 then continues as if the item were still there. Switch to <code>while</code> and run the same steps: C1 re-checks and sleeps again. The random runs show that this is not a freak case.</p></div>
+
+  <h2 id="queue">A bounded queue, done properly</h2>
+  <p>Here is the producer–consumer problem with a monitor-style design: one lock, and two condition variables (“not full” for producers to sleep on, “not empty” for consumers). Notice that every wait is in a loop, and that each side signals the <em>other</em> condition.</p>
+  <h3>Try it: two producers, two consumers</h3>
+  <div class="code-tabs" aria-label="Condition variable example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>pthread_cond_wait(&amp;cond, &amp;lock)</code> takes the mutex as an argument, which makes the atomic “release and sleep” visible (comment 3). The final <code>broadcast</code> shows a detail beginners miss: consumers asleep on an empty queue must be woken when the work is over, or the program never exits (comment 5).</p></div>
+    <pre class="code" data-src="examples/condvar_queue.c"><code>/* A bounded queue shared by producers and consumers: one mutex, two condition variables. Linux or macOS. */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;pthread.h&gt;
+#include &lt;stdio.h&gt;
+
+#define CAPACITY 4
+#define PRODUCERS 2
+#define CONSUMERS 2
+#define ITEMS_EACH 100
+
+static int queue[CAPACITY];
+static int head = 0, tail = 0, count = 0, most = 0, finished = 0;
+static long sum = 0, received = 0;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;            /* (1) one mutex protects all of the shared state above */
+static pthread_cond_t not_full = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t not_empty = PTHREAD_COND_INITIALIZER;
+
+static void *producer(void *arg) {
+    (void)arg;
+    for (int v = 1; v &lt;= ITEMS_EACH; v++) {
+        pthread_mutex_lock(&amp;lock);
+        while (count == CAPACITY)                                    /* (2) a WHILE, not an if: after waking, check the condition again */
+            pthread_cond_wait(&amp;not_full, &amp;lock);                     /* (3) releases the mutex and sleeps as one step; relocks before returning */
+        queue[tail] = v;
+        tail = (tail + 1) % CAPACITY;
+        count++;
+        if (count &gt; most) most = count;
+        pthread_cond_signal(&amp;not_empty);                             /* (4) tell one sleeping consumer that there is something to take */
+        pthread_mutex_unlock(&amp;lock);
+    }
+    return NULL;
+}
+
+static void *consumer(void *arg) {
+    (void)arg;
+    for (;;) {
+        pthread_mutex_lock(&amp;lock);
+        while (count == 0 &amp;&amp; !finished)
+            pthread_cond_wait(&amp;not_empty, &amp;lock);
+        if (count == 0) { pthread_mutex_unlock(&amp;lock); return NULL; }   /* (5) nothing left and no more coming: stop instead of sleeping forever */
+        sum += queue[head];
+        head = (head + 1) % CAPACITY;
+        count--;
+        received++;
+        pthread_cond_signal(&amp;not_full);
+        pthread_mutex_unlock(&amp;lock);
+    }
+}
+
+int main(void) {
+    pthread_t p[PRODUCERS], c[CONSUMERS];
+    for (int i = 0; i &lt; CONSUMERS; i++) pthread_create(&amp;c[i], NULL, consumer, NULL);
+    for (int i = 0; i &lt; PRODUCERS; i++) pthread_create(&amp;p[i], NULL, producer, NULL);
+    for (int i = 0; i &lt; PRODUCERS; i++) pthread_join(p[i], NULL);
+    pthread_mutex_lock(&amp;lock);
+    finished = 1;
+    pthread_cond_broadcast(&amp;not_empty);                              /* wake every sleeping consumer so it can notice that the work is over */
+    pthread_mutex_unlock(&amp;lock);
+    for (int i = 0; i &lt; CONSUMERS; i++) pthread_join(c[i], NULL);
+    printf("%d producers sent %d items each; %d consumers received %ld items (sum of values = %ld)\n", PRODUCERS, ITEMS_EACH, CONSUMERS, received, sum);
+    printf("the queue never held more than %d items: %s\n", CAPACITY, most &lt;= CAPACITY ? "True" : "False");
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python’s <code>threading.Condition</code> is the same idea with less ceremony.</b> A <code>with</code> block takes and releases the lock, and <code>wait()</code> releases it while sleeping. In practice you would use <code>queue.Queue</code>, which is exactly this code packaged up, so a hand-written version is mostly for understanding. The global interpreter lock does not make the loops unnecessary: a thread can still lose its turn between the signal and its wake-up.</p></div>
+    <pre class="code" data-src="examples/condvar_queue.py"><code>"""A bounded queue shared by producers and consumers: one lock, two condition variables."""
+import threading
+
+CAPACITY = 4
+PRODUCERS = 2
+CONSUMERS = 2
+ITEMS_EACH = 100
+
+queue = []
+state = {"sum": 0, "received": 0, "most": 0, "finished": False}
+lock = threading.Lock()                                              # (1) one lock protects all of the shared state above
+not_full = threading.Condition(lock)
+not_empty = threading.Condition(lock)
+
+
+def producer():
+    for v in range(1, ITEMS_EACH + 1):
+        with lock:
+            while len(queue) == CAPACITY:                            # (2) a WHILE, not an if: after waking, check the condition again
+                not_full.wait()                                      # (3) releases the lock and sleeps as one step; relocks before returning
+            queue.append(v)
+            state["most"] = max(state["most"], len(queue))
+            not_empty.notify()                                       # (4) tell one sleeping consumer that there is something to take
+
+
+def consumer():
+    while True:
+        with lock:
+            while not queue and not state["finished"]:
+                not_empty.wait()
+            if not queue:                                            # (5) nothing left and no more coming: stop instead of sleeping forever
+                return
+            state["sum"] += queue.pop(0)
+            state["received"] += 1
+            not_full.notify()
+
+
+consumers = [threading.Thread(target=consumer) for _ in range(CONSUMERS)]
+producers = [threading.Thread(target=producer) for _ in range(PRODUCERS)]
+for t in consumers + producers:
+    t.start()
+for t in producers:
+    t.join()
+with lock:
+    state["finished"] = True
+    not_empty.notify_all()                                           # wake every sleeping consumer so it can notice that the work is over
+for t in consumers:
+    t.join()
+print(f"{PRODUCERS} producers sent {ITEMS_EACH} items each; {CONSUMERS} consumers received {state['received']} items (sum of values = {state['sum']})")
+print(f"the queue never held more than {CAPACITY} items: {state['most'] &lt;= CAPACITY}")</code></pre>
+  </div>
+
+  <h2 id="rw">Readers and writers</h2>
+  <p>Many programs read shared data far more often than they change it: a routing table, a configuration, a cache. Two readers cannot interfere with each other, so making them take turns wastes parallelism. The <dfn data-term="Readers–writers problem">readers–writers problem</dfn> is to let readers share while a writer is kept alone. The usual tool is a <dfn data-term="Read–write lock">read–write lock</dfn> with two modes: <b>shared</b> and <b>exclusive</b>.</p>
+  <p>That leaves a policy question for when both kinds are waiting:</p>
+  <ul>
+    <li><b>Reader preference.</b> A reader never waits behind another reader, even if a writer is already waiting. Maximum sharing, but a steady stream of readers can keep a writer out indefinitely.</li>
+    <li><b>Writer preference.</b> When a writer is waiting, new readers wait too. Data stays fresh, but a steady stream of writers can <a href="04-scheduling.html">starve</a> the readers.</li>
+    <li><b>First come, first served.</b> Requests are admitted in arrival order, and a run of readers at the front can go together. Nobody starves, at the cost of some sharing.</li>
+  </ul>
+  <div data-sim="rwsim"></div>
+  <div class="callout"><p><b>Try it:</b> the first workload is a steady stream of readers plus a single writer that arrives early. Under reader preference it waits for the entire stream. Switch to writer preference, and then to first come, first served. Then pick the second workload (a stream of writers and one reader) and see the roles reverse. The comparison table shows that no policy wins every column.</p></div>
+
+  <h3>Try it: readers that always see a consistent pair</h3>
+  <div class="code-tabs" aria-label="Read-write lock example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> POSIX has a read-write lock built in (<code>pthread_rwlock_t</code>), with <code>rdlock</code> for shared and <code>wrlock</code> for exclusive access. The writer changes two variables that must always match; a reader that holds the lock can rely on them matching, which is exactly what the lock buys.</p></div>
+    <pre class="code" data-src="examples/rwlock_demo.c"><code>/* A read-write lock: many readers at once, one writer alone. Linux or macOS. */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;pthread.h&gt;
+#include &lt;stdio.h&gt;
+
+#define READERS 4
+#define READS_EACH 1000
+#define UPDATES 1000
+
+static int a = 0, b = 0;                           /* the writer always changes both, so a == b whenever nobody is in the middle of an update */
+static pthread_rwlock_t rw = PTHREAD_RWLOCK_INITIALIZER;
+
+typedef struct { int reads, torn; } Result;
+
+static void *reader(void *arg) {
+    Result *r = arg;
+    for (int i = 0; i &lt; READS_EACH; i++) {
+        pthread_rwlock_rdlock(&amp;rw);                /* (1) a shared lock: any number of readers may hold it together */
+        if (a != b) r-&gt;torn++;                     /* (3) holding either lock, nobody else can be mid-update, so a == b can be trusted */
+        r-&gt;reads++;
+        pthread_rwlock_unlock(&amp;rw);                /* (4) release the lock, whichever kind it was */
+    }
+    return NULL;
+}
+
+static void *writer(void *arg) {
+    (void)arg;
+    for (int i = 0; i &lt; UPDATES; i++) {
+        pthread_rwlock_wrlock(&amp;rw);                /* (2) an exclusive lock: waits until every reader and writer has left */
+        a++;                                       /* in between these two lines the pair is inconsistent, but only the writer can see that */
+        b++;
+        pthread_rwlock_unlock(&amp;rw);
+    }
+    return NULL;
+}
+
+int main(void) {
+    pthread_t rt[READERS], wt;
+    Result res[READERS] = {{0, 0}};
+    pthread_create(&amp;wt, NULL, writer, NULL);
+    for (int i = 0; i &lt; READERS; i++) pthread_create(&amp;rt[i], NULL, reader, &amp;res[i]);
+    pthread_join(wt, NULL);
+    long reads = 0, torn = 0;
+    for (int i = 0; i &lt; READERS; i++) { pthread_join(rt[i], NULL); reads += res[i].reads; torn += res[i].torn; }
+    printf("%d readers made %ld reads; every read saw a consistent pair: %s\n", READERS, reads, torn == 0 ? "True" : "False");
+    printf("the writer made %d updates; final value: %d\n", UPDATES, a);
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>This is more contrived in Python.</b> The standard library has no read–write lock, so the example builds one from a <code>Condition</code>, and it is a plain reader-preference lock, so it can starve a writer. Also, because of the global interpreter lock, Python readers never run in parallel anyway, so the speed benefit that motivates a read-write lock mostly disappears. The code is useful for seeing how such a lock works, not as something to copy into a program.</p></div>
+    <pre class="code" data-src="examples/rwlock_demo.py"><code>"""A read-write lock: many readers at once, one writer alone. Python has none built in, so this one is built from a Condition."""
+import threading
+
+READERS = 4
+READS_EACH = 1000
+UPDATES = 1000
+
+
+class ReadWriteLock:
+    def __init__(self):
+        self._cond = threading.Condition()
+        self._readers = 0
+        self._writing = False
+
+    def acquire_read(self):
+        with self._cond:
+            while self._writing:
+                self._cond.wait()
+            self._readers += 1
+
+    def release_read(self):
+        with self._cond:
+            self._readers -= 1
+            if self._readers == 0:
+                self._cond.notify_all()
+
+    def acquire_write(self):
+        with self._cond:
+            while self._writing or self._readers:
+                self._cond.wait()
+            self._writing = True
+
+    def release_write(self):
+        with self._cond:
+            self._writing = False
+            self._cond.notify_all()
+
+
+rw = ReadWriteLock()
+pair = {"a": 0, "b": 0}                     # the writer always changes both, so a == b whenever nobody is in the middle of an update
+results = [{"reads": 0, "torn": 0} for _ in range(READERS)]
+
+
+def reader(result):
+    for _ in range(READS_EACH):
+        rw.acquire_read()                   # (1) a shared lock: any number of readers may hold it together
+        if pair["a"] != pair["b"]:          # (3) holding either lock, nobody else can be mid-update, so a == b can be trusted
+            result["torn"] += 1
+        result["reads"] += 1
+        rw.release_read()                   # (4) release the lock, whichever kind it was
+
+
+def writer():
+    for _ in range(UPDATES):
+        rw.acquire_write()                  # (2) an exclusive lock: waits until every reader and writer has left
+        pair["a"] += 1                      # in between these two lines the pair is inconsistent, but only the writer can see that
+        pair["b"] += 1
+        rw.release_write()
+
+
+threads = [threading.Thread(target=writer)] + [threading.Thread(target=reader, args=(r,)) for r in results]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+reads = sum(r["reads"] for r in results)
+torn = sum(r["torn"] for r in results)
+print(f"{READERS} readers made {reads} reads; every read saw a consistent pair: {torn == 0}")
+print(f"the writer made {UPDATES} updates; final value: {pair['a']}")</code></pre>
+  </div>
+
+  <h2 id="langs">In real languages</h2>
+  <table>
+    <thead><tr><th>Language</th><th>Monitor / condition variable</th><th>Read–write lock</th></tr></thead>
+    <tbody>
+      <tr><td>C (POSIX)</td><td><code>pthread_mutex_t</code> + <code>pthread_cond_t</code></td><td><code>pthread_rwlock_t</code></td></tr>
+      <tr><td>Java</td><td><code>synchronized</code> with <code>wait()</code> / <code>notify()</code>, or <code>ReentrantLock</code> + <code>Condition</code></td><td><code>ReentrantReadWriteLock</code>, <code>StampedLock</code></td></tr>
+      <tr><td>Python</td><td><code>threading.Condition</code>, or <code>queue.Queue</code></td><td>none in the standard library</td></tr>
+      <tr><td>C++</td><td><code>std::mutex</code> + <code>std::condition_variable</code></td><td><code>std::shared_mutex</code></td></tr>
+      <tr><td>Go</td><td>channels (and <code>sync.Cond</code>)</td><td><code>sync.RWMutex</code></td></tr>
+      <tr><td>Rust</td><td><code>Mutex</code> + <code>Condvar</code> (the data lives inside the mutex)</td><td><code>RwLock</code></td></tr>
+    </tbody>
+  </table>
+
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: costs and alternatives</summary>
+    <ul>
+      <li><b>Hoare versus Mesa, precisely.</b> In Hoare’s version the signal transfers the lock and the condition immediately, so an <code>if</code> is enough, but it forces an extra context switch on every signal. Mesa lets the signaler continue, which allows the cheaper “signal, then keep working” pattern, at the price of the loop. Java, POSIX, Python and C++ are all Mesa-style.</li>
+      <li><b>Signal or broadcast?</b> Signaling one waiter is only safe when any waiter can use the change. If waiters want different things (a buffer of unequal-size requests, say), signaling one may wake a thread that cannot proceed and leave the right one asleep. <code>broadcast</code> is always correct; it can be slower because everyone wakes and re-checks (a <em>thundering herd</em>).</li>
+      <li><b>Lost wake-ups.</b> If a program checks a condition without holding the lock and then sleeps, a signal arriving between the two steps is lost, and the thread may sleep forever. This is the reason waiting and the lock release are one atomic operation.</li>
+      <li><b>Read–write locks are not free.</b> Even shared readers must update the lock’s counter, which bounces a cache line between cores. With short read sections, a plain mutex or a lock-free design can beat a read–write lock. Linux uses <em>RCU</em> for read-mostly kernel data, so readers do not write to shared memory at all.</li>
+      <li><b>Upgrading is dangerous.</b> A thread holding a read lock cannot simply ask for the write lock: two readers both trying to upgrade will each wait for the other to leave, a deadlock (see <a href="07-deadlocks.html">Module 7</a>). Most libraries do not support upgrade for this reason.</li>
+      <li><b>Seqlocks.</b> For small, frequently read data, a writer increments a version number before and after updating, and a reader retries if the number changed or was odd. Readers never block the writer and never take a lock, which solves writer starvation by construction.</li>
+      <li><b>Fairness versus throughput.</b> Fair queues can create a <em>lock convoy</em>: every thread wakes, runs a moment, and sleeps again behind the next. Real implementations mix policies, for example letting a thread barge in once but putting it at the back after it has waited too long.</li>
+    </ul>
+  </details>
+
+  <h2 id="quiz">Check your understanding</h2>
+  <div data-quiz="15"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/rw.js"></script>
+<script src="../js/sims/m15-monitors.js"></script>
+</body>
+</html>

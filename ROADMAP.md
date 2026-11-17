@@ -20,7 +20,7 @@ A working list of improvements to build together. Tick items off (`[x]`) as they
 
 ## Where we are today (baseline)
 
-* 14 modules with 32+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
+* 17 modules with 41+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
   fork tree, Banker's, race lab, process states).
 * Module 12: family tree and a compare tool for 14 operating systems (share a comparison via `#compare=windows,zos`).
 * About 100 glossary terms, each linked back to the lesson where it is discussed (`npm run build:glossary`).
@@ -146,15 +146,15 @@ Goal: hands-on practice that matches the syllabus activities (system utility pro
 Each new module follows the existing pattern: lesson, one or more simulations (pure logic in `js/lib/` with tests, UI in `js/sims/`), quiz questions, glossary terms with `<dfn>` markers, and FAQ entries.
 
 - [x] **C-1 Virtualization and containers** (L). Hypervisors (type 1 and 2), VMs vs. containers, namespaces, cgroups, a "what is isolated?" comparison. **Done:** Module 14, with five simulations and two tested C and Python examples.
-- [ ] **C-2 Boot process** (M). Firmware (BIOS/UEFI), bootloader, kernel start, init. A step-through animation.
+- [x] **C-2 Boot process** (M). Firmware (BIOS/UEFI), bootloader, kernel start, init. A step-through animation. **Done:** Module 16, with four simulations and two tested C and Python examples.
 - [x] **C-3 Multi-level page tables and TLB simulator** (L). Module 8 describes these but has no simulation.
   *Result:* a general N-level page-table and TLB library (`js/lib/pagetable.js`, tested against independent BigInt calculations and
   brute-force prefix counts), a step-through walk simulator (three real layouts: a 16-bit teaching machine, 32-bit x86 and x86-64),
   table-memory comparison, TLB reach and EAT, a tested C and Python translation example in language tabs, an opt-in "Going deeper"
   section (page-walk caches, ASIDs, huge pages, nested paging, KPTI), 8 quiz questions, 6 glossary terms and 2 FAQ entries.
   *Follow-ups:* a page-fault service step (demand paging) in the same simulator; copy-on-write demonstrated through the PTE flags.
-- [ ] **C-4 Advanced scheduling** (L). Multilevel feedback queue; real-time (rate-monotonic, earliest-deadline-first) with a schedulability check; multicore load balancing.
-- [ ] **C-5 Readers–writers, monitors and condition variables** (M). Simulator plus a starvation demonstration.
+- [x] **C-4 Advanced scheduling** (L). Multilevel feedback queue; real-time (rate-monotonic, earliest-deadline-first) with a schedulability check; multicore load balancing. **Done:** Module 17, with three simulations and two tested C and Python examples.
+- [x] **C-5 Readers–writers, monitors and condition variables** (M). Simulator plus a starvation demonstration. **Done:** Module 15, with two simulations and two tested C and Python examples.
 - [ ] **C-6 Security depth** (L). Buffer-overflow stack diagram, authentication and password hashing, a threat-model exercise.
 - [ ] **C-7 Storage reliability** (M). RAID levels, SSD wear leveling and write amplification, journaling crash recovery.
 - [ ] **C-8 More operating systems for the compare tool** (S each). HarmonyOS, Fuchsia, Solaris/illumos, OpenBSD, z/VM, z/TPF, watchOS/tvOS, Plan 9, Minix.

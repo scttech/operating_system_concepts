@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 16: The Boot Process — OS Concepts</title>
+<meta name="description" content="From power-on to a login prompt: firmware, boot loaders, the master boot record, the kernel, init, and the chain of trust.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="16">
+<main>
+  <p class="eyebrow">Module 16</p>
+  <h1>The Boot Process</h1>
+  <p class="lead">The operating system lives on a disk, but to read a disk you need an operating system. <b>Booting</b> is the answer to that chicken-and-egg problem: a chain of small programs, each just capable enough to load the next, until the kernel is running and can take over.</p>
+
+  <div class="toc"><strong>On this page</strong>
+    <ul><li><a href="#stages">The stages</a></li><li><a href="#mbr">The master boot record</a></li><li><a href="#init">Starting services</a></li><li><a href="#secure">Secure Boot</a></li><li><a href="#others">Other kinds of machine</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
+
+  <h2 id="stages">The stages</h2>
+  <p>When power arrives, the CPU does the only thing it can: it starts executing at a fixed address, where the machine’s <dfn data-term="Firmware">firmware</dfn> lives in a chip that keeps its contents without power. From there the work is handed on:</p>
+  <ol>
+    <li><b>Firmware</b> tests and initializes the hardware, then looks for something bootable. On older PCs this is the <dfn data-term="BIOS">BIOS</dfn>; newer machines use <dfn data-term="UEFI">UEFI</dfn>.</li>
+    <li>The <b><dfn data-term="Boot loader">boot loader</dfn></b> (GRUB, systemd-boot, Windows Boot Manager) is found on disk, run, and asked which kernel to start.</li>
+    <li>The <b>kernel</b> is loaded into memory along with an <dfn data-term="Initramfs">initial RAM file system</dfn>, and begins running. This is the moment the operating system, as <a href="01-fundamentals.html">Module 1</a> describes it, comes into existence.</li>
+    <li>The kernel mounts the real root file system and starts one program: <dfn data-term="Init (PID 1)">init, process number 1</dfn>, which starts everything else.</li>
+  </ol>
+  <div data-sim="bootseq"></div>
+  <div class="callout"><p><b>Try it:</b> play the three firmware types and compare them. Then break things. “Boot sector missing” stops a BIOS machine at stage 3 but a UEFI machine at a different stage, and a tampered boot loader stops <em>only</em> the Secure Boot machine; on the others it runs without complaint. Notice which failures leave you with a working kernel (an emergency shell) and which leave you with nothing.</p></div>
+
+  <h2 id="mbr">The master boot record</h2>
+  <p>A BIOS cannot read a file system, so it uses the one thing it can: <em>sector numbers</em>. It reads the very first sector of the disk (512 bytes) into memory at address <code>0x7C00</code> and jumps to it, provided the last two bytes are <code>55 AA</code>. That sector, the <dfn data-term="Master boot record (MBR)">master boot record</dfn>, has a strictly defined layout:</p>
+  <table>
+    <thead><tr><th>Bytes</th><th>Contents</th></tr></thead>
+    <tbody>
+      <tr><td>0 – 445</td><td>Boot code (446 bytes: just enough to load something bigger)</td></tr>
+      <tr><td>446 – 509</td><td>Four 16-byte partition entries: bootable flag, old CHS addresses, partition type, <b>start sector</b>, <b>number of sectors</b></td></tr>
+      <tr><td>510 – 511</td><td>The signature <code>0x55 0xAA</code></td></tr>
+    </tbody>
+  </table>
+  <div data-sim="mbrview"></div>
+  <div class="callout"><p><b>Try it:</b> change the start sector of partition 1 and watch the four bytes move. Enter 2048 and you will see <code>00 08 00 00</code>: the number 0x0800 stored least significant byte first. Then damage the signature. UEFI machines use a <dfn data-term="GPT (GUID Partition Table)">GUID Partition Table (GPT)</dfn> instead, which lifts the four-partition limit and the 2 TiB size limit that 32-bit sector numbers impose (2<sup>32</sup> sectors × 512 bytes), and keeps a backup copy at the end of the disk. A “protective MBR” (type 0xEE) is still written at the start so old tools do not mistake the disk for empty.</p></div>
+
+  <h3>Try it: build and read a master boot record</h3>
+  <div class="code-tabs" aria-label="Boot sector example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> the sector is a plain array of bytes, and C makes you place each field yourself, which is exactly what boot code and file-system code do. The helper that stores a 32-bit number one byte at a time (comment 1) is the little-endian rule written out. Nothing here needs an operating system feature, so it runs on Windows, macOS and Linux.</p></div>
+    <pre class="code" data-src="examples/mbr_parse.c"><code>/* Build and read a master boot record: the 512-byte first sector of a disk. Runs anywhere. */
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+typedef struct { int active; unsigned type; uint32_t start, sectors; } Part;
+
+static void put32(uint8_t *p, uint32_t v) {               /* (1) multi-byte fields are little-endian: least significant byte first */
+    p[0] = (uint8_t)v; p[1] = (uint8_t)(v &gt;&gt; 8); p[2] = (uint8_t)(v &gt;&gt; 16); p[3] = (uint8_t)(v &gt;&gt; 24);
+}
+static uint32_t get32(const uint8_t *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] &lt;&lt; 8) | ((uint32_t)p[2] &lt;&lt; 16) | ((uint32_t)p[3] &lt;&lt; 24);
+}
+
+static const char *type_name(unsigned t) {
+    switch (t) {
+        case 0x07: return "NTFS / exFAT";
+        case 0x82: return "Linux swap";
+        case 0x83: return "Linux";
+        default: return "unknown";
+    }
+}
+
+int main(void) {
+    const Part disk[3] = { { 1, 0x83, 2048, 1048576 }, { 0, 0x82, 1050624, 2097152 }, { 0, 0x07, 3147776, 41943040 } };
+    uint8_t sector[512];
+    memset(sector, 0, sizeof sector);                      /* bytes 0-445 would hold the boot code; all zero here */
+    for (int i = 0; i &lt; 3; i++) {
+        uint8_t *e = sector + 446 + 16 * i;                /* (2) four 16-byte partition entries start at byte 446 */
+        e[0] = disk[i].active ? 0x80 : 0x00;
+        e[1] = 0xFE; e[2] = 0xFF; e[3] = 0xFF;             /* old cylinder-head-sector address: maxed out, so use the LBA fields */
+        e[4] = (uint8_t)disk[i].type;
+        e[5] = 0xFE; e[6] = 0xFF; e[7] = 0xFF;
+        put32(e + 8, disk[i].start);                       /* first sector, counted from the start of the disk (LBA) */
+        put32(e + 12, disk[i].sectors);
+    }
+    sector[510] = 0x55; sector[511] = 0xAA;                /* (3) the last two bytes must be 0x55 0xAA, or the BIOS will not boot from this disk */
+
+    int valid = sector[510] == 0x55 &amp;&amp; sector[511] == 0xAA;
+    printf("boot signature (bytes 510-511): %s\n", valid ? "0x55AA, valid" : "not 0x55AA, invalid");
+    uint32_t first_start = 0;
+    int have_first = 0;
+    for (int i = 0; i &lt; 4; i++) {
+        const uint8_t *e = sector + 446 + 16 * i;
+        uint32_t start = get32(e + 8), sectors = get32(e + 12);
+        if (e[4] == 0 &amp;&amp; sectors == 0) { printf("partition %d: unused\n", i + 1); continue; }
+        printf("partition %d: %-6s type 0x%02x %-14s start LBA %-8u size %u MiB\n", i + 1, e[0] == 0x80 ? "active" : "idle", e[4], type_name(e[4]), (unsigned)start, (unsigned)(sectors / 2048));
+        if (!have_first) { first_start = start; have_first = 1; }
+    }
+    uint64_t byte_offset = (uint64_t)first_start * 512;    /* (4) 512-byte sectors: LBA 2048 is byte 1,048,576, a multiple of 1 MiB */
+    printf("the first partition starts at byte %llu (%llu MiB), aligned to 1 MiB: %s\n", (unsigned long long)byte_offset, (unsigned long long)(byte_offset / 1048576), byte_offset % 1048576 == 0 ? "True" : "False");
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python’s <code>struct</code> module does the packing for you.</b> The format string <code>"&lt;B3sB3sII"</code> describes one entry: a byte, three bytes, a byte, three bytes, then two 4-byte numbers, with <code>&lt;</code> meaning little-endian. That is shorter and less error-prone than the C version, but it hides the byte-by-byte work that the C code makes visible. Real tools in Python use the same module to read raw disk structures.</p></div>
+    <pre class="code" data-src="examples/mbr_parse.py"><code>"""Build and read a master boot record: the 512-byte first sector of a disk."""
+import struct
+
+TYPES = {0x07: "NTFS / exFAT", 0x82: "Linux swap", 0x83: "Linux"}
+disk = [(True, 0x83, 2048, 1048576), (False, 0x82, 1050624, 2097152), (False, 0x07, 3147776, 41943040)]
+
+sector = bytearray(512)                              # bytes 0-445 would hold the boot code; all zero here
+for i, (active, ptype, start, sectors) in enumerate(disk):
+    offset = 446 + 16 * i                            # (2) four 16-byte partition entries start at byte 446
+    sector[offset:offset + 16] = struct.pack(
+        "&lt;B3sB3sII",                                 # (1) "&lt;" means little-endian: least significant byte first
+        0x80 if active else 0x00,
+        b"\xfe\xff\xff",                             # old cylinder-head-sector address: maxed out, so use the LBA fields
+        ptype,
+        b"\xfe\xff\xff",
+        start,                                       # first sector, counted from the start of the disk (LBA)
+        sectors,
+    )
+sector[510:512] = b"\x55\xaa"                        # (3) the last two bytes must be 0x55 0xAA, or the BIOS will not boot from this disk
+
+valid = sector[510] == 0x55 and sector[511] == 0xAA
+print("boot signature (bytes 510-511): " + ("0x55AA, valid" if valid else "not 0x55AA, invalid"))
+first_start = None
+for i in range(4):
+    flag, _, ptype, _, start, sectors = struct.unpack_from("&lt;B3sB3sII", sector, 446 + 16 * i)
+    if ptype == 0 and sectors == 0:
+        print(f"partition {i + 1}: unused")
+        continue
+    print(f"partition {i + 1}: {'active' if flag == 0x80 else 'idle':&lt;6} type 0x{ptype:02x} {TYPES.get(ptype, 'unknown'):&lt;14} start LBA {start:&lt;8} size {sectors // 2048} MiB")
+    if first_start is None:
+        first_start = start
+byte_offset = first_start * 512                      # (4) 512-byte sectors: LBA 2048 is byte 1,048,576, a multiple of 1 MiB
+print(f"the first partition starts at byte {byte_offset} ({byte_offset // 1048576} MiB), aligned to 1 MiB: {byte_offset % 1048576 == 0}")</code></pre>
+  </div>
+
+  <h2 id="init">Starting services</h2>
+  <p>Once the kernel starts <b>init</b>, boot becomes a scheduling problem. Dozens of services must start, but a database cannot start before its disk is mounted and the network is up. An init system such as systemd is told what each service comes <em>after</em> and then starts every service as soon as its prerequisites have finished. That is a dependency graph, and the schedule is the same longest-path idea used for project planning: the <b>critical path</b> decides how long boot takes.</p>
+  <div data-sim="initorder"></div>
+  <div class="callout"><p><b>Try it:</b> make <code>cron</code> slower and nothing changes, because it is off the critical path. Make <code>network</code> slower and the whole boot takes longer. Then tick the mistake box: if the network waits for the web server, and the web server waits for the network, neither can ever start. This is the same circular-wait condition that causes <a href="07-deadlocks.html">deadlock</a>, found before the system has finished starting.</p></div>
+
+  <h3>Try it: ordering services</h3>
+  <div class="code-tabs" aria-label="Start order example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> the algorithm needs only arrays and a loop, and the code shows what the init system does at heart: repeatedly start every unit whose prerequisites are finished, and stop with an error if a pass starts nothing (comment 4), which means a cycle. It runs on any operating system.</p></div>
+    <pre class="code" data-src="examples/init_order.c"><code>/* How an init system orders services: each starts as soon as everything it comes after has finished. Runs anywhere. */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+#define N 7
+#define MAXDEPS 3
+
+typedef struct { const char *name; int duration; const char *after[MAXDEPS]; } Unit;
+
+static const Unit units[N] = {
+    { "local-fs", 2, { NULL } },
+    { "network",  3, { "local-fs" } },
+    { "logging",  1, { "local-fs" } },
+    { "database", 4, { "network", "logging" } },
+    { "web",      2, { "database", "network" } },
+    { "cron",     1, { "logging" } },
+    { "ssh",      1, { "network" } },
+};
+
+static int index_of(const char *name) {
+    for (int i = 0; i &lt; N; i++) if (strcmp(units[i].name, name) == 0) return i;
+    return -1;
+}
+
+int main(void) {
+    int start[N], finish[N], via[N], done[N] = { 0 }, scheduled = 0, serial = 0;
+    while (scheduled &lt; N) {
+        int progress = 0;
+        for (int i = 0; i &lt; N; i++) {
+            if (done[i]) continue;
+            int ready = 1, begin = 0, from = -1;
+            for (int k = 0; k &lt; MAXDEPS &amp;&amp; units[i].after[k]; k++) {
+                int d = index_of(units[i].after[k]);
+                if (!done[d]) { ready = 0; break; }          /* (1) a unit cannot start until everything it comes after has finished */
+                if (finish[d] &gt; begin || from &lt; 0) { begin = finish[d]; from = d; }
+            }
+            if (!ready) continue;
+            start[i] = begin; finish[i] = begin + units[i].duration; via[i] = from; done[i] = 1; scheduled++; progress = 1;
+        }
+        if (!progress) { printf("cycle detected: some units wait for each other forever\n"); return 1; }   /* (4) if nothing can start, the rest form a cycle */
+    }
+    int order[N];
+    for (int i = 0; i &lt; N; i++) order[i] = i;
+    for (int i = 1; i &lt; N; i++) {                            /* sort by start time, then by name */
+        int v = order[i], j = i - 1;
+        while (j &gt;= 0 &amp;&amp; (start[order[j]] &gt; start[v] || (start[order[j]] == start[v] &amp;&amp; strcmp(units[order[j]].name, units[v].name) &gt; 0))) { order[j + 1] = order[j]; j--; }
+        order[j + 1] = v;
+    }
+    int total = 0, last = 0;
+    for (int i = 0; i &lt; N; i++) {
+        int u = order[i];
+        printf("t=%-2d start %-8s (takes %d)\n", start[u], units[u].name, units[u].duration);   /* (2) units with nothing between them start at the same time */
+        serial += units[u].duration;
+        if (finish[u] &gt; total) total = finish[u];
+    }
+    for (int i = 0; i &lt; N; i++) if (finish[i] == total &amp;&amp; (strcmp(units[i].name, units[last].name) &lt; 0 || finish[last] != total)) last = i;
+    char path[128] = "";
+    int chain[N], len = 0;
+    for (int u = last; u &gt;= 0; u = via[u]) chain[len++] = u;
+    for (int i = len - 1; i &gt;= 0; i--) { strcat(path, units[chain[i]].name); if (i) strcat(path, " -&gt; "); }
+    printf("everything is up after %d time units; one at a time it would take %d\n", total, serial);
+    printf("critical path: %s\n", path);              /* (3) the longest chain of waiting decides the total; speeding up anything else does not help */
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>The Python version is shorter</b> because dictionaries, list comprehensions and <code>sorted</code> with a key replace the lookup function, the manual sort and the string buffer. The logic is identical, so every numbered comment lines up with the C tab. This is a case where Python is the better tool: there is no memory or system-level detail to show.</p></div>
+    <pre class="code" data-src="examples/init_order.py"><code>"""How an init system orders services: each starts as soon as everything it comes after has finished."""
+units = [
+    ("local-fs", 2, []),
+    ("network", 3, ["local-fs"]),
+    ("logging", 1, ["local-fs"]),
+    ("database", 4, ["network", "logging"]),
+    ("web", 2, ["database", "network"]),
+    ("cron", 1, ["logging"]),
+    ("ssh", 1, ["network"]),
+]
+duration = {name: d for name, d, _ in units}
+after = {name: deps for name, _, deps in units}
+start, finish, via = {}, {}, {}
+
+pending = [name for name, _, _ in units]
+while pending:
+    ready = [n for n in pending if all(d in finish for d in after[n])]    # (1) a unit cannot start until everything it comes after has finished
+    if not ready:
+        print("cycle detected: some units wait for each other forever")   # (4) if nothing can start, the rest form a cycle
+        raise SystemExit(1)
+    for n in ready:
+        begin, source = 0, None
+        for d in after[n]:
+            if source is None or finish[d] &gt; begin:
+                begin, source = finish[d], d
+        start[n], finish[n], via[n] = begin, begin + duration[n], source
+    pending = [n for n in pending if n not in finish]
+
+for n in sorted(start, key=lambda n: (start[n], n)):
+    print(f"t={start[n]:&lt;2} start {n:&lt;8} (takes {duration[n]})")           # (2) units with nothing between them start at the same time
+total = max(finish.values())
+print(f"everything is up after {total} time units; one at a time it would take {sum(duration.values())}")
+node = min(n for n in finish if finish[n] == total)
+chain = []
+while node is not None:
+    chain.append(node)
+    node = via[node]
+print("critical path: " + " -&gt; ".join(reversed(chain)))                # (3) the longest chain of waiting decides the total; speeding up anything else does not help</code></pre>
+  </div>
+
+  <h2 id="secure">Secure Boot</h2>
+  <p>Anything that runs before the operating system can control it, and the antivirus program is not loaded yet. A <b>boot kit</b> that replaces the boot loader owns the machine in a way no later software can detect. <dfn data-term="Secure Boot">Secure Boot</dfn> closes this by making every stage verify a digital signature on the next one before running it, forming a <dfn data-term="Chain of trust">chain of trust</dfn> that starts in the firmware, which the operating system cannot rewrite.</p>
+  <div data-sim="trustchain"></div>
+  <div class="callout"><p><b>Try it:</b> tamper with the kernel and the chain breaks there, with the modules never reached. Tamper with the boot loader and the kernel, which is unchanged, is also untrusted: its signature was never checked by anything trustworthy. The strength of the chain is the strength of its weakest link, and of the keys at its root.</p></div>
+
+  <h2 id="others">Other kinds of machine</h2>
+  <p>The pattern, a chain of ever-more-capable loaders, is universal. The details vary, as the systems in <a href="12-os-landscape.html">Module 12</a> show:</p>
+  <ul>
+    <li><b>Raspberry Pi:</b> the graphics processor, not the CPU, starts first, running code from its own ROM that reads boot files from the SD card before the main CPU starts at all.</li>
+    <li><b>Phones:</b> a ROM boot loader verifies the next stage, which verifies the next, up to the Android or iOS kernel (<em>verified boot</em>). Unlocking the bootloader deliberately breaks the chain.</li>
+    <li><b>Mainframes:</b> an IPL (initial program load) reads a loader from a designated device and starts the operating system, often virtualized under a hypervisor.</li>
+    <li><b>Servers and thin clients:</b> <em>network boot</em> (PXE) fetches the boot loader and kernel over the network, so a machine needs no local disk.</li>
+  </ul>
+
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: what else happens at boot</summary>
+    <ul>
+      <li><b>Measured boot and the TPM.</b> Secure Boot refuses bad code; <em>measured boot</em> records what ran. Each stage hashes the next into a register of the Trusted Platform Module, which can only be extended, never set. A remote server can then ask the TPM to sign the result and decide whether to trust the machine (attestation).</li>
+      <li><b>Device trees and ACPI.</b> A kernel has to learn what hardware exists. PCs describe it through ACPI tables from the firmware; ARM boards usually pass a <em>device tree</em>, a data structure listing every device and its address, to the kernel at boot.</li>
+      <li><b>Firmware is software too.</b> UEFI is millions of lines of code, and other processors (the management engine, the baseband in a phone) run their own firmware before and beside the operating system. Projects such as coreboot replace the proprietary firmware with something small and auditable.</li>
+      <li><b>The kernel command line.</b> The loader passes a string such as <code>root=/dev/sda2 quiet</code> that tells the kernel where to find its root file system and how to behave. Editing it at the boot menu is the classic way to recover a machine, and the reason physical access usually means game over unless the disk is encrypted.</li>
+      <li><b>Hibernation and fast start.</b> Instead of booting, a machine can write all of memory to disk and later read it back (hibernate). Fast-startup features on laptops save only the kernel’s state, which makes the next boot quicker but means “shut down” was not a real shutdown.</li>
+      <li><b>Finding the slow part.</b> <code>systemd-analyze blame</code> and <code>systemd-analyze critical-chain</code> list the services that took longest and the dependency chain that determined the total, which is the critical path from the simulator above, measured on a real machine.</li>
+      <li><b>kexec and live updates.</b> Linux can load a new kernel from a running one and jump straight into it, skipping the firmware stages entirely. Data centers use this to patch kernels with a much shorter outage than a full reboot.</li>
+    </ul>
+  </details>
+
+  <h2 id="quiz">Check your understanding</h2>
+  <div data-quiz="16"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/boot.js"></script>
+<script src="../js/sims/m16-boot.js"></script>
+</body>
+</html>

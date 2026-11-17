@@ -42,5 +42,14 @@ window.OSData.modules = [
     tags: ["pipe", "sockets", "shared memory"] },
   { n: 14, slug: "14-virtualization",   title: "Virtualization & Containers",
     summary: "Hypervisors and virtual machines, containers built from namespaces and control groups, and what each one really isolates.",
-    tags: ["hypervisor", "namespaces", "cgroups"] }
+    tags: ["hypervisor", "namespaces", "cgroups"] },
+  { n: 15, slug: "15-monitors",         title: "Monitors & Readers–Writers",
+    summary: "Condition variables, why a wait belongs in a while loop, and read-write locks with their fairness trade-offs.",
+    tags: ["monitor", "condition variable", "starvation"] },
+  { n: 16, slug: "16-boot",              title: "The Boot Process",
+    summary: "From power-on to a login prompt: firmware, boot loaders, the master boot record, the kernel, init, and the chain of trust.",
+    tags: ["BIOS", "UEFI", "init"] },
+  { n: 17, slug: "17-advanced-scheduling", title: "Advanced Scheduling",
+    summary: "Multilevel feedback queues, real-time scheduling with deadline guarantees (rate-monotonic and EDF), and balancing work across cores.",
+    tags: ["MLFQ", "real-time", "multicore"] }
 ];

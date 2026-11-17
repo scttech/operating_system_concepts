@@ -35,6 +35,21 @@
     out.push(`total = ${total} (matches the formula: ${total === S(NN) ? "True" : "False"})`);
     return out;
   }
+  const B = require("../js/lib/boot.js");
+  function mbrExpected() {
+    return B.mbrLines(B.mbrParse(B.mbrBuild([{ active: true, type: 0x83, start: 2048, sectors: 1048576 }, { type: 0x82, start: 1050624, sectors: 2097152 }, { type: 0x07, start: 3147776, sectors: 41943040 }])));
+  }
+  function initExpected() {
+    const u = [["local-fs", 2, []], ["network", 3, ["local-fs"]], ["logging", 1, ["local-fs"]], ["database", 4, ["network", "logging"]], ["web", 2, ["database", "network"]], ["cron", 1, ["logging"]], ["ssh", 1, ["network"]]].map(([name, dur, after]) => ({ name, dur, after }));
+    const r = B.bootOrder(u);
+    return [...r.schedule.map((x) => `t=${String(x.start).padEnd(2)} start ${x.name.padEnd(8)} (takes ${x.dur})`), `everything is up after ${r.total} time units; one at a time it would take ${r.serial}`, `critical path: ${r.critical.join(" -> ")}`];
+  }
+  const A = require("../js/lib/advsched.js");
+  function rtExpected() {
+    const tasks = A.rtPresets.classic.tasks, a = A.rtAnalysis(tasks), H = a.hyperperiod;
+    const line = (name, r) => (r.misses.length ? `${name}: first missed deadline: T${r.misses[0].task + 1} job released at ${r.misses[0].release} (deadline ${r.misses[0].deadline})` : `${name}: no deadline missed in ${H} ticks`);
+    return [`utilization = ${a.U.toFixed(3)} (rate-monotonic is guaranteed below ${a.rmBound.toFixed(3)}, EDF up to 1.000)`, line("rate-monotonic", A.rtSimulate(tasks, "rm")), line("earliest-deadline-first", A.rtSimulate(tasks, "edf"))];
+  }
   const mode = (what, octal, sym) => `${what.padEnd(36)} ${octal} (${sym})`;
   const EXPECT = {
     pagetable_translate: { unix: false, lines: pagetableExpected },
@@ -48,6 +63,12 @@
     socket_pair: { unix: true, lines: () => ["parent sent:     ping", "parent received: PING"] },
     resource_limits: { unix: true, lines: () => ["address-space limit set to 1024 MiB", "allocating 4 MiB: allowed", "allocating 2048 MiB: refused by the kernel"] },
     ns_inherit: { unix: true, lines: () => ["every process belongs to one namespace of each kind: ipc, mnt, net, pid, user, uts (all present: True)", "a forked child is in the same namespaces as its parent: True"] },
+    condvar_queue: { unix: false, lines: () => ["2 producers sent 100 items each; 2 consumers received 200 items (sum of values = " + 2 * (100 * 101 / 2) + ")", "the queue never held more than 4 items: True"] },
+    rwlock_demo: { unix: false, lines: () => ["4 readers made 4000 reads; every read saw a consistent pair: True", "the writer made 1000 updates; final value: 1000"] },
+    mbr_parse: { unix: false, lines: mbrExpected },
+    init_order: { unix: false, lines: initExpected },
+    rt_schedule: { unix: false, lines: rtExpected },
+    cpu_affinity: { unix: true, lines: () => ["nice(5) raised the niceness by 5 (capped at 19): True", "this process may run on at least one CPU: True", "after pinning, the allowed set is exactly that one CPU: True"] },
     inode_links: { unix: true, lines: () => ["created original.txt: link count 1", "after link(): link count 2, same inode: yes", "the symbolic link has its own inode: yes", "after removing the original name: link count 1, data still readable: yes", "the symbolic link now dangles (opening it fails): yes"] }
   };
 
@@ -83,7 +104,7 @@
   });
 
   QUnit.test("each example pair has the same numbered comments in both languages and is plain ASCII", (assert) => {
-    assert.ok(STEMS.length >= 12);
+    assert.ok(STEMS.length >= 18);
     STEMS.forEach((stem) => {
       const markers = (ext) => fs.readFileSync(path.join(EX, `${stem}.${ext}`), "utf8").split("\n").flatMap((line) => { const i = line.search(/\/\*|\/\/|#/); return i < 0 ? [] : [...line.slice(i).matchAll(/\((\d+)\)/g)].map((m) => m[1]); });
       assert.ok(fs.existsSync(path.join(EX, `${stem}.c`)) && fs.existsSync(path.join(EX, `${stem}.py`)), `${stem} exists in both languages`);

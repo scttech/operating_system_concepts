@@ -25,7 +25,7 @@
     <li><b>Control program:</b> supervises execution to prevent errors and improper use of the computer.</li>
   </ul>
   <p>The <dfn data-term="Kernel">kernel</dfn> is the always-resident core that performs these jobs. Everything else (shells, compilers, browsers, even the GUI) is just a program that asks the kernel for help.</p>
-  <p>The kernel does not start itself. When the machine powers on, firmware runs a <dfn data-term="Boot loader">boot loader</dfn>, a small program that finds the kernel on disk, loads it into memory and starts it.</p>
+  <p>The kernel does not start itself. When the machine powers on, firmware runs a <dfn data-term="Boot loader">boot loader</dfn>, a small program that finds the kernel on disk, loads it into memory and starts it. <a href="16-boot.html">Module 16</a> follows the whole boot, step by step.</p>
 
   <h2 id="modes">Kernel mode and user mode</h2>
   <p>The CPU has a <em>mode bit</em>. In <dfn data-term="User mode">user mode</dfn> only a safe subset of instructions is allowed. In <dfn data-term="Kernel mode">kernel mode</dfn> every instruction and every memory address is available. Privileged instructions (changing page tables, disabling interrupts, talking to devices, halting the CPU) fault if tried in user mode. That hardware enforcement is what makes protection possible.</p>

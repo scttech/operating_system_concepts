@@ -4,6 +4,8 @@
 
 # Operating System Concepts
 
+**[Live demo: https://scttech.github.io/operating_system_concepts/](https://scttech.github.io/operating_system_concepts/)**
+
 An interactive, static website for learning operating-system concepts. Each module has a short explanation,
 live d3.js simulations whose parameters students can change, and self-check questions with instant answers.
 There is also a searchable glossary, an FAQ, a cheat sheet, a mixed practice quiz, **randomized calculation problems
@@ -38,6 +40,9 @@ python -m http.server 8000      # or: npm run serve
 | 12 | Beyond Windows, macOS & Linux | OS family tree, **compare tool** for 14 systems: Android, iOS, Qubes OS, Raspberry Pi OS, ChromeOS, FreeBSD, FreeRTOS, QNX and the IBM mainframe/midrange systems z/OS (MVS), z/VSE and IBM i |
 | 13 | Inter-process communication | Pipe and message-queue explorer (blocking, end of file, broken pipe), IPC cost comparison, C and Python examples for pipes, sockets and shared memory |
 | 14 | Virtualization & containers | What-runs-on-what stacks, namespace explorer, CPU and memory control groups, VM-exit counter, C and Python examples for namespaces and resource limits |
+| 15 | Monitors & readers–writers | Mesa-semantics stepper (if vs while, with random-schedule trials), readers–writers timeline with reader, writer and fair policies and a starvation flag, C and Python examples for condition variables and read-write locks |
+| 16 | The boot process | Boot stepper (BIOS, UEFI, Secure Boot, with injected failures), editable 512-byte MBR viewer, service start-order scheduler with critical path, chain of trust, C and Python examples for the MBR and for dependency ordering |
+| 17 | Advanced scheduling | Multilevel feedback queue with priority boost, rate-monotonic vs EDF with exact schedulability analysis, multicore work stealing with migration cost, C and Python examples for real-time scheduling and CPU affinity |
 
 ### Animations
 

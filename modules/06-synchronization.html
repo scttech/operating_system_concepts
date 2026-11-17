@@ -41,7 +41,7 @@
       <tr><td><dfn data-term="Mutex">Mutex</dfn></td><td>Lock with an owner; waiters sleep</td><td>Best for longer critical sections</td></tr>
       <tr><td><dfn data-term="Spinlock">Spinlock</dfn></td><td>Waiter busy-loops until the lock is free</td><td>Good for very short sections on multicore; wasteful otherwise</td></tr>
       <tr><td><dfn data-term="Semaphore">Semaphore</dfn></td><td>Integer with atomic <code>wait()</code> (P) and <code>signal()</code> (V)</td><td>Binary (mutex-like) or counting (resource pools)</td></tr>
-      <tr><td>Monitor / condition variable</td><td>Language-level lock plus wait/notify queues</td><td>Java <code>synchronized</code>, Python <code>threading.Condition</code></td></tr>
+      <tr><td>Monitor / condition variable</td><td>Language-level lock plus wait/notify queues</td><td>Java <code>synchronized</code>, Python <code>threading.Condition</code>. See <a href="15-monitors.html">Module 15</a></td></tr>
     </tbody>
   </table>
   <pre><code>wait(S):   while (S &lt;= 0) block;  S--;   // must be atomic
@@ -138,7 +138,7 @@ print(f"{THREADS} threads x {ITERATIONS} increments, protected by a spinlock: co
 
   <h2>Other classic problems</h2>
   <ul>
-    <li><b>Readers–writers:</b> many readers may share data, but writers need exclusive access (beware writer starvation).</li>
+    <li><b>Readers–writers:</b> many readers may share data, but writers need exclusive access (beware writer starvation). <a href="15-monitors.html#rw">Module 15</a> simulates the policies.</li>
     <li><b>Dining philosophers:</b> see <a href="07-deadlocks.html#philosophers">Module 7</a>.</li>
     <li><b><dfn data-term="Priority inversion">Priority inversion</dfn>:</b> a high-priority task blocked on a lock held by a low-priority task that is preempted by a medium one. Fix with priority inheritance.</li>
   </ul>

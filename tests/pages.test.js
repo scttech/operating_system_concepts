@@ -58,7 +58,7 @@
   QUnit.module("pages: structure and loading");
 
   QUnit.test("The site has exactly the expected pages", (assert) => {
-    assert.equal(moduleFiles.length, 14, "14 module pages");
+    assert.equal(moduleFiles.length, 17, "17 module pages");
     globalThis.window = globalThis;
     require("../js/data/modules.js");
     assert.deepEqual(moduleFiles, globalThis.OSData.modules.map((m) => m.slug + ".html"), "module files match js/data/modules.js");
@@ -163,7 +163,7 @@
         // module pages: pager
         if (rel.startsWith("modules/")) {
           const n = +doc.body.dataset.module, pager = doc.querySelectorAll(".pager a");
-          assert.equal(pager.length, n === 1 || n === 14 ? 1 : 2, "prev/next pager");
+          assert.equal(pager.length, n === 1 || n === 17 ? 1 : 2, "prev/next pager");
           assert.ok(doc.querySelector("[data-quiz]"), "has a quiz");
           assert.ok(doc.querySelector("[data-sim]"), "has at least one simulation");
           assert.ok(doc.title.includes(`Module ${n}:`), "title carries module number");
@@ -183,7 +183,7 @@
 
   QUnit.test("Home: one card per module; theme toggle works", async (assert) => {
     await withPage("index.html", ({ window: w, document: doc }) => {
-      assert.equal(doc.querySelectorAll("#module-grid .card").length, 14);
+      assert.equal(doc.querySelectorAll("#module-grid .card").length, 17);
       assert.ok(!/Reflect/i.test(doc.getElementById("module-grid").textContent), "no reflection module");
       doc.getElementById("theme-toggle").click();
       assert.ok(["light", "dark"].includes(doc.documentElement.dataset.theme));
@@ -1177,6 +1177,198 @@
         assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]'));
         assert.ok(b.querySelectorAll(".marker").length >= 8, "numbered comments are badges in both listings");
       });
+    });
+  });
+
+  QUnit.module("pages: Module 17 (advanced scheduling)");
+
+  QUnit.test("MLFQ simulator: metrics match the library, the priority boost changes the starvation workload", async (assert) => {
+    await withPage("modules/17-advanced-scheduling.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "mlfq"), L = w.OSLib, mean = (r, k) => (r.jobs.reduce((a, j) => a + j[k], 0) / r.jobs.length).toFixed(1);
+      let r = L.mlfqSimulate(L.mlfqPresets.mixed.jobs, { quanta: [2, 4, 8], boost: 0 });
+      assert.deepEqual([metrics(s)[0], metrics(s)[1], metrics(s)[3]], [mean(r, "response"), mean(r, "turnaround"), String(r.end)]);
+      assert.equal(s.querySelectorAll("tbody tr").length, L.mlfqPresets.mixed.jobs.length, "one row per job");
+      assert.ok(s.querySelectorAll("svg g[clip-path] rect").length >= r.timeline.filter((t) => t.id).length, "every busy tick is drawn");
+      setValue(w, field(s, "Workload"), "starve", "change");
+      const plain = metrics(s)[2];
+      setValue(w, field(s, "Priority boost every"), 6);
+      r = L.mlfqSimulate(L.mlfqPresets.starve.jobs, { quanta: [2, 4, 8], boost: 6 });
+      const worst = r.jobs.reduce((a, j) => (j.longestWait > a.longestWait ? j : a), r.jobs[0]);
+      assert.equal(metrics(s)[2], worst.id + ": " + worst.longestWait);
+      assert.notEqual(metrics(s)[2], plain, "the boost shortens the longest stretch without CPU");
+      assert.equal(s.querySelectorAll("svg line[stroke-dasharray]").length, r.boosts.length, "boosts are marked");
+      setValue(w, field(s, "Time slice, level 1"), 1);
+      assert.ok(/1-tick slice/.test(text(s)));
+    });
+  });
+
+  QUnit.test("Real-time simulator: rate-monotonic misses the classic set, EDF does not, and the analysis table says why", async (assert) => {
+    await withPage("modules/17-advanced-scheduling.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "rtsched"), L = w.OSLib, tasks = L.rtPresets.classic.tasks;
+      const miss = L.rtSimulate(tasks, "rm").misses;
+      assert.ok(text(s).includes(`${miss.length} deadline${miss.length === 1 ? "" : "s"} missed in 35 ticks`), text(s.querySelector("p[aria-live]")));
+      assert.ok(text(s).includes("T2's job released at 0 (due 7)"));
+      assert.ok(text(s).includes("0.971") && text(s).includes("0.828") && text(s).includes("T2: 8 (> 7)"), "utilization, bound and the late response time");
+      assert.ok(/NOT schedulable/.test(text(s)) && /not met/.test(text(s)));
+      setValue(w, field(s, "Algorithm"), "edf", "change");
+      assert.ok(/No deadline missed in 35 ticks/.test(text(s)));
+      setValue(w, field(s, "Task set"), "over", "change");
+      assert.ok(/deadlines? missed/.test(text(s)) && text(s).includes("EDF: schedulable if and only if U ≤ 1NOT schedulable"), "above 100% even EDF fails");
+      setValue(w, field(s, "Task set"), "easy", "change");
+      assert.ok(/No deadline missed/.test(text(s)) && /met: schedulable for sure/.test(text(s)));
+      assert.ok(s.querySelector("svg").getAttribute("aria-label").includes("T3 (C=1, T=12)"));
+    });
+  });
+
+  QUnit.test("Multicore simulator: stealing versus no balancing, and the four-way comparison", async (assert) => {
+    await withPage("modules/17-advanced-scheduling.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "multicore"), L = w.OSLib, tasks = L.mcTasks([6, 6, 6, 6, 6, 6, 6, 6]);
+      let r = L.mcSimulate(tasks, 4, { policy: "steal", place: "one", penalty: 1 });
+      assert.deepEqual([metrics(s)[0], metrics(s)[2], metrics(s)[3]], [String(r.makespan), String(r.migrations), String(r.lowerBound)]);
+      setValue(w, field(s, "Balancing"), "static", "change");
+      assert.equal(metrics(s)[0], "48", "everything on one core takes the sum of the work");
+      assert.equal(metrics(s)[1], "25%", "four cores, one busy");
+      assert.equal(s.querySelectorAll("tbody tr").length, 4, "all four combinations");
+      setValue(w, field(s, "Cores"), 8);
+      setValue(w, field(s, "Where tasks start"), "spread", "change");
+      assert.equal(metrics(s)[0], "6", "eight equal tasks on eight cores");
+      setValue(w, field(s, "Workload"), "skew", "change");
+      setValue(w, field(s, "Balancing"), "steal", "change");
+      assert.equal(metrics(s)[3], "14", "the big task is the bound");
+    });
+  });
+
+  QUnit.test("Module 17 shows two C and Python example pairs with notes for both languages", async (assert) => {
+    await withPage("modules/17-advanced-scheduling.html", ({ document: doc }) => {
+      const boxes = [...doc.querySelectorAll(".code-tabs")];
+      assert.deepEqual(boxes.map((b) => b.querySelector("pre.code").dataset.src), ["examples/rt_schedule.c", "examples/cpu_affinity.c"]);
+      boxes.forEach((b) => { assert.deepEqual(tabsOf(b).map((t) => t.textContent), ["C", "Python"]); assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]')); });
+    });
+  });
+
+  QUnit.module("pages: Module 16 (the boot process)");
+
+  QUnit.test("Boot stepper: stages in order, failures stop where they should, Secure Boot is the only path that blocks a tampered loader", async (assert) => {
+    await withPage("modules/16-boot.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "bootseq"), L = w.OSLib;
+      assert.ok(/Press Play or Step/.test(text(s)), "starts powered off");
+      for (let i = 0; i < 3; i++) button(s, "Step ▶").click();
+      assert.ok(/Read the boot sector/.test(text(s.querySelector(".callout"))) && /0x55/.test(text(s.querySelector(".callout"))), "stage 3 of the BIOS path reads the boot sector");
+      assert.ok(/16-bit real mode/.test(text(s.querySelector(".callout"))));
+      const total = L.bootRun("bios", "none").steps.length;
+      for (let i = 0; i < total; i++) button(s, "Step ▶").click();
+      assert.ok(/Booted. /.test(text(s)), "a normal boot finishes");
+      setValue(w, field(doc, "What goes wrong"), "unsigned", "change");
+      for (let i = 0; i < 20; i++) button(s, "Step ▶").click();
+      assert.ok(/Booted. /.test(text(s)), "without Secure Boot, the tampered loader runs");
+      setValue(w, field(doc, "Firmware and disk"), "secure", "change");
+      for (let i = 0; i < 20; i++) button(s, "Step ▶").click();
+      assert.ok(/Boot stopped./.test(text(s)) && /Security Violation/.test(text(s)), "with Secure Boot it is refused");
+      setValue(w, field(doc, "What goes wrong"), "service", "change");
+      for (let i = 0; i < 30; i++) button(s, "Step ▶").click();
+      assert.ok(/Partly booted/.test(text(s)) && /emergency shell/.test(text(s)));
+      assert.ok(s.querySelector("svg").getAttribute("aria-label").includes("Verify the boot loader"));
+    });
+  });
+
+  QUnit.test("MBR viewer: little-endian bytes, signature and the decoded lines", async (assert) => {
+    await withPage("modules/16-boot.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "mbrview"), dump = () => text(s.querySelector(".code-scroll")), decoded = () => s.querySelector("pre[aria-live]").textContent;
+      assert.ok(/80 FE FF FF 83 FE FF FF 00 08 00 00 00 00 10 00/.test(dump()), "first entry: 2048 is 00 08 00 00 and 1,048,576 sectors is 00 00 10 00");
+      assert.ok(/55 AA/.test(dump()));
+      assert.ok(/partition 1: active type 0x83 Linux/.test(decoded()) && /partition 3: unused/.test(decoded()));
+      assert.ok(/The BIOS would accept/.test(text(s)));
+      setValue(w, s.querySelector('input[aria-label="Partition 1 start sector"]'), 63);
+      assert.ok(/3F 00 00 00/.test(dump()), "63 is 3F 00 00 00");
+      assert.ok(/aligned to 1 MiB: False/.test(decoded()), "the old start at sector 63 is not aligned");
+      const sig = [...s.querySelectorAll('input[type="checkbox"]')].pop();
+      sig.checked = true; fire(w, sig, "change");
+      assert.ok(/55 00/.test(dump()) && /invalid/.test(decoded()) && /No bootable device/.test(text(s)));
+    });
+  });
+
+  QUnit.test("Service order: parallel start, critical path, and a dependency cycle", async (assert) => {
+    await withPage("modules/16-boot.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "initorder");
+      assert.deepEqual(metrics(s).slice(0, 2), ["11", "14"]);
+      assert.ok(/local-fs → network → database → web/.test(text(s)));
+      setValue(w, field(doc, "cron takes"), 9);
+      assert.equal(metrics(s)[0], "12", "2 + 1 + 9: a slow cron becomes the longest chain");
+      assert.ok(text(s).includes("local-fs → logging → cron"));
+      setValue(w, field(doc, "cron takes"), 1);
+      setValue(w, field(doc, "network takes"), 6);
+      assert.equal(metrics(s)[0], "14", "slowing the critical path slows the boot: 2 + 6 + 4 + 2");
+      const cb = s.querySelector('input[type="checkbox"]'); cb.checked = true; fire(w, cb, "change");
+      assert.ok(/Dependency cycle/.test(text(s)) && /never/.test(text(s)));
+    });
+  });
+
+  QUnit.test("Chain of trust: the first tampered link breaks the rest", async (assert) => {
+    await withPage("modules/16-boot.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "trustchain");
+      assert.ok(/Every link verified/.test(text(s)));
+      const boxes = [...s.querySelectorAll('input[type="checkbox"]')];
+      boxes[2].checked = true; fire(w, boxes[2], "change");
+      assert.ok(/breaks at “Kernel”/.test(text(s)), "tampering with the kernel");
+      boxes[0].checked = true; fire(w, boxes[0], "change");
+      assert.ok(text(s).includes("breaks at “Boot loader (shim)”") && /never reached/.test(text(s)), "the earliest tampered link wins and later ones are never reached");
+    });
+  });
+
+  QUnit.test("Module 16 shows two C and Python example pairs with notes for both languages", async (assert) => {
+    await withPage("modules/16-boot.html", ({ document: doc }) => {
+      const boxes = [...doc.querySelectorAll(".code-tabs")];
+      assert.deepEqual(boxes.map((b) => b.querySelector("pre.code").dataset.src), ["examples/mbr_parse.c", "examples/init_order.c"]);
+      boxes.forEach((b) => { assert.deepEqual(tabsOf(b).map((t) => t.textContent), ["C", "Python"]); assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]')); });
+    });
+  });
+
+  QUnit.module("pages: Module 15 (monitors and readers-writers)");
+
+  QUnit.test("Mesa demo: the if version breaks on the scripted interleaving and the while version does not", async (assert) => {
+    await withPage("modules/15-monitors.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "mesa"), log = () => [...s.querySelectorAll("ol li")].map((li) => li.textContent);
+      button(s, "Run all steps").click();
+      assert.ok(/took an item from an empty buffer/.test(text(s)), "if: the bug is reported");
+      assert.ok(log().some((l) => /EMPTY/.test(l)));
+      assert.ok(button(s, "Step ▶").disabled, "no more steps");
+      setValue(w, field(doc, "How the consumer waits"), "while", "change");
+      assert.equal(log().length, 0, "switching resets");
+      button(s, "Run all steps").click();
+      assert.ok(/No error/.test(text(s)) && !/EMPTY/.test(log().join(" ")), "while: no error");
+      assert.ok(log().some((l) => /re-checks the condition/.test(l)));
+      button(s, "Run 3000 random interleavings of each").click();
+      const m = /With "if": ([0-9]+) of 3000 random schedules took from an empty buffer\. With "while": ([0-9]+) of 3000/.exec(text(s));
+      assert.ok(m && +m[1] > 0 && +m[2] === 0, "random schedules: if fails sometimes, while never: " + (m && m[0]));
+    });
+  });
+
+  QUnit.test("Readers-writers timeline: the starvation workload and the policy table agree with the library", async (assert) => {
+    await withPage("modules/15-monitors.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "rwsim"), L = w.OSLib, metricsOf = () => metrics(s);
+      let want = L.rwSimulate(L.rwPresets.stream.requests, "reader");
+      assert.deepEqual(metricsOf(), [String(want.maxReaderWait), String(want.maxWriterWait), want.meanWait.toFixed(1), String(want.end)]);
+      assert.equal(want.maxWriterWait, 18);
+      assert.ok(/W1 waited 18 ticks/.test(text(s)) && /starvation/.test(text(s)), "the writer is flagged as starved");
+      setValue(w, field(doc, "Policy"), "fair", "change");
+      want = L.rwSimulate(L.rwPresets.stream.requests, "fair");
+      assert.equal(metricsOf()[1], String(want.maxWriterWait));
+      assert.ok(/Nobody waited disproportionately/.test(text(s)) || !/starvation in practice/.test(text(s)), "fair: no starvation");
+      const rows = [...s.querySelectorAll("tbody tr")].map((tr) => tr.children[0].textContent);
+      assert.deepEqual(rows, ["Reader preference", "Writer preference", "First come, first served"]);
+      setValue(w, field(s, "Workload"), "writers", "change");
+      setValue(w, field(doc, "Policy"), "writer", "change");
+      assert.ok(/R1 waited/.test(text(s)) && /starvation/.test(text(s)), "now the reader is the starved one");
+      button(s, "New random workload").click();
+      assert.ok(s.querySelectorAll("svg g[clip-path] rect").length >= 6, "a random workload is drawn");
+    });
+  });
+
+  QUnit.test("Module 15 shows two C and Python example pairs with notes for both languages", async (assert) => {
+    await withPage("modules/15-monitors.html", ({ document: doc }) => {
+      const boxes = [...doc.querySelectorAll(".code-tabs")];
+      assert.deepEqual(boxes.map((b) => b.querySelector("pre.code").dataset.src), ["examples/condvar_queue.c", "examples/rwlock_demo.c"]);
+      boxes.forEach((b) => { assert.deepEqual(tabsOf(b).map((t) => t.textContent), ["C", "Python"]); assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]')); });
     });
   });
 

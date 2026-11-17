@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 17: Advanced Scheduling — OS Concepts</title>
+<meta name="description" content="Multilevel feedback queues, real-time scheduling with deadline guarantees (rate-monotonic and EDF), and balancing work across cores.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="17">
+<main>
+  <p class="eyebrow">Module 17</p>
+  <h1>Advanced Scheduling</h1>
+  <p class="lead">The algorithms in <a href="04-scheduling.html">Module 4</a> assume that the scheduler knows how long each job will run, that all that matters is average speed, and that there is one CPU. Real systems break all three assumptions. This module covers the answers: queues that <em>learn</em> which jobs are interactive, schedulers that <em>guarantee deadlines</em>, and schedulers that spread work across <em>many cores</em>.</p>
+
+  <div class="toc"><strong>On this page</strong>
+    <ul><li><a href="#mlfq">Learning from behavior: feedback queues</a></li><li><a href="#rt">Meeting deadlines: real-time scheduling</a></li><li><a href="#multi">Many cores</a></li><li><a href="#linux">What Linux actually does</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
+
+  <h2 id="mlfq">Learning from behavior: feedback queues</h2>
+  <p>Shortest-job-first gives the best average waiting time, but it needs each job’s run time in advance, which an operating system never has. The <dfn data-term="Multilevel feedback queue (MLFQ)">multilevel feedback queue (MLFQ)</dfn> approximates it by <em>watching what jobs do</em>. A handful of rules are enough:</p>
+  <ol>
+    <li>A new job starts in the <b>top</b> queue.</li>
+    <li>The scheduler runs a job from the highest non-empty queue (round robin inside a queue). A higher queue always preempts a lower one.</li>
+    <li>A job that uses its <em>whole time slice</em> is probably CPU-bound, so it moves <b>down</b> one queue. (Lower queues typically have longer slices, so the long jobs switch less often.)</li>
+    <li>A job that gives up the CPU <em>before</em> its slice ends (to wait for a key press or a disk read) is probably interactive, so it <b>keeps</b> its level.</li>
+    <li>Every so often, a <dfn data-term="Priority boost">priority boost</dfn> moves every job back to the top, so nothing starves and a job that changes behavior is noticed.</li>
+  </ol>
+  <div data-sim="mlfq"></div>
+  <div class="callout"><p><b>Try it:</b> in the first workload, watch the long job (<code>long</code>) sink to the lowest queue while the short interactive jobs stay at the top and respond immediately. Now switch to the second workload, a stream of short jobs, and notice that the long job gets <em>no</em> CPU for a long stretch. Turn on a priority boost every 6 ticks: the long job gets a share. The cost is that the short jobs now finish a little later. Every setting is a trade-off between responsiveness and fairness.</p></div>
+  <p>The scheduler can be fooled. A program that issues a tiny read just before its slice ends looks interactive forever, and so keeps the top queue while hogging the CPU. This is why real implementations count the <em>total</em> CPU time used at a level rather than only the last burst.</p>
+
+  <h2 id="rt">Meeting deadlines: real-time scheduling</h2>
+  <p>A <b>real-time</b> system is correct only if it finishes work on time. A brake controller or an audio buffer cannot be “on average fast”. The usual model is a set of <b>periodic tasks</b>: task <i>i</i> releases a job every <i>T<sub>i</sub></i> ticks, each job needs <i>C<sub>i</sub></i> ticks of CPU, and it must finish before the next release, its <dfn data-term="Deadline">deadline</dfn>. The load the tasks place on the CPU is their <dfn data-term="CPU utilization (real-time)">utilization</dfn>, <i>U</i> = Σ <i>C<sub>i</sub></i>/<i>T<sub>i</sub></i>. If <i>U</i> is more than 1 no algorithm can succeed. The question is how close to 1 each algorithm can go.</p>
+  <ul>
+    <li><b><dfn data-term="Rate-monotonic scheduling">Rate-monotonic</dfn></b>: fixed priorities, shortest period highest. Simple and predictable. It is guaranteed to work when <i>U</i> ≤ <i>n</i>(2<sup>1/<i>n</i></sup> − 1), which is 0.828 for two tasks and falls toward 0.693 as tasks are added. Above that it <em>may</em> still work; the bound is sufficient, not necessary.</li>
+    <li><b><dfn data-term="Earliest deadline first (EDF)">Earliest deadline first</dfn></b>: priorities change as time passes; the job with the nearest deadline runs. On one CPU it is <em>optimal</em>: it meets every deadline exactly when <i>U</i> ≤ 1.</li>
+  </ul>
+  <div data-sim="rtsched"></div>
+  <div class="callout"><p><b>Try it:</b> the first task set has <i>U</i> = 0.97. Under rate-monotonic, T2 is preempted by T1 at tick 5 and finishes at tick 8, one tick after its deadline of 7. EDF notices that T2’s deadline is nearer and finishes both. Then try “U = 1.00”, where the periods are multiples of each other (<em>harmonic</em>), and rate-monotonic reaches 100% too. Finally, push the utilization above 1 and watch every algorithm fail.</p></div>
+
+  <h3>Try it: simulate both algorithms</h3>
+  <div class="code-tabs" aria-label="Real-time scheduling example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> the scheduler is a handful of comparisons per tick, and C shows that the only difference between the two algorithms is the rule in comments (1) and (2) that chooses the next job. Real real-time kernels are written in C for the same reason: the cost of each decision is visible and bounded. (The root for the guarantee is found by bisection, so no math library is linked.)</p></div>
+    <pre class="code" data-src="examples/rt_schedule.c"><code>/* Real-time scheduling by simulation: rate-monotonic versus earliest-deadline-first. Runs anywhere. */
+#include &lt;stdio.h&gt;
+
+#define TASKS 2
+#define HORIZON 35        /* the hyperperiod: the least common multiple of the periods 5 and 7 */
+#define MAXJOBS 64
+
+typedef struct { int task, release, deadline, remaining, missed; } Job;
+static const int C[TASKS] = { 2, 4 };      /* worst-case execution time of each task */
+static const int T[TASKS] = { 5, 7 };      /* period of each task; the deadline is the next release */
+
+/* The n-th root of 2, found by bisection so that no math library is needed. */
+static double root_of_two(int n) {
+    double lo = 1.0, hi = 2.0;
+    for (int i = 0; i &lt; 60; i++) {
+        double mid = (lo + hi) / 2, p = 1.0;
+        for (int k = 0; k &lt; n; k++) p *= mid;
+        if (p &lt; 2.0) lo = mid; else hi = mid;
+    }
+    return lo;
+}
+
+/* Run every tick of the horizon; return how many jobs missed their deadline and describe the first one. */
+static int run(int edf, int *first_task, int *first_release, int *first_deadline) {
+    Job jobs[MAXJOBS];
+    int n = 0, misses = 0;
+    for (int t = 0; t &lt; HORIZON; t++) {
+        for (int i = 0; i &lt; TASKS; i++)
+            if (t % T[i] == 0) { Job j = { i, t, t + T[i], C[i], 0 }; jobs[n++] = j; }    /* a new job is released every period */
+        int pick = -1;
+        for (int k = 0; k &lt; n; k++) {
+            if (jobs[k].remaining &lt;= 0) continue;
+            if (pick &lt; 0) { pick = k; continue; }
+            int better;
+            if (edf)        /* (2) EDF: the job whose deadline is nearest runs */
+                better = jobs[k].deadline &lt; jobs[pick].deadline
+                      || (jobs[k].deadline == jobs[pick].deadline &amp;&amp; (jobs[k].task &lt; jobs[pick].task || (jobs[k].task == jobs[pick].task &amp;&amp; jobs[k].release &lt; jobs[pick].release)));
+            else            /* (1) rate-monotonic: the task with the shorter period always wins, a fixed priority */
+                better = T[jobs[k].task] &lt; T[jobs[pick].task]
+                      || (T[jobs[k].task] == T[jobs[pick].task] &amp;&amp; (jobs[k].task &lt; jobs[pick].task || (jobs[k].task == jobs[pick].task &amp;&amp; jobs[k].release &lt; jobs[pick].release)));
+            if (better) pick = k;
+        }
+        if (pick &gt;= 0) jobs[pick].remaining--;              /* (3) one tick per decision, so a new arrival can preempt */
+        for (int k = 0; k &lt; n; k++)
+            if (!jobs[k].missed &amp;&amp; jobs[k].remaining &gt; 0 &amp;&amp; jobs[k].deadline == t + 1) {
+                jobs[k].missed = 1;
+                if (misses++ == 0) { *first_task = jobs[k].task; *first_release = jobs[k].release; *first_deadline = jobs[k].deadline; }
+            }
+    }
+    return misses;
+}
+
+int main(void) {
+    double u = 0;
+    for (int i = 0; i &lt; TASKS; i++) u += (double)C[i] / T[i];
+    double bound = TASKS * (root_of_two(TASKS) - 1.0);        /* (4) Liu and Layland: below this utilization rate-monotonic is guaranteed to work */
+    printf("utilization = %.3f (rate-monotonic is guaranteed below %.3f, EDF up to 1.000)\n", u, bound);
+    int task = 0, release = 0, deadline = 0;
+    if (run(0, &amp;task, &amp;release, &amp;deadline)) printf("rate-monotonic: first missed deadline: T%d job released at %d (deadline %d)\n", task + 1, release, deadline);
+    else printf("rate-monotonic: no deadline missed in %d ticks\n", HORIZON);
+    if (run(1, &amp;task, &amp;release, &amp;deadline)) printf("earliest-deadline-first: first missed deadline: T%d job released at %d (deadline %d)\n", task + 1, release, deadline);
+    else printf("earliest-deadline-first: no deadline missed in %d ticks\n", HORIZON);
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>The Python version is the shorter one</b>, because <code>min(..., key=...)</code> expresses “pick the job with the smallest (period, task, release)” in one line. For a simulation like this one that is a good fit. For an actual real-time system Python would be a poor choice: garbage collection and the interpreter make execution times hard to bound, and bounded timing is the whole point.</p></div>
+    <pre class="code" data-src="examples/rt_schedule.py"><code>"""Real-time scheduling by simulation: rate-monotonic versus earliest-deadline-first."""
+C = [2, 4]                      # worst-case execution time of each task
+T = [5, 7]                      # period of each task; the deadline is the next release
+HORIZON = 35                    # the hyperperiod: the least common multiple of the periods 5 and 7
+
+
+def run(edf):
+    """Run every tick of the horizon; return the first job that missed its deadline, or None."""
+    jobs, first = [], None
+    for t in range(HORIZON):
+        for i in range(len(T)):
+            if t % T[i] == 0:                                        # a new job is released every period
+                jobs.append({"task": i, "release": t, "deadline": t + T[i], "remaining": C[i], "missed": False})
+        ready = [j for j in jobs if j["remaining"] &gt; 0]
+        if ready:
+            if edf:                                                  # (2) EDF: the job whose deadline is nearest runs
+                pick = min(ready, key=lambda j: (j["deadline"], j["task"], j["release"]))
+            else:                                                    # (1) rate-monotonic: the task with the shorter period always wins, a fixed priority
+                pick = min(ready, key=lambda j: (T[j["task"]], j["task"], j["release"]))
+            pick["remaining"] -= 1                                   # (3) one tick per decision, so a new arrival can preempt
+        for j in jobs:
+            if not j["missed"] and j["remaining"] &gt; 0 and j["deadline"] == t + 1:
+                j["missed"] = True
+                if first is None:
+                    first = j
+    return first
+
+
+utilization = sum(c / t for c, t in zip(C, T))
+bound = len(T) * (2 ** (1 / len(T)) - 1)                            # (4) Liu and Layland: below this utilization rate-monotonic is guaranteed to work
+print(f"utilization = {utilization:.3f} (rate-monotonic is guaranteed below {bound:.3f}, EDF up to 1.000)")
+for name, edf in (("rate-monotonic", False), ("earliest-deadline-first", True)):
+    miss = run(edf)
+    if miss:
+        print(f"{name}: first missed deadline: T{miss['task'] + 1} job released at {miss['release']} (deadline {miss['deadline']})")
+    else:
+        print(f"{name}: no deadline missed in {HORIZON} ticks")</code></pre>
+  </div>
+  <p>Deadlines add a sharp edge to the synchronization problems of <a href="06-synchronization.html">Module 6</a>. If a low-priority task holds a lock that a high-priority task needs, and a medium-priority task then preempts the lock holder, the high-priority task is delayed by a task that is less important than it. This is <dfn data-term="Priority inversion">priority inversion</dfn>, and real-time systems fix it with <em>priority inheritance</em>: the lock holder temporarily runs at the waiter’s priority.</p>
+
+  <h2 id="multi">Many cores</h2>
+  <p>With several CPUs the question changes from “which job next?” to “which job where?”. The usual design gives each core its own run queue, because one shared queue would need a lock that every core fights over. But separate queues can become unbalanced: one core has a backlog while another idles.</p>
+  <p><dfn data-term="Load balancing">Load balancing</dfn> moves tasks between queues. In <dfn data-term="Work stealing">work stealing</dfn>, an idle core takes a waiting task from a busy core’s queue. The catch is <dfn data-term="Processor affinity">processor affinity</dfn>: a task that has been running on one core has its data in that core’s cache. Move it and it starts cold, running slowly while the new cache fills. A balancer therefore weighs the benefit of using an idle core against the cost of the move.</p>
+  <div data-sim="multicore"></div>
+  <div class="callout"><p><b>Try it:</b> keep “all queued on core 0” and compare no balancing with work stealing. Then change the workload to one big task and many small ones: even with perfect balancing nothing can finish before the big task does, which is what the “best possible” figure shows. Finally raise the cost of a move and compare stealing with dealing tasks out evenly.</p></div>
+
+  <h3>Try it: the knobs on a real system</h3>
+  <div class="code-tabs" aria-label="Scheduler knobs example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>nice</code>, <code>getpriority</code> and <code>sched_setaffinity</code> are the actual calls, and a CPU set is a small bit array manipulated with the <code>CPU_SET</code> family of macros. This is exactly what tools such as <code>taskset</code> and <code>nice</code> do on your behalf. Linux only (<code>sched_setaffinity</code> is a Linux call).</p></div>
+    <pre class="code" data-src="examples/cpu_affinity.c"><code>/* Two knobs the Linux scheduler gives every process: niceness (a priority hint) and CPU affinity. Linux only. */
+#define _GNU_SOURCE
+#include &lt;errno.h&gt;
+#include &lt;sched.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;sys/resource.h&gt;
+#include &lt;unistd.h&gt;
+
+int main(void) {
+    int before = getpriority(PRIO_PROCESS, 0);
+    errno = 0;
+    int r = nice(5);                                        /* (1) a higher niceness is a lower priority: the process is being "nice" to others */
+    if (r == -1 &amp;&amp; errno != 0) return 1;
+    int after = getpriority(PRIO_PROCESS, 0);
+    int expected = before + 5 &gt; 19 ? 19 : before + 5;       /* niceness is capped at 19 */
+    printf("nice(5) raised the niceness by 5 (capped at 19): %s\n", after == expected ? "True" : "False");
+
+    cpu_set_t allowed;
+    CPU_ZERO(&amp;allowed);
+    if (sched_getaffinity(0, sizeof allowed, &amp;allowed) != 0) return 1;          /* (2) the set of CPUs this process is allowed to run on */
+    printf("this process may run on at least one CPU: %s\n", CPU_COUNT(&amp;allowed) &gt;= 1 ? "True" : "False");
+    int first = 0;
+    while (!CPU_ISSET(first, &amp;allowed)) first++;
+
+    cpu_set_t only;
+    CPU_ZERO(&amp;only);
+    CPU_SET(first, &amp;only);
+    if (sched_setaffinity(0, sizeof only, &amp;only) != 0) return 1;                /* (3) pin the process: the scheduler may now use only that CPU, so its cache stays warm */
+    cpu_set_t now;
+    CPU_ZERO(&amp;now);
+    if (sched_getaffinity(0, sizeof now, &amp;now) != 0) return 1;
+    printf("after pinning, the allowed set is exactly that one CPU: %s\n", CPU_COUNT(&amp;now) == 1 &amp;&amp; CPU_ISSET(first, &amp;now) ? "True" : "False");
+    return 0;                                               /* (4) the OS balances load by moving tasks between CPUs; affinity forbids it from moving this one */
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python exposes the same calls</b> in the <code>os</code> module (<code>os.nice</code>, <code>os.sched_getaffinity</code>, <code>os.sched_setaffinity</code>) and uses an ordinary <code>set</code> of integers instead of a bit array, so it is no more contrived than the C version and a good deal tidier. As in C, they exist only on Linux.</p></div>
+    <pre class="code" data-src="examples/cpu_affinity.py"><code>"""Two knobs the Linux scheduler gives every process: niceness (a priority hint) and CPU affinity. Linux only."""
+import os
+
+before = os.getpriority(os.PRIO_PROCESS, 0)
+os.nice(5)                                                           # (1) a higher niceness is a lower priority: the process is being "nice" to others
+after = os.getpriority(os.PRIO_PROCESS, 0)
+print(f"nice(5) raised the niceness by 5 (capped at 19): {after == min(19, before + 5)}")
+
+allowed = os.sched_getaffinity(0)                                    # (2) the set of CPUs this process is allowed to run on
+print(f"this process may run on at least one CPU: {len(allowed) &gt;= 1}")
+first = min(allowed)
+
+os.sched_setaffinity(0, {first})                                     # (3) pin the process: the scheduler may now use only that CPU, so its cache stays warm
+print(f"after pinning, the allowed set is exactly that one CPU: {os.sched_getaffinity(0) == {first}}")
+# (4) the OS balances load by moving tasks between CPUs; affinity forbids it from moving this one</code></pre>
+  </div>
+
+  <h2 id="linux">What Linux actually does</h2>
+  <table>
+    <thead><tr><th>Policy</th><th>For</th><th>How it chooses</th></tr></thead>
+    <tbody>
+      <tr><td><code>SCHED_OTHER</code> (the default)</td><td>Ordinary programs</td><td>Fair sharing: the task that has had the least CPU time relative to its weight runs next (the CFS and EEVDF schedulers). Niceness changes the weight. Works like a feedback queue in spirit, without explicit levels.</td></tr>
+      <tr><td><code>SCHED_FIFO</code>, <code>SCHED_RR</code></td><td>Real-time tasks</td><td>Fixed priorities 1–99, above all ordinary tasks. FIFO runs until it blocks; RR adds time slices among equals. This is rate-monotonic-style scheduling, with the priorities assigned by the programmer.</td></tr>
+      <tr><td><code>SCHED_DEADLINE</code></td><td>Tasks with explicit deadlines</td><td>Earliest deadline first, with an <em>admission test</em>: the kernel refuses a new task if the total utilization would go above what it can guarantee.</td></tr>
+      <tr><td>Per-CPU run queues, load balancing</td><td>Multicore</td><td>Each core has its own queue. Idle cores pull work, and a periodic balancer evens out loads, preferring moves within a cache domain or NUMA node.</td></tr>
+      <tr><td>cgroup <code>cpu.weight</code> and <code>cpu.max</code></td><td>Containers</td><td>The shares and caps from <a href="14-virtualization.html">Module 14</a>, applied to groups of tasks.</td></tr>
+    </tbody>
+  </table>
+
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: limits of the models</summary>
+    <ul>
+      <li><b>Where the 69% comes from.</b> The Liu and Layland bound <i>n</i>(2<sup>1/<i>n</i></sup> − 1) is the worst case over all possible task sets. As <i>n</i> grows it tends to ln 2 ≈ 0.693. Many task sets with “awkward” periods fail below it, but most real sets (and every harmonic set) can go much higher, which is why exact response-time analysis, as in the table above, is used in practice.</li>
+      <li><b>Response-time analysis.</b> For fixed priorities, a task’s worst response time <i>R</i> is its own <i>C</i> plus the interference from higher-priority tasks that release during <i>R</i>: <i>R</i> = <i>C</i> + Σ ⌈<i>R</i>/<i>T<sub>j</sub></i>⌉ <i>C<sub>j</sub></i>. Solving it by repeated substitution gives an exact schedulability test for rate-monotonic scheduling.</li>
+      <li><b>EDF’s weakness.</b> EDF is optimal but fragile under overload: when it cannot meet all deadlines it can miss <em>many</em>, because it keeps preferring jobs that are about to be late. Fixed-priority schedulers fail more gracefully, since the low-priority tasks miss and the high-priority ones are untouched. Many safety-critical systems accept lower utilization for that predictability.</li>
+      <li><b>Multiprocessor real time.</b> On several CPUs, the optimal-on-one-CPU result no longer holds. Global EDF can miss deadlines even at low utilization (Dhall’s effect), so systems often <em>partition</em> tasks onto cores and run rate-monotonic or EDF on each.</li>
+      <li><b>Graham’s bound.</b> Any scheduler that never leaves a core idle while work is waiting finishes within (2 − 1/<i>m</i>) times the best possible time on <i>m</i> cores. The simulator’s “best possible” figure is the lower bound used in that argument.</li>
+      <li><b>NUMA and caches.</b> Large machines have memory that is faster for some cores than others (NUMA). A balancer prefers to move tasks within a cache or memory domain first, and may migrate a task’s <em>memory</em> to follow it. Hyper-threading adds another level: two hardware threads on one core share its caches.</li>
+      <li><b>Big.LITTLE and energy.</b> Phones mix fast and slow cores. An energy-aware scheduler puts light tasks on slow cores and bursts on fast ones, and the scheduler’s “load” signal includes how much each task actually needs, not only how long it ran.</li>
+      <li><b>Lottery and stride scheduling.</b> A different route to proportional sharing: give each job tickets, draw one at random each slice (lottery), or advance a per-job counter by an amount inversely proportional to its tickets and always run the smallest (stride). Both are simple, and the second is deterministic.</li>
+    </ul>
+  </details>
+
+  <h2 id="quiz">Check your understanding</h2>
+  <div data-quiz="17"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/advsched.js"></script>
+<script src="../js/sims/m17-advsched.js"></script>
+</body>
+</html>
