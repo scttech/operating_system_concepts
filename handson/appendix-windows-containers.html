@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Appendix: Windows containers — OS Concepts</title>
+<meta name="description" content="A short read-only note on Windows containers: what they are, where they run, and why the Docker labs use Linux containers instead.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/appendix-windows-containers.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Appendix: Windows containers — OS Concepts">
+<meta property="og:description" content="A short read-only note on Windows containers: what they are, where they run, and why the Docker labs use Linux containers instead.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/appendix-windows-containers.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs">
+<main class="narrow">
+  <p class="eyebrow"><a href="index.html">Hands-on with Docker</a> · Appendix</p>
+  <h1>Windows containers</h1>
+  <p class="lead">Everything in the labs uses <em>Linux</em> containers. Docker can also run <em>Windows</em> containers. This page explains what they are and why they are not used here. It is reading only: there is nothing to run.</p>
+
+  <div class="callout warn">
+    <p><b>Not tested.</b> The author's computer runs Windows Home, which cannot run Windows containers, so nothing on this page has been run. The facts come from Docker's and Microsoft's documentation as understood at the time of writing; check their current documentation before relying on a detail.</p>
+  </div>
+
+  <h2>Where they run</h2>
+  <ul>
+    <li>Windows containers run only on <b>Windows</b>: Windows 10 and 11 <b>Pro, Enterprise or Education</b> (through Docker Desktop's “Switch to Windows containers”), or Windows Server. They are <b>not available on Windows Home</b>, and not on macOS or Linux.</li>
+    <li>Docker Desktop can be in <b>Linux containers</b> mode or <b>Windows containers</b> mode, and you switch between them. You cannot use both modes at the same time, and images for one kind do not run in the other.</li>
+    <li>That is why this guide uses Linux containers: they work on every platform, including Windows Home with WSL2.</li>
+  </ul>
+
+  <h2>How they differ from Linux containers</h2>
+  <ul>
+    <li><b>A different kernel.</b> The shared kernel is the Windows <b>NT kernel</b>, not Linux. The big idea of Lab 0 still holds: a Windows container does not carry its own kernel, it uses the host's.</li>
+    <li><b>Matching versions.</b> In the default “process isolation” mode, the container's Windows version must match the host's Windows build, because the container uses the host kernel directly. A newer isolation mode, “Hyper-V isolation”, runs each container in a small virtual machine with its own kernel, which allows a mismatch but costs more.</li>
+    <li><b>Different building blocks.</b> Windows has its own equivalents of namespaces and cgroups (called <em>silos</em> and <em>job objects</em>), a <b>registry</b> instead of <code>/etc</code> files, <b>PowerShell</b> and <code>cmd</code> instead of bash, and drive letters and backslashes in paths.</li>
+    <li><b>Bigger images.</b> Windows base images are usually much larger than Linux ones: the Server Core image is measured in gigabytes, compared with megabytes for Alpine. (Nano Server is smaller but has far fewer features.)</li>
+  </ul>
+
+  <h2>What it looks like (illustration only)</h2>
+  <p>These commands are here to show the flavour. They are <b>not runnable on every setup</b> (they need Windows containers mode on a Windows edition that supports it), and they were not run for this page.</p>
+  <pre data-lang="powershell"><code># Not runnable on every setup: needs Windows containers mode (Windows Pro, Enterprise or Education).
+docker run --rm mcr.microsoft.com/windows/nanoserver:ltsc2022 cmd /c ver
+docker run --rm mcr.microsoft.com/windows/servercore:ltsc2022 powershell -Command "Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' | Select-Object ProductName, CurrentBuild"</code></pre>
+  <p>The first prints the Windows version of the container's user space. The second reads the Windows <b>registry</b>, a database of settings that has no equivalent inside a Linux container.</p>
+
+  <h2>Questions to think about</h2>
+  <ol>
+    <li>In Lab 0 you saw that every Linux container reported the same kernel. What would you expect <code>ver</code> to show in two different Windows containers on one host, and why?</li>
+    <li>Why might Microsoft have added Hyper-V isolation? (Think about the version-matching rule.)</li>
+    <li>If a team wanted one container image to run on a developer's Mac, a Windows laptop and a Linux server, which kind would it have to be?</li>
+  </ol>
+  <p class="small">Suggested answers: (1) The same Windows build, for the same reason as in Linux: containers use the host kernel. (2) It lets a container run on a host with a different Windows build, by giving it its own kernel in a lightweight VM. (3) A Linux container, because the Mac and the Windows laptop both run Linux containers through a Linux virtual machine.</p>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+</body>
+</html>

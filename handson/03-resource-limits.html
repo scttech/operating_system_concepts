@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 3: Resource limits (cgroups) — OS Concepts</title>
+<meta name="description" content="Give a container a memory limit and a CPU limit, watch the kernel's out-of-memory killer stop a runaway program, and compare CPU-bound and waiting workloads.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/03-resource-limits.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 3: Resource limits (cgroups) — OS Concepts">
+<meta property="og:description" content="Give a container a memory limit and a CPU limit, watch the kernel's out-of-memory killer stop a runaway program, and compare CPU-bound and waiting workloads.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/03-resource-limits.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="3">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 3</p>
+  <h1>Resource limits (cgroups)</h1>
+  <p class="lead">Namespaces limit what a process can <em>see</em>. Control groups (cgroups) limit what it can <em>use</em>. Set a memory limit and a CPU limit, and watch the kernel enforce both.</p>
+  <div class="lab-meta"><span>About 40 minutes</span><span>Intermediate</span><span>Related: <a href="../modules/06-scheduling.html">Module 6 CPU Scheduling</a>, <a href="../modules/13-memory.html">Module 13 Memory Management</a>, <a href="../modules/19-virtualization.html">Module 19 Virtualization &amp; Containers</a></span></div>
+  <p><b>Concept link:</b> the <a href="../modules/19-virtualization.html#cgroups">control-group simulators in Module 19</a> model exactly what you will do here, and <a href="../modules/06-scheduling.html">Module 6</a> explains the scheduler that enforces the CPU limit.</p>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Start a container with <code>--memory</code> and <code>--cpus</code>, and read the limits from the kernel's own files.</li>
+    <li>Watch a program use more memory than it is allowed, and see the <b>out-of-memory (OOM) killer</b> end it (exit code 137).</li>
+    <li>Compare a CPU-bound program with one that mostly waits, under the same CPU limit.</li>
+    <li>Tell a memory <em>limit</em> from a memory <em>reservation</em>, and watch usage with <code>docker stats</code>.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Prerequisites:</b> <a href="00-setup-and-big-idea.html">Lab 0</a>. It also helps to have done Lab 1's <code>docker build</code> step, but each step is explained again here.</li>
+    <li>Make an empty folder for this lab (for example <code>oslab-03</code>) and open your terminal in it. You will download three small files into it.</li>
+    <li>These tests are safe: every container has a memory limit, so a runaway program cannot use more than the limit. <b>Do not</b> remove the limit from the memory test. Without it the program would keep taking memory from Docker's virtual machine and could slow your computer.</li>
+  </ul>
+  <div class="callout">
+    <p><b>Platform notes.</b> <b>cgroup v1 and v2.</b> Linux has two versions of control groups, with different file names. Step 2 uses a command that works on both. The examples were captured on cgroup v1 (Docker Desktop with WSL2); newer Linux systems, and Docker Desktop on some versions, use v2. <code>docker info</code> says which one you have (Lab 0, step 3). <b>Numbers differ by computer:</b> a faster computer finishes the CPU test sooner, and Docker Desktop's virtual machine may have fewer processors than your computer. <i>Not tested on cgroup v2, macOS or ARM64.</i></p>
+  </div>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>Build the lab image</h3>
+      <p>Download these three files into your lab folder. <code>memhog.py</code> keeps asking for more memory until it is stopped; <code>workload.py</code> either computes or waits, and reports how long it took in wall-clock time and in CPU time; the Dockerfile packages both into one small Python image.</p>
+      <pre class="code" data-src="handson/assets/03-resource-limits/Dockerfile" data-lang="docker"><code># A small Python image holding the two lab programs.
+FROM python:3.12-slim
+WORKDIR /lab
+COPY workload.py memhog.py ./
+# -u: do not buffer output, so you see each line as it is printed, even if the program is killed
+ENTRYPOINT ["python", "-u"]</code></pre>
+      <pre class="code" data-src="handson/assets/03-resource-limits/memhog.py"><code>"""Allocate memory 8 MiB at a time until the kernel stops us."""
+import time
+
+chunks = []
+mib = 0
+while True:
+    chunks.append(bytearray(8 * 1024 * 1024))   # a bytearray is filled with zeros, so its memory really is used
+    mib += 8
+    print(f"holding {mib} MiB", flush=True)
+    time.sleep(0.05)                            # slow down a little so you can watch it grow</code></pre>
+      <pre class="code" data-src="handson/assets/03-resource-limits/workload.py"><code>"""Do a fixed amount of CPU-bound or waiting work, then report wall-clock time and CPU time.
+
+Usage: workload.py cpu [rounds]    compute for about two seconds per round
+       workload.py io  [rounds]    wait (sleep) for two seconds per round
+"""
+import sys
+import time
+
+kind = sys.argv[1] if len(sys.argv) &gt; 1 else "cpu"
+rounds = int(sys.argv[2]) if len(sys.argv) &gt; 2 else 1
+wall0, cpu0 = time.perf_counter(), time.process_time()
+for _ in range(rounds):
+    if kind == "cpu":
+        total = 0
+        for i in range(15_000_000):             # about two seconds of arithmetic on a typical computer
+            total += i * i
+    else:
+        time.sleep(2)                           # waiting, not computing
+wall, cpu = time.perf_counter() - wall0, time.process_time() - cpu0
+print(f"{kind}: wall-clock {wall:.1f} s, CPU time {cpu:.1f} s, CPU share {100 * cpu / wall:.0f}%")</code></pre>
+      <p>Build the image. <code>-t</code> names it, <code>--label oslab=true</code> marks it for cleanup and <code>-q</code> prints only the image ID. The <code>.</code> means “this folder”.</p>
+      <pre data-lang="bash" class="cmd" data-id="03-build" data-expect="sha256:" data-assets="03-resource-limits"><code>docker build -q --label oslab=true -t oslab-03-lab .</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>sha256:92681caf93782f14ce2c6060ca4ea81d214a298d5ccff8452dbf74a68bbe00a4</code></pre>
+    </li>
+    <li>
+      <h3>Set limits, then read them from the kernel</h3>
+      <p>Two new flags: <code>--memory=64m</code> allows at most 64 mebibytes of RAM, and <code>--cpus=0.5</code> allows half of one CPU core's time. Docker passes these to the kernel, which records them as files under <code>/sys/fs/cgroup</code> inside the container. The file names differ between cgroup v1 and v2, so each command tries v2 first and falls back to v1 (<code>||</code> means “or else”).</p>
+      <pre data-lang="bash" class="cmd" data-id="03-limits" data-expect="67108864[\s\S]*50000"><code>docker run --rm --label oslab=true --memory=64m alpine:3.22 sh -c 'cat /sys/fs/cgroup/memory.max 2>/dev/null || cat /sys/fs/cgroup/memory/memory.limit_in_bytes'
+docker run --rm --label oslab=true --cpus=0.5 alpine:3.22 sh -c 'cat /sys/fs/cgroup/cpu.max 2>/dev/null || cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us /sys/fs/cgroup/cpu/cpu.cfs_period_us'</code></pre>
+      <p class="small"><b>Example output</b> (cgroup v1 shows the quota and the period on two lines; v2 shows <code>50000 100000</code> on one):</p>
+      <pre class="output"><code>67108864
+50000
+100000</code></pre>
+      <p class="why"><b>Why this matters:</b> <code>67108864</code> is 64 × 1024 × 1024 bytes: the memory limit as the kernel stored it. The CPU limit is a <b>quota</b> of 50,000 microseconds of CPU time in every 100,000-microsecond period, which is half a core. The container did not make these limits. It only <em>reads</em> them. The Linux kernel's cgroup feature holds and enforces them.</p>
+    </li>
+    <li>
+      <h3>Limit the CPU and measure the effect</h3>
+      <p><code>workload.py cpu</code> does a fixed amount of arithmetic and reports <b>wall-clock time</b> (the time on a clock) and <b>CPU time</b> (the time the CPU actually spent on it). <code>workload.py io</code> instead sleeps, which uses no CPU. Run the computing job with no limit, then with half a CPU, then run the waiting job with half a CPU.</p>
+      <pre data-lang="bash" class="cmd" data-id="03-cpu" data-expect="cpu: wall[\s\S]*cpu: wall[\s\S]*io: wall"><code>docker run --rm --label oslab=true oslab-03-lab workload.py cpu
+docker run --rm --label oslab=true --cpus=0.5 oslab-03-lab workload.py cpu
+docker run --rm --label oslab=true --cpus=0.5 oslab-03-lab workload.py io</code></pre>
+      <p class="small"><b>Example output</b> (the first two numbers depend on how fast your computer is):</p>
+      <pre class="output"><code>cpu: wall-clock 2.1 s, CPU time 2.1 s, CPU share 100%
+cpu: wall-clock 4.1 s, CPU time 2.1 s, CPU share 51%
+io: wall-clock 2.0 s, CPU time 0.0 s, CPU share 0%</code></pre>
+      <p class="why"><b>Why this matters:</b> the same amount of computing (2.1 seconds of CPU) took twice as long on the clock with <code>--cpus=0.5</code>, because the kernel's scheduler let the container run for only half of each period and made it wait for the rest. The waiting job did not slow down at all: it was not using the CPU, so the quota never applied. Limits slow <em>CPU-bound</em> work and leave <em>I/O-bound</em> work (waiting for disks, networks or people) almost alone. <a href="../modules/06-scheduling.html">Module 6</a> explains the two kinds of workload.</p>
+    </li>
+    <li>
+      <h3>Watch a running container with <code>docker stats</code></h3>
+      <p>Start a longer computing job in the background (<code>cpu 15</code> means fifteen rounds, about thirty seconds under the limit) and look at it with <code>docker stats</code>. <code>--no-stream</code> prints one snapshot instead of updating forever.</p>
+      <pre data-lang="bash" class="cmd" data-id="03-stats" data-expect="oslab-03-busy"><code>docker run -d --name oslab-03-busy --label oslab=true --cpus=0.5 --memory=128m oslab-03-lab workload.py cpu 15
+docker stats --no-stream oslab-03-busy</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>CONTAINER ID   NAME            CPU %     MEM USAGE / LIMIT   MEM %     NET I/O         BLOCK I/O   PIDS
+4953ef25fcfc   oslab-03-busy   49.52%    4.785MiB / 128MiB   3.74%     1.17kB / 126B   0B / 0B     1</code></pre>
+      <p>Remove it when you have looked (<code>-f</code> stops it first):</p>
+      <pre data-lang="bash" class="cmd" data-id="03-stats-rm" data-expect="oslab-03-busy"><code>docker rm -f oslab-03-busy</code></pre>
+      <p class="why"><b>Why this matters:</b> the job could use a whole core, but the CPU column holds at about 50%: the quota in action. The memory column shows usage against the limit you set. <code>docker stats</code> reads the same cgroup files you read in step 2.</p>
+    </li>
+    <li>
+      <h3>Run out of memory on purpose</h3>
+      <p><code>memhog.py</code> allocates 8 mebibytes at a time and prints how much it holds. We give it a 64 MiB limit. <code>--memory-swap=64m</code> sets the total of memory plus swap to the same 64 MiB, so the program cannot escape the limit by using swap space, and the test behaves the same on every computer. We leave out <code>--rm</code> so we can inspect the stopped container afterwards.</p>
+      <pre data-lang="bash" class="cmd" data-id="03-oom" data-fail data-exit="137" data-expect="holding 8 MiB[\s\S]*holding 56 MiB"><code>docker run --name oslab-03-hog --label oslab=true --memory=64m --memory-swap=64m oslab-03-lab memhog.py</code></pre>
+      <p class="small"><b>Example output</b> (the exact last line varies; the command then returns to your prompt):</p>
+      <pre class="output"><code>holding 8 MiB
+holding 16 MiB
+holding 24 MiB
+holding 32 MiB
+holding 40 MiB
+holding 48 MiB
+holding 56 MiB</code></pre>
+      <p>It stopped by itself, around 56 MiB. Ask Docker what happened to it:</p>
+      <pre data-lang="bash" class="cmd" data-id="03-inspect" data-expect="OOMKilled=true ExitCode=137"><code>docker inspect oslab-03-hog --format 'OOMKilled={{.State.OOMKilled}} ExitCode={{.State.ExitCode}}'
+docker rm oslab-03-hog</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>OOMKilled=true ExitCode=137
+oslab-03-hog</code></pre>
+      <p class="why"><b>Why this matters:</b> the program asked for its next 8 MiB and the kernel said no. When a cgroup runs out of memory and nothing can be freed, the kernel's <b>out-of-memory (OOM) killer</b> ends a process in it with signal 9 (<code>SIGKILL</code>), which cannot be caught or ignored, so the program had no chance to clean up or print an error. <b>Exit code 137</b> means exactly that: 128 plus signal number 9. (The 64 MiB also holds Python itself, so the program stops a little short of 64.) This protects the <em>rest</em> of the computer: a runaway container kills only itself.</p>
+    </li>
+    <li>
+      <h3>A limit is not a reservation</h3>
+      <p>There are two different memory settings. <code>--memory</code> is a hard <b>limit</b>: go past it and you are killed. <code>--memory-reservation</code> is a soft <b>reservation</b>: a promise the kernel tries to keep when the whole computer is short of memory. Set both and read them back:</p>
+      <pre data-lang="bash" class="cmd" data-id="03-reservation" data-expect="limit=134217728 reservation=67108864"><code>docker run -d --name oslab-03-res --label oslab=true --memory=128m --memory-reservation=64m alpine:3.22 sleep 60
+docker inspect oslab-03-res --format 'limit={{.HostConfig.Memory}} reservation={{.HostConfig.MemoryReservation}}'
+docker rm -f oslab-03-res</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>3f1c0f2a59b8c3a1d3e6f6f2b3b0a8f7a3d5c0e9b1f4c7d2a6e8b9c0d1e2f3a4
+limit=134217728 reservation=67108864
+oslab-03-res</code></pre>
+      <p class="why"><b>Why this matters:</b> the container may use up to 128 MiB (the limit, 134,217,728 bytes) but is only <em>guaranteed</em> its 64 MiB reservation when memory is tight; above it the kernel may reclaim memory from it first. Limits protect everyone else. Reservations protect <em>you</em>. Neither is a promise that a program will work: a program that needs more than its limit simply dies, as you saw.</p>
+    </li>
+  </ol>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Run <code>workload.py cpu</code> with <code>--cpus=0.25</code> and with <code>--cpus=2</code>. Predict the wall-clock time before each. Why does <code>--cpus=2</code> not make a single-threaded program faster?</li>
+    <li>Run <code>memhog.py</code> again with <code>--memory=128m --memory-swap=128m</code>. Does it stop at about twice as many lines? (Remove the container afterwards with <code>docker rm oslab-03-hog</code>.)</li>
+    <li>Start two <code>workload.py cpu 15</code> containers at once, both with <code>--cpus=0.5</code>, and look at <code>docker stats --no-stream</code>. Now start them <em>without</em> limits. How does the kernel share the CPU between them?</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="3"></div>
+
+  <h2>Clean up</h2>
+  <p>Remove anything left running or stopped, then the image you built, and check nothing from this lab remains (the last command lists any <code>oslab</code> containers and should print only its header line):</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-expect="CONTAINER ID"><code>docker rm -f oslab-03-busy oslab-03-hog oslab-03-res
+docker rmi oslab-03-lab
+docker ps -a --filter label=oslab=true</code></pre>
+  <p>(The first line prints “No such container” for any that you had already removed. That is fine.)</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>The memory test never stops, or “holding” climbs far past 64:</b> check that you typed both <code>--memory=64m</code> and <code>--memory-swap=64m</code>. If it is running away, press <code>Ctrl+C</code> and run <code>docker rm -f oslab-03-hog</code>.</li>
+    <li><b>The CPU test does not take twice as long:</b> a computer or virtual machine with very few cores, or one that is busy with something else, can blur the result. Close other programs and run it again. The CPU <em>share</em> column (about 50%) is the more reliable signal.</li>
+    <li><b>“cat: can't open /sys/fs/cgroup/…”:</b> the first file does not exist on your cgroup version. The command is written to fall back to the other, so look for a number in the output; you can ignore the error line if it appears.</li>
+    <li><b>“WARNING: Your kernel does not support memory limit capabilities”:</b> on some Linux systems memory limits must be enabled in the boot options. This is rare on Docker Desktop.</li>
+    <li>See the <a href="troubleshooting.html">troubleshooting page</a> for other problems.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>Control groups (cgroups) are a kernel feature. Docker only <em>sets</em> the limits; the kernel's memory manager and scheduler enforce them.</li>
+    <li>Going past a memory limit gets a process killed by the OOM killer (exit code 137); going past a CPU quota only makes it wait.</li>
+    <li>CPU limits slow computing but barely affect programs that mostly wait, and a memory <em>limit</em> is a hard cap while a <em>reservation</em> is a soft promise.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>

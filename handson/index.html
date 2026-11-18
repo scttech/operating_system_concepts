@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on with Docker — OS Concepts</title>
+<meta name="description" content="An optional, self-guided set of small labs that use Docker to explore operating-system ideas on your own computer: shared kernels, processes, namespaces and resource limits.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/index.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on with Docker — OS Concepts">
+<meta property="og:description" content="An optional, self-guided set of small labs that use Docker to explore operating-system ideas on your own computer: shared kernels, processes, namespaces and resource limits.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/index.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs">
+<main>
+  <p class="eyebrow">Optional · hands-on practice</p>
+  <h1>Hands-on with Docker</h1>
+  <p class="lead">Small, self-guided labs that let you <em>observe</em> operating-system ideas on your own computer, using Docker. You read about kernels, processes and resource limits in the lessons. Here you see them happen.</p>
+  <p>This section is <b>optional</b>. Nothing else on the site depends on it, and if you skip it you lose nothing. It is meant for people learning on their own, at home, with no instructor or lab computers.</p>
+
+  <div class="callout">
+    <p><b>The big idea.</b> A container is <em>not</em> a separate operating system. Containers share the <dfn data-term="Kernel">kernel</dfn> of the computer they run on, and differ only in user space: files, libraries, a package manager. On Windows and macOS, Docker Desktop runs a hidden Linux virtual machine, and every Linux container shares <em>that</em> machine's kernel. <a href="00-setup-and-big-idea.html">Lab 0</a> proves it in a few minutes. The later labs then use that shared Linux kernel as a real, observable operating system.</p>
+  </div>
+
+  <h2>The labs</h2>
+  <p>Do them in order, or jump to one that interests you: after Lab 0 each lab stands on its own unless it says otherwise.</p>
+  <ul class="grid" id="handson-grid"></ul>
+  <noscript><p>The lab list needs JavaScript. The lab pages are in the same folder as this page: <code>00-setup-and-big-idea.html</code> and so on.</p></noscript>
+  <h3>Coming next</h3>
+  <p>These labs are planned and are not written yet:</p>
+  <ul>
+    <li><b>Lab 4: Filesystems.</b> Image layers, copy-on-write, volumes against bind mounts, <code>/proc</code> and <code>/sys</code>, inodes and links.</li>
+    <li><b>Lab 5: System calls.</b> Watch a program talk to the kernel with <code>strace</code>.</li>
+    <li><b>Lab 6: Init, signals and zombies.</b> Why containers sometimes ignore Ctrl+C, and how to create and fix a zombie process.</li>
+    <li><b>Lab 7: Booting a different kernel.</b> Run a tiny teaching operating system (xv6) under an emulator inside a container.</li>
+    <li><b>Lab 8: Exploring other operating systems</b> (optional capstone).</li>
+  </ul>
+
+  <h2>What you need</h2>
+  <table>
+    <thead><tr><th>Your computer</th><th>Install</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Windows (Home, Pro, Enterprise or Education)</td><td>Docker Desktop with the <b>WSL2</b> backend</td><td>The labs are written for Windows <em>Home</em>, which can only use WSL2 and Linux containers. Windows containers are a different thing: see <a href="appendix-windows-containers.html">the appendix</a>.</td></tr>
+      <tr><td>macOS (Intel or Apple Silicon)</td><td>Docker Desktop</td><td>Runs a Linux virtual machine. Apple Silicon is ARM64, and the images used here publish ARM64 versions (with one exception, noted in Lab 1).</td></tr>
+      <tr><td>Linux</td><td>Docker Engine</td><td>No virtual machine: containers use your own kernel.</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>No special hardware:</b> nothing here needs KVM, nested virtualization or a particular processor, and the guide works on both x86-64 and ARM64 computers.</li>
+    <li><b>No paid software and no accounts</b> beyond a free Docker install.</li>
+    <li>About 2 GB of disk space for all the images, and an internet connection for downloads.</li>
+    <li>Basic comfort with a terminal. You do not need to know Docker or Linux.</li>
+  </ul>
+
+  <h2>How each lab works</h2>
+  <ol>
+    <li><b>Read the goal and the “Concept link”</b> to the matching lesson on this site.</li>
+    <li><b>Run each step</b> and compare with the example output. The example output was captured from a real run, on the computer named in the lab, but <em>your numbers, IDs and times will differ</em>. Look for the pattern.</li>
+    <li><b>Read “Why this matters”</b> under each step: it ties what you just saw to the operating-system concept.</li>
+    <li><b>Try it yourself</b>, answer the <b>knowledge checks</b> (answers appear when you click), and run the <b>Clean up</b> step.</li>
+  </ol>
+  <h3>Conventions used in every lab</h3>
+  <ul>
+    <li>Containers are named <code>oslab-&lt;lab number&gt;-&lt;purpose&gt;</code> and carry the label <code>oslab=true</code>, so everything from this guide can be removed with one command (below).</li>
+    <li>Throwaway containers use <code>--rm</code>, so they delete themselves.</li>
+    <li>Image versions are <b>pinned</b> (for example <code>alpine:3.22</code>, not <code>latest</code>) so the labs keep behaving the same way. Tags may need updating over time; the one exception is <code>hello-world</code>, Docker's own install check.</li>
+    <li>Commands that need an extra permission (<code>--cap-add</code>, <code>--pid=host</code>) are marked and explained. <b>Nothing uses <code>--privileged</code>,</b> and no lab mounts your home folder or any system folder into a container.</li>
+    <li>Use these labs on your own computer, with disposable containers. They are not a guide to securing production systems.</li>
+  </ul>
+  <h3>Shell notes</h3>
+  <p>Commands are written to work unchanged in bash, zsh and PowerShell. They put a single-quoted command after <code>sh -c</code> and avoid double quotes inside it, because older Windows PowerShell (5.1) removes double quotes from arguments it passes to programs. Where a command truly differs between shells, both versions are shown. The <a href="troubleshooting.html">troubleshooting page</a> has more.</p>
+
+  <h2 id="cleanup-everything">Clean up everything from this guide</h2>
+  <p>This removes every container, image, volume and network that these labs created (they all carry the <code>oslab</code> label). It does <em>not</em> touch anything else on your computer. Remove containers first, because images in use cannot be removed.</p>
+  <p><b>bash or zsh (macOS, Linux, WSL):</b></p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-allow-fail data-bash-only data-id="idx-clean-bash"><code>docker rm -f $(docker ps -aq --filter label=oslab=true)
+docker rmi -f $(docker images -q --filter label=oslab=true)
+docker volume prune -a -f --filter label=oslab=true
+docker network prune -f --filter label=oslab=true</code></pre>
+  <p><b>PowerShell:</b></p>
+  <pre data-lang="powershell" class="cmd" data-manual><code>docker ps -aq --filter label=oslab=true | ForEach-Object { docker rm -f $_ }
+docker images -q --filter label=oslab=true | ForEach-Object { docker rmi -f $_ }
+docker volume prune -a -f --filter label=oslab=true
+docker network prune -f --filter label=oslab=true</code></pre>
+  <p>If nothing is left to remove, <code>docker rm</code> and <code>docker rmi</code> print a usage message. That is fine.</p>
+  <p>The distribution images the labs download (Debian, Ubuntu, Alpine, Fedora, Arch, the Python image and <code>hello-world</code>) are not labelled, because you did not build them. To remove them too and free the space:</p>
+  <pre data-lang="bash" class="cmd" data-manual><code>docker rmi debian:13-slim ubuntu:24.04 alpine:3.22 fedora:43 archlinux:base python:3.12-slim hello-world</code></pre>
+  <p>(It is safe if some are missing or still in use elsewhere: Docker tells you and skips them.) To see how much space Docker uses overall, run <code>docker system df</code>.</p>
+
+  <h2>Also in this section</h2>
+  <ul>
+    <li><a href="troubleshooting.html">Troubleshooting</a>: Docker, WSL2, quoting and platform problems.</li>
+    <li><a href="appendix-windows-containers.html">Appendix: Windows containers</a>: a short read-only note on what they are and why they are not used here.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/pages/handson.js"></script>
+</body>
+</html>

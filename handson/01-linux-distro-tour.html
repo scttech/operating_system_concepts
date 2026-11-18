@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 1: A tour of Linux distributions — OS Concepts</title>
+<meta name="description" content="Compare Debian, Ubuntu, Alpine, Fedora and Arch containers. Different operating systems turn out to differ in user space: files, package managers and the C library.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/01-linux-distro-tour.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 1: A tour of Linux distributions — OS Concepts">
+<meta property="og:description" content="Compare Debian, Ubuntu, Alpine, Fedora and Arch containers. Different operating systems turn out to differ in user space: files, package managers and the C library.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/01-linux-distro-tour.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="1">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 1</p>
+  <h1>A tour of Linux distributions</h1>
+  <p class="lead">Different “operating systems” in Docker differ in <b>user space</b>: their files, their package manager, their shell and, most importantly, their C library. Compare five of them, then see why a program built for one can fail on another.</p>
+  <div class="lab-meta"><span>About 40 minutes</span><span>Beginner</span><span>Related: <a href="../modules/18-os-landscape.html">Module 18 Beyond Windows, macOS &amp; Linux</a>, <a href="../modules/19-virtualization.html">Module 19 Virtualization &amp; Containers</a></span></div>
+  <p><b>Concept link:</b> <a href="../modules/18-os-landscape.html">Module 18</a> compares whole operating systems. This lab compares the <em>user-space</em> half of several Linux systems that all share one kernel (<a href="00-setup-and-big-idea.html">Lab 0</a>).</p>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Tell Debian, Ubuntu, Alpine, Fedora and Arch containers apart by their <code>/etc/os-release</code>, shell, image size and package manager.</li>
+    <li>Install the same package with <code>apt</code>, <code>apk</code>, <code>dnf</code> and <code>pacman</code>.</li>
+    <li>Explain what the C standard library does, and how glibc differs from musl.</li>
+    <li>Build a small C program in two distributions, inspect it with <code>ldd</code>, and see a Debian-built program fail on Alpine.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Prerequisites:</b> <a href="00-setup-and-big-idea.html">Lab 0</a> (Docker works, and you know <code>docker run</code>).</li>
+    <li>Some steps download packages from the internet inside a container, so allow a few minutes. About 700 MB of disk space.</li>
+    <li>Make an empty folder for this lab, for example <code>oslab-01</code>, and open your terminal <em>in that folder</em>. Steps 5 to 8 use five small files that you will download into it. (A <code>docker build</code> sends that folder to Docker as the “build context”. Use a folder that contains only these files.)</li>
+  </ul>
+  <div class="callout">
+    <p><b>Platform notes.</b> <b>Windows, macOS and Linux:</b> the commands are identical. <b>ARM64</b> (Apple Silicon, ARM Linux): the Debian, Ubuntu, Alpine and Fedora images publish ARM64 versions, so everything works, but the <code>ldd</code> output names <code>aarch64</code> instead of <code>x86-64</code>. <b>The Arch Linux image is x86-64 only</b>: on an ARM64 computer skip the Arch lines. <i>Not tested on Apple Silicon.</i></p>
+  </div>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>Which distribution am I in?</h3>
+      <p>Every modern Linux has a text file, <code>/etc/os-release</code>, that names the distribution. <code>grep</code> picks the one line we want. (We will run each command inside a throwaway container; the “shell” you type into is still your own.)</p>
+      <pre data-lang="bash" class="cmd" data-id="01-osrelease" data-expect="Debian[\s\S]*Ubuntu[\s\S]*Alpine[\s\S]*Fedora"><code>docker run --rm --label oslab=true debian:13-slim grep PRETTY_NAME /etc/os-release
+docker run --rm --label oslab=true ubuntu:24.04 grep PRETTY_NAME /etc/os-release
+docker run --rm --label oslab=true alpine:3.22 grep PRETTY_NAME /etc/os-release
+docker run --rm --label oslab=true fedora:43 grep PRETTY_NAME /etc/os-release</code></pre>
+      <p>Arch Linux (x86-64 computers only; skip this on ARM64):</p>
+      <pre data-lang="bash" class="cmd" data-arch="amd64" data-id="01-arch" data-expect="Arch Linux"><code>docker run --rm --label oslab=true archlinux:base grep PRETTY_NAME /etc/os-release</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+PRETTY_NAME="Alpine Linux v3.22"
+PRETTY_NAME="Fedora Linux 43 (Container Image)"
+PRETTY_NAME="Arch Linux"</code></pre>
+      <p class="why"><b>Why this matters:</b> five “operating systems” in seconds, and none had to boot. Each image is just a different set of files. (The tags such as <code>13-slim</code> pin a version so this lab behaves the same later. Arch is a “rolling” distribution, so its <code>base</code> tag always means the newest.)</p>
+    </li>
+    <li>
+      <h3>Compare the default shell</h3>
+      <p><code>/bin/sh</code> is the standard name for “a shell”. <code>readlink -f</code> follows the link to the real program.</p>
+      <pre data-lang="bash" class="cmd" data-id="01-shell" data-expect="dash[\s\S]*busybox[\s\S]*bash"><code>docker run --rm --label oslab=true debian:13-slim readlink -f /bin/sh
+docker run --rm --label oslab=true alpine:3.22 readlink -f /bin/sh
+docker run --rm --label oslab=true fedora:43 readlink -f /bin/sh</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>/usr/bin/dash
+/bin/busybox
+/usr/bin/bash</code></pre>
+      <p class="why"><b>Why this matters:</b> Debian uses <code>dash</code>, a small fast shell. Alpine uses <b>BusyBox</b>, one tiny program that provides hundreds of commands (<code>ls</code>, <code>cp</code>, <code>ps</code>, even the shell). Fedora uses the fuller <code>bash</code>. Small choices like these, repeated everywhere, are what make Alpine small.</p>
+    </li>
+    <li>
+      <h3>Compare image sizes</h3>
+      <p><code>docker images</code> lists the images on your computer. Each <code>--filter reference=…</code> keeps images whose name matches.</p>
+      <pre data-lang="bash" class="cmd" data-id="01-sizes" data-expect="alpine"><code>docker images --filter reference=debian --filter reference=ubuntu --filter reference=alpine --filter reference=fedora --filter reference=archlinux</code></pre>
+      <p class="small"><b>Example output</b> (newer Docker versions show these columns; older ones show a slightly different table):</p>
+      <pre class="output"><code>IMAGE                ID             DISK USAGE   CONTENT SIZE   EXTRA
+alpine:3.22          812e99317af7        8.3MB             0B
+archlinux:base       ad77cf4a18d8        400MB             0B
+debian:13-slim       596c6d80c879       78.9MB             0B
+fedora:43            3866f820f690        182MB             0B
+ubuntu:24.04         7da97f743f39       78.2MB             0B</code></pre>
+      <p class="why"><b>Why this matters:</b> none of these sizes includes a kernel, because images do not contain one. The 70 MB gap between Alpine and Debian is all user space: a smaller C library, BusyBox instead of the GNU tools, and fewer pre-installed packages.</p>
+    </li>
+    <li>
+      <h3>Install the same package everywhere</h3>
+      <p>Each distribution has its own <b>package manager</b>: a tool that downloads and installs software. Debian and Ubuntu use <code>apt</code>, Alpine uses <code>apk</code>, Fedora uses <code>dnf</code> and Arch uses <code>pacman</code>. We install a small package named <code>tree</code> in each, then ask it for its version. <code>sh -c '…'</code> runs a short command line inside the container, and <code>&gt; /dev/null</code> hides the installer's chatter.</p>
+      <pre data-lang="bash" class="cmd" data-id="01-install" data-expect="tree v[\s\S]*tree v[\s\S]*tree v[\s\S]*tree v"><code>docker run --rm --label oslab=true debian:13-slim sh -c 'apt-get update -qq > /dev/null &amp;&amp; apt-get install -y -qq tree > /dev/null &amp;&amp; tree --version'
+docker run --rm --label oslab=true ubuntu:24.04 sh -c 'apt-get update -qq > /dev/null &amp;&amp; apt-get install -y -qq tree > /dev/null &amp;&amp; tree --version'
+docker run --rm --label oslab=true alpine:3.22 sh -c 'apk add --no-cache -q tree &amp;&amp; tree --version'
+docker run --rm --label oslab=true fedora:43 sh -c 'dnf install -y -q tree > /dev/null &amp;&amp; tree --version'</code></pre>
+      <p>On an x86-64 computer, Arch too:</p>
+      <pre data-lang="bash" class="cmd" data-arch="amd64" data-id="01-install-arch" data-expect="tree v"><code>docker run --rm --label oslab=true archlinux:base sh -c 'pacman -Sy --noconfirm tree > /dev/null 2>&amp;1 &amp;&amp; tree --version'</code></pre>
+      <p class="small"><b>Example output</b> (versions and download times differ, and that is the point):</p>
+      <pre class="output"><code>tree v2.2.1 (c) 1996 - 2024 by Steve Baker, Thomas Moore, Francesc Rocher, Florian Sesser, Kyosuke Tokoro
+tree v2.1.1 (c) 1996 - 2023 by Steve Baker, Thomas Moore, Francesc Rocher, Florian Sesser, Kyosuke Tokoro
+tree v2.2.1 © 1996 - 2024 by Steve Baker, Thomas Moore, Francesc Rocher, Florian Sesser, Kyosuke Tokoro
+tree v2.2.1 (c) 1996 - 2024 by Steve Baker, Thomas Moore, Francesc Rocher, Florian Sesser, Kyosuke Tokoro
+tree v2.3.2 © 1996 - 2026 by Steve Baker, Thomas Moore, Francesc Rocher, Florian Sesser, Kyosuke Tokoro</code></pre>
+      <p class="why"><b>Why this matters:</b> the same program, four different installation tools, and a different <em>version</em> in each, because each distribution decides what to ship. On the author's computer Alpine finished in about 2 seconds and Fedora in about 12. A distribution is mostly a choice of packages and the tools that manage them.</p>
+    </li>
+    <li>
+      <h3>What is a C standard library? Build one program twice</h3>
+      <p>Almost every program calls a <b>C standard library</b> (“libc”): a collection of ready-made functions such as <code>printf</code> (print text) and <code>malloc</code> (get memory). Many of those functions make <a href="../modules/01-fundamentals.html#syscall">system calls</a> to the kernel for you. Debian, Ubuntu and Fedora use <b>glibc</b>. Alpine uses a smaller one called <b>musl</b>. They do the same job, but they are different programs.</p>
+      <p>Download these three files into your lab folder. <code>hello.c</code> is the program. Each Dockerfile is a short recipe that builds it: <code>FROM</code> picks the starting image, <code>RUN</code> runs a command while building (here, installing the C compiler <code>gcc</code> and compiling), <code>COPY</code> adds a file, and <code>CMD</code> is what the container runs when it starts.</p>
+      <pre class="code" data-src="handson/assets/01-linux-distro-tour/hello.c"><code>/* A tiny C program. It asks the C library (libc) to print one line. */
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    printf("Hello from a C program!\n");
+    return 0;
+}</code></pre>
+      <pre class="code" data-src="handson/assets/01-linux-distro-tour/Dockerfile.debian" data-lang="docker"><code># Build and run hello.c on Debian, which uses the glibc C library.
+FROM debian:13-slim
+RUN apt-get update -qq &amp;&amp; apt-get install -y -qq gcc libc6-dev &gt; /dev/null
+COPY hello.c .
+RUN gcc -o hello hello.c
+CMD ["./hello"]</code></pre>
+      <pre class="code" data-src="handson/assets/01-linux-distro-tour/Dockerfile.alpine" data-lang="docker"><code># Build and run the same program on Alpine, which uses the musl C library.
+FROM alpine:3.22
+RUN apk add --no-cache -q gcc musl-dev
+COPY hello.c .
+RUN gcc -o hello hello.c
+CMD ["./hello"]</code></pre>
+      <p>Build both images. <code>-t</code> gives the new image a name, <code>-f</code> names the recipe file, <code>--label oslab=true</code> marks the image for cleanup, and the final <code>.</code> means “use the current folder as the build context”. Then run each one.</p>
+      <pre data-lang="bash" class="cmd" data-id="01-build" data-expect="Hello from a C program[\s\S]*Hello from a C program" data-assets="01-linux-distro-tour"><code>docker build -q --label oslab=true -t oslab-01-debian -f Dockerfile.debian .
+docker build -q --label oslab=true -t oslab-01-alpine -f Dockerfile.alpine .
+docker run --rm --label oslab=true oslab-01-debian
+docker run --rm --label oslab=true oslab-01-alpine</code></pre>
+      <p class="small"><b>Example output</b> (<code>-q</code> prints just the image ID, which will differ):</p>
+      <pre class="output"><code>sha256:1bd16363a8a183c20859f36e11e32cb195a22f7626d517214f7e3b648b9367c2
+sha256:23986bcbe1d6cae45b310694b063516d521da77a698e86495ef8e4476ccf3c31
+Hello from a C program!
+Hello from a C program!</code></pre>
+      <p class="why"><b>Why this matters:</b> the same source code, compiled in two environments, behaves the same. But are the two programs the same? Look inside next.</p>
+    </li>
+    <li>
+      <h3>Look at which library each program needs</h3>
+      <p><code>ldd</code> lists the shared libraries a program will load when it starts.</p>
+      <pre data-lang="bash" class="cmd" data-id="01-ldd" data-expect="libc.so.6[\s\S]*musl"><code>docker run --rm --label oslab=true oslab-01-debian ldd hello
+docker run --rm --label oslab=true oslab-01-alpine ldd hello</code></pre>
+      <p class="small"><b>Example output</b> (x86-64; addresses differ every run, and an ARM64 computer names <code>aarch64</code> files):</p>
+      <pre class="output"><code>	linux-vdso.so.1 (0x00007ffd0ffef000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f45b94e2000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f45b96df000)
+	/lib/ld-musl-x86_64.so.1 (0x7f85bce51000)
+	libc.musl-x86_64.so.1 => /lib/ld-musl-x86_64.so.1 (0x7f85bce51000)</code></pre>
+      <p class="why"><b>Why this matters:</b> the Debian program needs <code>libc.so.6</code> (glibc) and a <b>loader</b>, <code>ld-linux-x86-64.so.2</code>, a helper the kernel starts first to load libraries. The Alpine program needs <code>ld-musl-…</code> instead. (<code>linux-vdso.so.1</code> is not a file: the kernel supplies it, so some calls can be answered without a full system call.) The two programs are not interchangeable.</p>
+    </li>
+    <li>
+      <h3>Run a Debian-built program on Alpine</h3>
+      <p>Download <code>Dockerfile.cross</code>. It builds the program on Debian, then copies <em>only the finished program</em> into an Alpine image. (This is called a <b>multi-stage build</b>: the first <code>FROM … AS build</code> is a scratch workshop, and only what you <code>COPY --from</code> it survives.)</p>
+      <pre class="code" data-src="handson/assets/01-linux-distro-tour/Dockerfile.cross" data-lang="docker"><code># Build the program on Debian (glibc), then copy ONLY the finished program into an Alpine image (musl).
+FROM debian:13-slim AS build
+RUN apt-get update -qq &amp;&amp; apt-get install -y -qq gcc libc6-dev &gt; /dev/null
+COPY hello.c .
+RUN gcc -o hello hello.c
+
+FROM alpine:3.22
+COPY --from=build /hello /hello
+CMD ["/hello"]</code></pre>
+      <p>Build it and run it. The run is <em>expected to fail</em>:</p>
+      <pre data-lang="bash" class="cmd" data-id="01-cross" data-fail data-expect="no such file or directory"><code>docker build -q --label oslab=true -t oslab-01-cross -f Dockerfile.cross .
+docker run --rm --label oslab=true oslab-01-cross</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>sha256:5af25c767d334bdb8a3ea085d69a3ffe5eadabe91d69ebef6a4dbda583b2ac4c
+exec /hello: no such file or directory</code></pre>
+      <p class="why"><b>Why this matters:</b> the file <code>/hello</code> <em>is there</em>, yet the kernel says “no such file”. The message is about the loader the program names, <code>/lib64/ld-linux-x86-64.so.2</code>, which does not exist on Alpine, because Alpine has no glibc. Same kernel, different user space: that is exactly why a binary built on one distribution can fail on another.</p>
+    </li>
+    <li>
+      <h3>Fix it: carry your own library</h3>
+      <p>One fix is to link the program <b>statically</b>, so it contains its own copy of the library instead of looking for a shared one. <code>Dockerfile.static</code> is the same recipe with <code>gcc -static</code>.</p>
+      <pre class="code" data-src="handson/assets/01-linux-distro-tour/Dockerfile.static" data-lang="docker"><code># The fix: link the program statically on Debian, so it carries its own copy of the C library.
+FROM debian:13-slim AS build
+RUN apt-get update -qq &amp;&amp; apt-get install -y -qq gcc libc6-dev &gt; /dev/null
+COPY hello.c .
+RUN gcc -static -o hello hello.c
+
+FROM alpine:3.22
+COPY --from=build /hello /hello
+CMD ["/hello"]</code></pre>
+      <pre data-lang="bash" class="cmd" data-id="01-static" data-expect="Hello from a C program"><code>docker build -q --label oslab=true -t oslab-01-static -f Dockerfile.static .
+docker run --rm --label oslab=true oslab-01-static
+docker images --filter 'reference=oslab-01-*'</code></pre>
+      <p class="small"><b>Example output</b> (size column trimmed):</p>
+      <pre class="output"><code>Hello from a C program!
+oslab-01-alpine    181MB
+oslab-01-debian    296MB
+oslab-01-static    9.06MB
+oslab-01-cross     8.32MB</code></pre>
+      <p class="why"><b>Why this matters:</b> now the Debian-built program runs on Alpine. Look at the sizes: the two images that compile a program contain a whole compiler (hundreds of megabytes), but the multi-stage images ship only the result and are barely larger than Alpine itself.</p>
+    </li>
+  </ol>
+
+  <div class="callout">
+    <p><b>What is an init system?</b> When a Linux computer boots, the kernel starts exactly one program, which starts everything else: the <em>init</em> system (for example systemd). A container usually skips all that and just runs the one program you ask for. A later lab in this guide (Lab 6) shows why that matters. See also <a href="../modules/04-boot.html">Module 4, the boot process</a>.</p>
+  </div>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Compile <code>hello.c</code> inside a <code>fedora:43</code> container as well (use <code>dnf install -y gcc</code>). Does the result run on Debian? On Alpine? Predict, then test.</li>
+    <li>Use <code>ldd</code> on the static program: build the static image, then run <code>docker run --rm oslab-01-static ldd /hello</code> (it is in an Alpine image). What does it say, and why?</li>
+    <li>Run <code>docker run --rm --label oslab=true alpine:3.22 ls /</code> and the same for <code>debian:13-slim</code>. Which top-level folders differ?</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="1"></div>
+
+  <h2>Clean up</h2>
+  <p>Remove the images you built (the downloaded distribution images can stay for later labs), then check nothing from this lab is left:</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-expect="CONTAINER ID"><code>docker rmi oslab-01-debian oslab-01-alpine oslab-01-cross oslab-01-static
+docker ps -a --filter label=oslab=true</code></pre>
+  <p>Your lab folder with the downloaded files can be deleted whenever you like.</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>“failed to read dockerfile” or “no such file”:</b> your terminal is not in the lab folder, or a file did not download. Check with <code>dir</code> (Windows) or <code>ls</code>.</li>
+    <li><b>Packages cannot be downloaded inside a container:</b> a firewall or proxy is blocking it. See the <a href="troubleshooting.html">troubleshooting page</a>.</li>
+    <li><b>“no matching manifest for linux/arm64” on Arch:</b> expected. The official Arch image is x86-64 only. Skip the Arch lines.</li>
+    <li><b>The same step works but the output differs from the example:</b> package versions, sizes and addresses change over time. That is normal.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>Distributions differ in user space: files, shell, package manager and C library. The kernel is shared.</li>
+    <li>glibc and musl are two implementations of the C library. A program expects the one it was built for, and the missing loader is why a Debian-built program fails on Alpine.</li>
+    <li>Static linking, or building on the target distribution, makes a program portable across user spaces.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>

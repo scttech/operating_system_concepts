@@ -1,0 +1,9 @@
+# The fix: link the program statically on Debian, so it carries its own copy of the C library.
+FROM debian:13-slim AS build
+RUN apt-get update -qq && apt-get install -y -qq gcc libc6-dev > /dev/null
+COPY hello.c .
+RUN gcc -static -o hello hello.c
+
+FROM alpine:3.22
+COPY --from=build /hello /hello
+CMD ["/hello"]

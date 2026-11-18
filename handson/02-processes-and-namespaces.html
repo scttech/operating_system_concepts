@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 2: Processes and namespaces — OS Concepts</title>
+<meta name="description" content="See what makes a process inside a container, why the first process is special, and build a process-ID namespace by hand.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/02-processes-and-namespaces.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 2: Processes and namespaces — OS Concepts">
+<meta property="og:description" content="See what makes a process inside a container, why the first process is special, and build a process-ID namespace by hand.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/02-processes-and-namespaces.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="2">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 2</p>
+  <h1>Processes and namespaces</h1>
+  <p class="lead">A container is not a machine: it is ordinary processes that the kernel has given a restricted <em>view</em> of the system. See that view from inside and outside, and build a piece of it yourself.</p>
+  <div class="lab-meta"><span>About 40 minutes</span><span>Intermediate</span><span>Related: <a href="../modules/05-processes.html">Module 5 Processes</a>, <a href="../modules/19-virtualization.html">Module 19 Virtualization &amp; Containers</a></span></div>
+  <p><b>Concept link:</b> <a href="../modules/05-processes.html">Module 5</a> explains what a process is and how <code>fork</code> creates one; the <a href="../modules/19-virtualization.html#containers">containers section of Module 19</a> introduces namespaces and control groups. This lab lets you see them on a real kernel.</p>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Read a container's process list from inside it, from outside it (<code>docker top</code>) and from the host's point of view (<code>--pid=host</code>).</li>
+    <li>Explain why the first process of a container is PID 1, and why that is special.</li>
+    <li>Create a PID namespace by hand with <code>unshare</code>, and read a process's different PIDs from <code>/proc</code>.</li>
+    <li>Meet the other namespaces (host name, network, mounts) with one small experiment each.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Prerequisites:</b> <a href="00-setup-and-big-idea.html">Lab 0</a>.</li>
+    <li>Everything runs inside containers, so the commands are the same in bash, zsh and PowerShell.</li>
+  </ul>
+  <div class="callout">
+    <p><b>Platform notes.</b> On <b>Windows and macOS</b>, the “host” in this lab means Docker Desktop's hidden Linux virtual machine, not Windows or macOS. On <b>Linux</b> it is your real computer. On a Linux host you may see more processes and different names than the examples. The examples were captured on Windows 11 Home with Docker Desktop (WSL2), x86-64. <i>Not tested on macOS or ARM64.</i></p>
+  </div>
+  <div class="callout warn">
+    <p><b>Two commands in this lab loosen the container's isolation, on purpose.</b> <code>--pid=host</code> lets a container <em>see</em> the host's processes, and <code>--cap-add=SYS_ADMIN</code> lets it create namespaces. Both are used in throwaway containers, with <code>--rm</code> or removed at the end, and neither touches your files. Never use them with software you do not trust.</p>
+  </div>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>List the processes inside a container</h3>
+      <p><code>ps</code> lists processes. Alpine's <code>ps</code> comes from BusyBox, so it exists even in this tiny image.</p>
+      <pre data-lang="bash" class="cmd" data-id="02-ps" data-expect="PID[\s\S]*1 root[\s\S]*ps"><code>docker run --rm --label oslab=true alpine:3.22 ps</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>PID   USER     TIME  COMMAND
+    1 root      0:00 ps</code></pre>
+      <p class="why"><b>Why this matters:</b> on a normal computer <code>ps</code> would list dozens of processes. Here there is exactly one, and it is <code>ps</code> itself, as <b>PID 1</b> (process ID 1). The container's first process is simply the command you started it with. The container has its own <b>PID namespace</b>: its own private numbering of processes, in which it cannot see anyone else.</p>
+    </li>
+    <li>
+      <h3>Start a long-running container to look at</h3>
+      <p>Start a container that just sleeps for ten minutes, so there is something to inspect. (<code>-d</code> runs it in the background; the name <code>oslab-02-sleeper</code> follows the guide's naming rule.)</p>
+      <pre data-lang="bash" class="cmd" data-id="02-start" data-expect="[0-9a-f]{12}"><code>docker run -d --name oslab-02-sleeper --label oslab=true alpine:3.22 sleep 600</code></pre>
+      <p>Now run <code>ps</code> <em>inside</em> it with <code>docker exec</code>, and ask the kernel which program PID 1 really is: <code>/proc/1/exe</code> is a link to the executable file of process 1.</p>
+      <pre data-lang="bash" class="cmd" data-id="02-inside" data-expect="1 root[\s\S]*sleep 600[\s\S]*busybox"><code>docker exec oslab-02-sleeper ps
+docker exec oslab-02-sleeper ls -l /proc/1/exe</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>PID   USER     TIME  COMMAND
+    1 root      0:00 sleep 600
+    7 root      0:00 ps
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 /proc/1/exe -> /bin/busybox</code></pre>
+      <p class="why"><b>Why this matters:</b> PID 1 is the <code>sleep 600</code> you asked for (it is run by BusyBox). The <code>ps</code> you ran with <code>exec</code> is a <em>second</em> process added to the same container, with the next free number. There is no separate operating system here, just your command and anything it starts.</p>
+    </li>
+    <li>
+      <h3>See the same process from outside</h3>
+      <p><code>docker top</code> lists a container's processes as seen by the <em>engine</em>, from outside the container.</p>
+      <pre data-lang="bash" class="cmd" data-id="02-top" data-expect="sleep 600"><code>docker top oslab-02-sleeper</code></pre>
+      <p class="small"><b>Example output</b> (your PID will be a different big number):</p>
+      <pre class="output"><code>UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+root                22149               22128               2                   16:08               ?                   00:00:00            sleep 600</code></pre>
+      <p class="why"><b>Why this matters:</b> the same <code>sleep</code> process is PID <code>1</code> inside the container and PID <code>22149</code> outside. It is one process with two numbers, because the kernel keeps a separate PID numbering for each namespace. This is the core trick of containers: the kernel shows each group of processes its own version of the system.</p>
+    </li>
+    <li>
+      <h3>See the host's processes (read-only peek)</h3>
+      <p><code>--pid=host</code> tells Docker <em>not</em> to give this container its own PID namespace, so it sees the host's. We only list the first lines (<code>head -n 8</code>) and do not touch anything.</p>
+      <pre data-lang="bash" class="cmd" data-id="02-pidhost" data-expect="PID[\s\S]*COMMAND"><code>docker run --rm --label oslab=true --pid=host alpine:3.22 sh -c 'ps | head -n 8'</code></pre>
+      <p class="small"><b>Example output</b> (Docker Desktop's virtual machine; a Linux computer shows its own, such as <code>systemd</code>):</p>
+      <pre class="output"><code>PID   USER     TIME  COMMAND
+    1 root      0:01 /initd
+   24 root      0:35 /initd services
+   46 root      0:00 /bin/sh /usr/bin/rungetty.sh
+   47 root      0:00 /bin/login -f
+   53 root      0:00 -bash
+   83 100       0:00 /sbin/rpcbind -f
+   84 root      0:00 /sbin/rpc.statd -d -F</code></pre>
+      <p class="why"><b>Why this matters:</b> this is the other side of the mirror. Without its own namespace the container sees everything running on the host (here Docker Desktop's Linux VM: its init program, <code>/initd</code>, is PID 1). Isolation is not a wall around the container, it is a pair of glasses the kernel puts on it, and <code>--pid=host</code> takes them off.</p>
+    </li>
+    <li>
+      <h3>Why PID 1 is special</h3>
+      <p>In Linux, PID 1 is the <b>init</b> process: the ancestor of all others. The kernel gives it two special duties and one special protection: it adopts <em>orphans</em> (processes whose parent died), it is expected to collect (“reap”) finished children, and signals sent to it are ignored unless the program has asked to handle them. The program you start in a container is PID 1 of that container, so it inherits these duties whether it expects them or not. <a href="../modules/05-processes.html#creating-processes-fork-exec-wait">Module 5</a> describes parents and children; a later lab in this guide (Lab 6) returns to what goes wrong when PID 1 is not ready for the job.</p>
+    </li>
+    <li>
+      <h3>Build a PID namespace by hand</h3>
+      <p>Docker did that for you, but you can do it yourself with the <code>unshare</code> command, which runs a program inside new namespaces. First try it without any extra permission. This is <em>expected to fail</em>:</p>
+      <pre data-lang="bash" class="cmd" data-id="02-unshare-fail" data-fail data-expect="not permitted"><code>docker run --rm --label oslab=true alpine:3.22 unshare --pid --fork sleep 1</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>unshare: unshare(0x20020000): Operation not permitted</code></pre>
+      <p>Creating a namespace is a privileged operation, and Docker's default security settings block it. The narrowest permission that allows it is the Linux <b>capability</b> <code>SYS_ADMIN</code>. <code>--cap-add=SYS_ADMIN</code> gives this one container that one capability (it is much narrower than <code>--privileged</code>, which we never use). <code>--pid</code> asks for a new PID namespace and <code>--fork</code> starts the command as the first process in it.</p>
+      <pre data-lang="bash" class="cmd" data-id="02-unshare" data-expect="[0-9a-f]{12}"><code>docker run -d --name oslab-02-ns --label oslab=true --cap-add=SYS_ADMIN alpine:3.22 sh -c 'unshare --pid --fork sleep 300'</code></pre>
+      <p>Now list that container's processes, and ask the kernel for every PID each one has. <code>NSpid</code> in <code>/proc/PID/status</code> lists a process's PID in each namespace it belongs to, outermost first.</p>
+      <pre data-lang="bash" class="cmd" data-id="02-nspid" data-expect="NSpid:\s+\d+\s+1"><code>docker exec oslab-02-ns ps
+docker exec oslab-02-ns sh -c 'grep NSpid /proc/*/status'
+docker top oslab-02-ns</code></pre>
+      <p class="small"><b>Example output</b> (the numbers will differ):</p>
+      <pre class="output"><code>PID   USER     TIME  COMMAND
+    1 root      0:00 unshare --pid --fork sleep 300
+    7 root      0:00 sleep 300
+    8 root      0:00 ps
+/proc/1/status:NSpid:	1
+/proc/14/status:NSpid:	14
+/proc/7/status:NSpid:	7	1
+/proc/self/status:NSpid:	14
+/proc/thread-self/status:NSpid:	14
+PID                 PPID                COMMAND
+17570               17547               unshare --pid --fork sleep 300
+17586               17570               sleep 300</code></pre>
+      <p class="why"><b>Why this matters:</b> find the <code>sleep</code> process. The container sees it as PID <code>7</code>. Inside the namespace you just made, it is PID <code>1</code> (that is what <code>NSpid: 7 1</code> says). And from the engine's point of view it is <code>17586</code>. <b>Three numbers for one process</b>, because PID namespaces nest like Russian dolls and each layer numbers its own residents. A process is “inside” a container only in the sense that it lives in these namespaces; underneath it is an ordinary process of the one kernel.</p>
+    </li>
+    <li>
+      <h3>The other namespaces, one at a time</h3>
+      <p>PID is only one of several namespaces. Each one hides a different part of the system.</p>
+      <p><b>Host name (UTS).</b> Give a container its own name, then make it share the host's instead:</p>
+      <pre data-lang="bash" class="cmd" data-id="02-uts" data-expect="lab-box"><code>docker run --rm --label oslab=true --hostname lab-box alpine:3.22 hostname
+docker run --rm --label oslab=true --uts=host alpine:3.22 hostname</code></pre>
+      <p><b>Network.</b> A normal container has its own network interfaces. With <code>--network none</code> it has only the loopback interface <code>lo</code>:</p>
+      <pre data-lang="bash" class="cmd" data-id="02-net" data-expect="lo:[\s\S]*eth0[\s\S]*lo:"><code>docker run --rm --label oslab=true alpine:3.22 sh -c 'ip addr | head -n 8'
+docker run --rm --label oslab=true --network none alpine:3.22 ip addr</code></pre>
+      <p><b>Mounts (the file-system view).</b> Write a file in one container, then look for it in the next. The second command is <em>expected to fail</em>:</p>
+      <pre data-lang="bash" class="cmd" data-id="02-mount" data-fail data-expect="hello[\s\S]*can't open"><code>docker run --rm --label oslab=true alpine:3.22 sh -c 'echo hello > /tmp/note; cat /tmp/note'
+docker run --rm --label oslab=true alpine:3.22 cat /tmp/note</code></pre>
+      <p class="small"><b>Example output</b> for the three:</p>
+      <pre class="output"><code>lab-box
+docker-desktop
+1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: eth0@if130: &lt;BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN&gt; mtu 1500 qdisc noqueue state UP
+    link/ether 86:53:fe:de:88:32 brd ff:ff:ff:ff:ff:ff
+1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+hello
+cat: can't open '/tmp/note': No such file or directory</code></pre>
+      <p class="why"><b>Why this matters:</b> the host-name namespace gave the container its own name (<code>lab-box</code>), and sharing the host's namespace showed the host's name instead (<code>docker-desktop</code> here). The network namespace gave a container its own network card, or, with <code>none</code>, nothing but loopback. And the file written in one container was not there in the next, because each container has its own <b>mount namespace</b>, a private view of the file system. (Lab 4 will look at that more closely.)</p>
+    </li>
+    <li>
+      <h3>Explore <code>/proc</code>: the kernel's window</h3>
+      <p>The kernel shows each process as a folder under <code>/proc</code>. <code>/proc/1/ns</code> lists the namespaces a process belongs to, as links with ID numbers. Two processes in the same namespace show the same number. <code>/proc/1/status</code> describes the process. We use the <code>oslab-02-sleeper</code> container from step 2.</p>
+      <pre data-lang="bash" class="cmd" data-id="02-proc" data-expect="Name:\s+sleep[\s\S]*pid -> pid:\["><code>docker exec oslab-02-sleeper sh -c 'head -n 8 /proc/1/status'
+docker exec oslab-02-sleeper ls -l /proc/1/ns</code></pre>
+      <p class="small"><b>Example output</b> (the long numbers are namespace IDs and will differ):</p>
+      <pre class="output"><code>Name:	sleep
+Umask:	0022
+State:	S (sleeping)
+Tgid:	1
+Ngid:	0
+Pid:	1
+PPid:	0
+TracerPid:	0
+total 0
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 cgroup -> cgroup:[4026531835]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 ipc -> ipc:[4026532824]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 mnt -> mnt:[4026532822]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 net -> net:[4026532826]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 pid -> pid:[4026532825]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 pid_for_children -> pid:[4026532825]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 time -> time:[4026532931]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 time_for_children -> time:[4026532931]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 user -> user:[4026531837]
+lrwxrwxrwx    1 root     root             0 Nov 18 16:08 uts -> uts:[4026532823]</code></pre>
+      <p class="why"><b>Why this matters:</b> each line is one kind of namespace: <code>pid</code>, <code>mnt</code> (mounts), <code>net</code>, <code>uts</code> (host name), <code>ipc</code> (inter-process communication), plus <code>cgroup</code>, <code>time</code> and <code>user</code>. Docker gave this container its own PID, mount, network, host-name and IPC namespaces. In this example the <code>user</code> and <code>cgroup</code> numbers are very small (<code>4026531837</code>, <code>…835</code>): those are the <em>host's own</em> namespaces, which means Docker does <em>not</em> isolate users or cgroup views by default. “Container” is a recipe of several kernel features, not one switch.</p>
+    </li>
+  </ol>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Run <code>docker run --rm --label oslab=true alpine:3.22 sh -c 'sleep 30 &amp; ps'</code>. Predict which process is PID 1, then check. (It may surprise you: this shell replaces itself with the <em>last</em> command it runs, so PID 1 is <code>ps</code>, and <code>sleep</code> is its former child.) What does that tell you about how a PID 1 comes to exist?</li>
+    <li>Compare the <code>ls -l /proc/1/ns</code> output of two <em>different</em> containers, and of a container started with <code>--pid=host</code>. Which entries match? Which kinds of namespace does a container get by default?</li>
+    <li>Start a container with <code>--network none</code> and try <code>ping -c 1 127.0.0.1</code> inside it. Does loopback work? What does that tell you about what a network namespace contains?</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="2"></div>
+
+  <h2>Clean up</h2>
+  <p>Two containers are still running in the background. Remove them and check that nothing from this lab is left:</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-expect="CONTAINER ID"><code>docker rm -f oslab-02-sleeper oslab-02-ns
+docker ps -a --filter label=oslab=true</code></pre>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>“unshare: Operation not permitted” even with <code>--cap-add=SYS_ADMIN</code>:</b> some locked-down systems (certain security profiles, rootless Docker) forbid this. Read what you can in steps 1 to 4 and the quiz; the idea is the same.</li>
+    <li><b>“The container name … is already in use”:</b> a container from an earlier attempt is still there. Run <code>docker rm -f oslab-02-sleeper oslab-02-ns</code> and try again.</li>
+    <li><b>The PIDs are different from the example:</b> they always are. Look for the pattern (one process, several numbers), not the values.</li>
+    <li><b>PowerShell shows strange quoting problems:</b> keep each command on one line and use the single quotes exactly as shown. See the <a href="troubleshooting.html">troubleshooting page</a>.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>A container's processes are ordinary kernel processes in their own <b>namespaces</b>: private views of process IDs, host names, networks, mounts and more.</li>
+    <li>One process has a different PID in each nested PID namespace; <code>docker top</code>, <code>docker exec ps</code> and <code>NSpid</code> show them.</li>
+    <li>The first process of a container is PID 1, which the kernel treats as the init process.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>

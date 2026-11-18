@@ -175,6 +175,16 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 - [x] **L-6 Exam mode** (M). Timed, shuffled, scored quiz with a review of misses. **Done:** `exam.html`: shuffled, timed, no feedback until submission, per-module score and review of misses.
 - [x] **L-7 Export results** (S). Copy or download a simulation's results table (CSV) for journals and reports. **Done:** Copy or download any results table as CSV (formula-safe), in Modules 6, 15 and 8.
 
+## Phase 8: Hands-on with Docker (optional)
+
+Goal: let learners *observe* operating-system ideas on a real kernel, with Docker, in small self-guided labs. Everything is optional and separate from the lessons. Built in phases; every command is run by an opt-in test, and example output comes from real runs.
+
+- [x] **HD-1 Overview, troubleshooting, appendix and Labs 0 to 3** (L). **Done:** `handson/`: the big idea (containers share a kernel), a tour of five Linux distributions (user space, package managers, glibc against musl), processes and namespaces (PID 1, `unshare`, `NSpid`), and cgroup limits (OOM killer, CPU quota). Tested on Docker Desktop with WSL2, x86-64, cgroup v1; not tested on cgroup v2, macOS or ARM64 (the pages say so).
+- [ ] **HD-2 Labs 4 to 6** (L). Filesystems (layers, copy-on-write, volumes, `/proc`), system calls (`strace`), init, signals and zombies.
+- [ ] **HD-3 Lab 7** (L). Boot a different kernel: xv6 (RISC-V) under QEMU, headless, no KVM. The riskiest lab; needs verifying on its own.
+- [ ] **HD-4 Lab 8** (M). Exploring other operating systems (optional capstone); only recipes that boot reliably headless are written as working.
+- [ ] Possible later: run the Docker test in CI (it would also exercise cgroup v2), and link the labs from more lessons and the study paths.
+
 ## Phase 7: Site polish
 
 - [x] **P-1 Site-wide search** (M). Client-side index of lessons, glossary and FAQ. **Done:** `search.html`, covering lessons, glossary, FAQ, labs, cheat sheet and OS profiles, with a generated page-text index and highlighted results.

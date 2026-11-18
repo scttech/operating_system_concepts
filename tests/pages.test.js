@@ -10,7 +10,8 @@
   const rootPages = ["index.html", "pages/labs.html", "pages/problems.html", "pages/glossary.html", "pages/faq.html", "pages/practice.html", "pages/cheatsheet.html", "pages/search.html", "pages/study.html", "pages/progress.html", "pages/flashcards.html", "pages/exam.html", "pages/scenarios.html", "pages/handouts.html", "pages/paths.html", "pages/teaching.html"];
   const moduleFiles = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => f.endsWith(".html")).sort();
   const labFiles = fs.readdirSync(path.join(ROOT, "labs")).filter((f) => f.endsWith(".html")).sort();
-  const allPages = [...rootPages, ...moduleFiles.map((f) => "modules/" + f), ...labFiles.map((f) => "labs/" + f)];
+  const handsonFiles = fs.readdirSync(path.join(ROOT, "handson")).filter((f) => f.endsWith(".html")).sort();
+  const allPages = [...rootPages, ...moduleFiles.map((f) => "modules/" + f), ...labFiles.map((f) => "labs/" + f), ...handsonFiles.map((f) => "handson/" + f)];
 
   /** Ids on a page: those in its HTML plus the ones js/site.js gives headings at run time (same rule as the search index). */
   const anchorCache = {};

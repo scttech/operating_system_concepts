@@ -1,0 +1,6 @@
+# Build and run the same program on Alpine, which uses the musl C library.
+FROM alpine:3.22
+RUN apk add --no-cache -q gcc musl-dev
+COPY hello.c .
+RUN gcc -o hello hello.c
+CMD ["./hello"]

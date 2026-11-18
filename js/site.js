@@ -149,6 +149,18 @@
     main.append(pager);
   }
 
+  // Prev/next pager on the hands-on (Docker) lab pages
+  const handsonNum = body.dataset.handson !== undefined ? +body.dataset.handson : null;
+  if (handsonNum !== null && main) {
+    const labs = (window.OSData && window.OSData.handson) || [], i = labs.findIndex((l) => l.n === handsonNum);
+    const pager = document.createElement("div");
+    pager.className = "pager";
+    const mk = (l, label) => { const a = document.createElement("a"); a.className = "btn secondary"; a.href = `${l.slug}.html`; a.textContent = label; return a; };
+    pager.append(i > 0 ? mk(labs[i - 1], `← Lab ${labs[i - 1].n}: ${labs[i - 1].title}`) : document.createElement("span"));
+    pager.append(i >= 0 && i < labs.length - 1 ? mk(labs[i + 1], `Lab ${labs[i + 1].n}: ${labs[i + 1].title} →`) : document.createElement("span"));
+    main.append(pager);
+  }
+
   const footer = document.createElement("footer");
   footer.className = "site";
   const licenseLink = document.createElement("a");

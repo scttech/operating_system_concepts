@@ -19,6 +19,11 @@ and a private **progress record** kept only in the learner's own browser (export
 what you should be able to do, its key takeaways, and free further reading. Result tables can be copied or downloaded as CSV, and two
 schedulers or two page-replacement policies can be compared side by side on the same workload.
 
+**Hands-on with Docker (optional, in progress):** `handson/` is a separate set of small labs that use Docker to explore operating-system ideas on a real
+kernel: containers share the host's kernel, processes and namespaces, and memory and CPU limits. Labs 0 to 3 are written; filesystems, system calls, init and
+zombies, booting another kernel under QEMU, and other operating systems are planned. Every command on those pages is run by an opt-in test
+(`HANDSON_DOCKER=1 npm test`), so the example output is from real runs.
+
 **Shareable setups:** 22 simulations (both scheduler and page-replacement comparisons, Banker's, paging, memory allocation, disk, Amdahl's law, RAID, SSD wear, journaling, the stack-overflow demo and more) have a "Copy link to this setup" button.
 The link holds the inputs (for example `#scheduling.algo=RR&scheduling.q=3`), so an assignment can say "run this exact case and explain it". Links are validated, never trusted.
 
@@ -44,7 +49,8 @@ No build step, no framework, no CDN: open the files or serve the folder. d3 v7.9
 |---|---|
 | `index.html`, `404.html` | the home page and the not-found page (the only pages at the root, as GitHub Pages expects) |
 | `pages/` | the site-level pages: study tools, glossary, FAQ, cheat sheet, search, handouts, paths, teaching notes, problems, labs index |
-| `modules/`, `labs/` | one page per lesson and per lab |
+| `modules/`, `labs/` | one page per lesson and per Python lab |
+| `handson/` | the optional Docker labs (`handson/assets/` holds the Dockerfiles and small programs they use) |
 | `js/`, `css/`, `images/` | scripts (`data/` holds the content, `lib/` the tested logic, `sims/` the simulations, `pages/` page scripts), the stylesheet and the pictures |
 | `examples/`, `labs/code/` | the real C and Python programs shown in lessons and labs |
 | `tests/`, `tools/` | the test suites, and the tools that generate files or audit the pages |

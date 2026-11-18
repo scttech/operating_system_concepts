@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on troubleshooting — OS Concepts</title>
+<meta name="description" content="Fixes for common problems running the Docker labs: Docker not running, WSL2, shell quoting, downloads, disk space, platform differences and leftover containers.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/troubleshooting.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on troubleshooting — OS Concepts">
+<meta property="og:description" content="Fixes for common problems running the Docker labs: Docker not running, WSL2, shell quoting, downloads, disk space, platform differences and leftover containers.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/troubleshooting.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs">
+<main class="narrow">
+  <p class="eyebrow"><a href="index.html">Hands-on with Docker</a></p>
+  <h1>Troubleshooting</h1>
+  <p class="lead">Problems that come up often when running the Docker labs, and what to try. Each lab also has its own short troubleshooting list.</p>
+  <p class="small">These notes describe the usual cause and the usual fix. Docker's messages change a little between versions, so match on the idea, not the exact words. If something here does not help, the official Docker documentation for your platform is the best next place to look.</p>
+
+  <h2>Docker will not start or cannot be reached</h2>
+  <dl>
+    <dt>“Cannot connect to the Docker daemon”, “error during connect”, or “Is the docker daemon running?”</dt>
+    <dd>The engine is not running. On Windows and macOS, open Docker Desktop and wait until it says it is running (the whale icon stops animating). On Linux, run <code>sudo systemctl start docker</code>. Then run <code>docker version</code>: you should see both a Client and a Server section.</dd>
+    <dt>“permission denied … /var/run/docker.sock” (Linux)</dt>
+    <dd>Your user is not allowed to talk to Docker. Either put <code>sudo</code> before each command, or add yourself to the <code>docker</code> group (see Docker's Linux post-install instructions) and log out and in again. Remember that membership in that group is close to administrator power on that computer.</dd>
+    <dt>“docker: command not found” or “'docker' is not recognized”</dt>
+    <dd>Close and reopen your terminal after installing Docker. On Windows, if it is still missing, check that Docker Desktop finished installing and started once.</dd>
+    <dt>WSL 2 messages on Windows (“WSL 2 installation is incomplete”, “WSL needs updating”)</dt>
+    <dd>Docker Desktop on Windows Home needs WSL2. Run <code>wsl --update</code> in PowerShell, restart Docker Desktop and, if asked, restart Windows. If Docker Desktop says virtualization is not enabled, it must be switched on in your computer's firmware (BIOS/UEFI) settings; look for “Virtualization Technology”, “Intel VT-x” or “SVM Mode”. In Docker Desktop's settings, “Use the WSL 2 based engine” is expected to be on, and it cannot be turned off on Windows Home.</dd>
+  </dl>
+
+  <h2>Shell and quoting problems</h2>
+  <dl>
+    <dt>A command with quotes works in bash but fails or behaves oddly in PowerShell</dt>
+    <dd>Windows PowerShell 5.1 (the one built into Windows) removes double quotes from arguments passed to programs such as <code>docker</code>, and PowerShell 7 handles them differently again. The labs avoid the problem: they put the whole command after <code>sh -c</code> in <b>single quotes</b> and use <b>no double quotes inside</b>. Copy the commands exactly, on one line. If you write your own, keep to the same rule, or run them from a WSL shell, where bash quoting applies.</dd>
+    <dt>Git Bash on Windows changes <code>/sys/fs/cgroup</code> into a Windows path</dt>
+    <dd>Git Bash rewrites arguments that look like Unix paths. Set <code>MSYS_NO_PATHCONV=1</code> before the command (<code>export MSYS_NO_PATHCONV=1</code>), start the path with two slashes (<code>//sys/fs/cgroup</code>), or use PowerShell or WSL instead. The labs' commands put paths inside <code>sh -c '…'</code> so the host shell does not see them, but a path given directly to <code>docker run</code> can be rewritten.</dd>
+    <dt>Scripts fail with “^M” or “bad interpreter” errors</dt>
+    <dd>A script saved with Windows line endings (CRLF) cannot run on Linux. Files downloaded from these labs use Unix line endings (LF). If you edit one, save it with LF endings (most editors have an option in the status bar), and if you keep the files in Git add a <code>.gitattributes</code> line such as <code>*.sh text eol=lf</code>.</dd>
+    <dt>The cleanup command prints a usage message</dt>
+    <dd>When no container or image matches, <code>docker rm</code> and <code>docker rmi</code> are given no names and print how to use them. That means there was nothing to remove.</dd>
+  </dl>
+
+  <h2>Downloads and disk space</h2>
+  <dl>
+    <dt>Image downloads fail, hang or time out</dt>
+    <dd>Check your internet connection first. On a work or school network, Docker may need your proxy settings (Docker Desktop: Settings → Resources → Proxies). A <code>toomanyrequests</code> message means Docker Hub's limit on anonymous downloads was reached: wait, or log in with a free Docker account. The labs never <em>require</em> an account, but logging in raises the limit.</dd>
+    <dt>Package installs inside a container fail (apt, apk, dnf, pacman)</dt>
+    <dd>Same causes: no network from inside containers, a proxy, or a firewall. Try <code>docker run --rm alpine:3.22 ping -c 1 8.8.8.8</code>. If it fails, the container has no route out. Restarting Docker Desktop often fixes it.</dd>
+    <dt>“no space left on device”</dt>
+    <dd><code>docker system df</code> shows what Docker is using. The <a href="index.html#cleanup-everything">cleanup commands</a> remove everything from these labs. <code>docker system prune</code> removes <em>all</em> unused containers, networks and dangling images on your computer, not just lab ones, so read its warning before you agree. On Windows, Docker Desktop's virtual disk can stay large after cleanup until you use its “Clean / Purge data” or compact options.</dd>
+    <dt>The Docker virtual machine has too little memory or too few processors</dt>
+    <dd>On Windows and macOS, the Docker VM has its own size limits, which is why <code>nproc</code> and <code>/proc/meminfo</code> inside a container show less than your computer has. Docker Desktop's Settings → Resources changes them (on Windows with WSL2 it may be controlled by a <code>.wslconfig</code> file in your user folder).</dd>
+  </dl>
+
+  <h2>Platform differences</h2>
+  <dl>
+    <dt>“exec format error”, or “no matching manifest for linux/arm64/v8”</dt>
+    <dd>You are on an ARM64 computer (for example an Apple Silicon Mac) and an image is x86-64 only, or the other way round. Every image used in these labs publishes both, except the official Arch Linux image, which is x86-64 only (Lab 1 says to skip it on ARM64). Docker can run an x86-64 image on ARM64 with <code>--platform linux/amd64</code>, using emulation, but it is slow.</dd>
+    <dt>Different numbers from the example output</dt>
+    <dd>Expected. Versions, sizes, times, PIDs and addresses all vary. Look for the same <em>pattern</em>, such as “the kernel versions match” or “the wall-clock time doubles”.</dd>
+    <dt>cgroup files are missing or named differently</dt>
+    <dd>Linux has two generations of control groups. <b>v1</b> keeps separate folders such as <code>/sys/fs/cgroup/memory/</code>; <b>v2</b> uses one tree with files such as <code>/sys/fs/cgroup/memory.max</code>. The labs use commands that try both. <code>docker info --format '{{.CgroupVersion}}'</code> tells you which one you have.</dd>
+    <dt>Something works on Linux but not on Windows or macOS (or the reverse)</dt>
+    <dd>Remember the hidden virtual machine: on Windows and macOS the “host” in a lab is Docker's Linux VM, not your real computer. Commands that look at the host, such as <code>--pid=host</code>, see the VM.</dd>
+  </dl>
+
+  <h2>Leftover containers and name clashes</h2>
+  <dl>
+    <dt>“The container name … is already in use”</dt>
+    <dd>A container from an earlier attempt still exists. Remove it by name (<code>docker rm -f oslab-02-sleeper</code>), or remove everything from the guide with the <a href="index.html#cleanup-everything">cleanup commands</a>.</dd>
+    <dt>A container is still running and using resources</dt>
+    <dd><code>docker ps</code> lists running containers. <code>docker rm -f NAME</code> stops and removes one.</dd>
+    <dt>A command seems to hang</dt>
+    <dd>Press <code>Ctrl+C</code>. If the prompt does not return, open a second terminal and run <code>docker rm -f NAME</code> for the container you started.</dd>
+  </dl>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+</body>
+</html>

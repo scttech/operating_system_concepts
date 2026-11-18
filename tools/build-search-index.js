@@ -48,6 +48,7 @@ function pages() {
   mods.forEach((f) => out.push({ file: `modules/${f}`, kind: "Lesson" }));
   out.push({ file: "pages/cheatsheet.html", kind: "Cheat sheet" });
   fs.readdirSync(path.join(ROOT, "labs")).filter((f) => /^\d\d-.*\.html$/.test(f)).sort().forEach((f) => out.push({ file: `labs/${f}`, kind: "Lab" }));
+  fs.readdirSync(path.join(ROOT, "handson")).filter((f) => /^\d\d-.*\.html$/.test(f)).sort().forEach((f) => out.push({ file: `handson/${f}`, kind: "Lab" }));
   return out;
 }
 

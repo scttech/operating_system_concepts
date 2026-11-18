@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 0: Setup and the big idea — OS Concepts</title>
+<meta name="description" content="Install and check Docker, run your first containers, and discover that containers do not have an operating system of their own: they share the host's kernel.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/00-setup-and-big-idea.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 0: Setup and the big idea — OS Concepts">
+<meta property="og:description" content="Install and check Docker, run your first containers, and discover that containers do not have an operating system of their own: they share the host's kernel.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/00-setup-and-big-idea.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="0">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 0</p>
+  <h1>Setup and the big idea</h1>
+  <p class="lead">Install and check Docker, run your first containers, and discover the idea behind this whole guide: a container is not a separate operating system.</p>
+  <div class="lab-meta"><span>About 30 minutes</span><span>Beginner</span><span>Related: <a href="../modules/01-fundamentals.html">Module 1 OS Fundamentals</a>, <a href="../modules/19-virtualization.html">Module 19 Virtualization &amp; Containers</a></span></div>
+
+  <div class="callout">
+    <p><b>The big idea.</b> A container is <em>not</em> a separate operating system. Containers share the <dfn data-term="Kernel">kernel</dfn> of the computer they run on, and differ only in <b>user space</b>: files, libraries, a package manager and the programs that came with the image. On Windows and macOS, Docker Desktop quietly runs a small Linux virtual machine, and every Linux container shares <em>that</em> machine's kernel. You will prove this in a few minutes.</p>
+  </div>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Check that Docker works, and find out which platform and kernel it is using.</li>
+    <li>Run containers and use the six everyday Docker words: image, container, <code>run</code>, <code>exec</code>, <code>ps</code> and <code>rm</code>.</li>
+    <li>See that containers made from different Linux distributions report the <em>same</em> kernel.</li>
+    <li>Explain why a Windows or macOS computer has a hidden Linux machine inside it.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Docker</b>, installed and running: <em>Docker Desktop</em> on Windows or macOS, or <em>Docker Engine</em> on Linux. Both are free for personal learning. Nothing else is needed: no accounts, no paid software, no special hardware.</li>
+    <li>About <b>2 GB of free disk space</b> for the images used across these labs, and an internet connection for the downloads.</li>
+    <li>A terminal: PowerShell, Windows Terminal or a WSL shell on Windows; Terminal on macOS; any shell on Linux. Every command here works in bash, zsh and PowerShell unless a note says otherwise.</li>
+    <li>This guide is <b>optional</b>. Nothing else on this site depends on it.</li>
+  </ul>
+  <div class="callout">
+    <p><b>Windows Home.</b> Docker Desktop uses the <b>WSL2</b> backend on Windows Home, and the setting cannot be changed there. That is expected, and it is the setup this guide is written for. Windows containers are not available on Home (see <a href="appendix-windows-containers.html">the note on Windows containers</a>).</p>
+    <p><b>macOS.</b> Docker Desktop runs a Linux virtual machine. Intel Macs use x86-64 images and Apple Silicon Macs use ARM64 images: the images in these labs publish both, so the commands are the same. <i>The author did not test on Apple Silicon.</i></p>
+    <p><b>Linux.</b> There is no virtual machine: containers use your own computer's kernel directly.</p>
+  </div>
+  <div class="callout warn">
+    <p><b>Is this safe?</b> Containers are disposable and these labs only use throwaway ones. Every container is named <code>oslab-…</code> and labelled <code>oslab=true</code>, so one command can remove all of them (see <a href="index.html#cleanup-everything">Clean up everything</a>). The labs never mount your files into a container. Two later labs add one extra permission (<code>--cap-add</code>) and explain why. Nothing here uses <code>--privileged</code>. Use these labs on your own computer, not on a shared or production machine.</p>
+  </div>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>Check that Docker is installed</h3>
+      <p><code>docker version</code> prints information about two programs: the <b>client</b> (the <code>docker</code> command you type) and the <b>server</b>, also called the engine or daemon, which actually creates and runs containers.</p>
+      <pre data-lang="bash" class="cmd" data-id="00-version" data-expect="Server"><code>docker version</code></pre>
+      <p class="small"><b>Example output</b> (version numbers will differ; this is trimmed):</p>
+      <pre class="output"><code>Client:
+ Version:           29.5.3
+ OS/Arch:           windows/amd64
+ Context:           desktop-linux
+
+Server: Docker Desktop 4.78.0
+ Engine:
+  Version:          29.5.3
+  OS/Arch:          linux/amd64</code></pre>
+      <p class="why"><b>Why this matters:</b> look at the two <code>OS/Arch</code> lines. On this Windows computer the <em>client</em> is <code>windows/amd64</code> but the <em>server</em> is <code>linux/amd64</code>. The engine that runs your containers is a Linux system, even though you are typing on Windows. That is the hidden Linux machine. On Linux both lines say <code>linux</code>.</p>
+    </li>
+    <li>
+      <h3>Run your first container</h3>
+      <p><code>docker run</code> creates a container from an <b>image</b> and starts it. An image is a read-only bundle of files (a program and what it needs). If the image is not on your computer, Docker downloads it first. <code>--rm</code> tells Docker to delete the container as soon as it stops, so nothing is left behind.</p>
+      <pre data-lang="bash" class="cmd" data-id="00-hello" data-expect="Hello from Docker"><code>docker run --rm hello-world</code></pre>
+      <p class="small"><b>Example output</b> (the first lines):</p>
+      <pre class="output"><code>Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.</code></pre>
+      <p class="why"><b>Why this matters:</b> the message lists what just happened: your client asked the engine, the engine fetched an image and ran it. <code>hello-world</code> is the one image in this guide that has no version tag, because it is Docker's own install check. Every other image is pinned to a specific version, so the labs keep behaving the same way.</p>
+    </li>
+    <li>
+      <h3>Ask Docker about its platform</h3>
+      <p><code>docker info</code> reports on the engine. <code>--format</code> picks out just the fields we want, using a template written between double braces.</p>
+      <pre data-lang="bash" class="cmd" data-id="00-info" data-expect="kernel"><code>docker info --format 'OS: {{.OperatingSystem}} | kernel {{.KernelVersion}} | cgroup v{{.CgroupVersion}} | {{.Architecture}}'</code></pre>
+      <p class="small"><b>Example output</b> (from Windows 11 Home with Docker Desktop; yours will differ):</p>
+      <pre class="output"><code>OS: Docker Desktop | kernel 5.15.146.1-microsoft-standard-WSL2 | cgroup v1 | x86_64</code></pre>
+      <p class="why"><b>Why this matters:</b> the <em>kernel</em> is the Linux kernel inside Docker Desktop's virtual machine, not Windows. A Mac typically shows <code>linuxkit</code> in the kernel name (the author has not tested on a Mac), and on Linux you see your own distribution and kernel. Write down the kernel version. In the next step you will see it again, from inside several different containers. (<code>cgroup</code> is the kernel feature you will use in <a href="03-resource-limits.html">Lab 3</a>; <code>aarch64</code> instead of <code>x86_64</code> means an ARM64 computer.)</p>
+    </li>
+    <li>
+      <h3>Run containers from different Linux distributions</h3>
+      <p>Each line below starts a throwaway container from a different distribution's image and runs <code>uname -srm</code>, which prints the kernel's name, release (version) and the machine type. <code>image:tag</code> names an image and a version of it. <code>--label oslab=true</code> attaches a label so cleanup commands can find the container later.</p>
+      <pre data-lang="bash" class="cmd" data-id="00-kernels" data-expect="Linux"><code>docker run --rm --label oslab=true debian:13-slim uname -srm
+docker run --rm --label oslab=true ubuntu:24.04 uname -srm
+docker run --rm --label oslab=true alpine:3.22 uname -srm
+docker run --rm --label oslab=true fedora:43 uname -srm</code></pre>
+      <p class="small"><b>Example output</b> (the first run downloads each image, which takes a little while):</p>
+      <pre class="output"><code>Linux 5.15.146.1-microsoft-standard-WSL2 x86_64
+Linux 5.15.146.1-microsoft-standard-WSL2 x86_64
+Linux 5.15.146.1-microsoft-standard-WSL2 x86_64
+Linux 5.15.146.1-microsoft-standard-WSL2 x86_64</code></pre>
+      <p class="why"><b>Why this matters:</b> Debian, Ubuntu, Alpine and Fedora are four different Linux distributions, yet all four report the <em>same</em> kernel. They are not four operating systems. They are four sets of user-space files running on one kernel.</p>
+    </li>
+    <li>
+      <h3>Compare with your own computer</h3>
+      <p>Now ask your own computer for its kernel. What you see depends on your system:</p>
+      <ul>
+        <li><b>Linux:</b> run <code>uname -r</code>. It matches the containers exactly, because containers use your own kernel.</li>
+        <li><b>Windows with WSL2:</b> run <code>wsl uname -r</code>. WSL2 and Docker Desktop normally use the same Linux kernel, so you will usually see the same version as above.</li>
+        <li><b>macOS:</b> run <code>uname -srm</code>. It prints <code>Darwin</code>, Apple's kernel, which is <em>different</em> from the containers' Linux kernel. The containers are using the Linux kernel inside Docker Desktop's virtual machine.</li>
+        <li><b>Windows without WSL:</b> there is no <code>uname</code>. Windows itself runs the NT kernel, which is not Linux at all.</li>
+      </ul>
+      <pre data-lang="bash" class="cmd" data-manual><code>uname -r          # Linux
+wsl uname -r      # Windows with WSL2 installed
+uname -srm        # macOS</code></pre>
+      <p class="why"><b>Why this matters:</b> on Linux the container kernel and the host kernel are one and the same. On Windows and macOS they are different from the system you are typing on, which proves a Linux virtual machine sits in between.</p>
+    </li>
+    <li>
+      <h3>Read the kernel's own description of itself</h3>
+      <p>The kernel shows information as files under <code>/proc</code>. This one is its version banner.</p>
+      <pre data-lang="bash" class="cmd" data-id="00-procversion" data-expect="Linux version"><code>docker run --rm --label oslab=true debian:13-slim cat /proc/version</code></pre>
+      <p class="small"><b>Example output</b> (from the author's computer):</p>
+      <pre class="output"><code>Linux version 5.15.146.1-microsoft-standard-WSL2 (root@65c757a075e2) (gcc (GCC) 11.2.0, GNU ld (GNU Binutils) 2.37) #1 SMP Thu Jan 11 04:09:03 UTC 2024</code></pre>
+      <p class="why"><b>Why this matters:</b> <code>/proc/version</code> is not a file on disk. The kernel generates it when you read it. Much of Linux works this way ("everything is a file"), and you will use <code>/proc</code> a lot in later labs.</p>
+    </li>
+    <li>
+      <h3>Learn the everyday commands</h3>
+      <p>Four more commands complete the vocabulary. First start a container that keeps running in the background: <code>-d</code> (detached) returns your prompt immediately, and <code>--name</code> gives the container a name you can refer to. <code>sleep 300</code> is just a command that does nothing for five minutes, to keep the container alive.</p>
+      <pre data-lang="bash" class="cmd" data-id="00-start" data-expect="[0-9a-f]{12}"><code>docker run -d --name oslab-00-sleeper --label oslab=true debian:13-slim sleep 300</code></pre>
+      <p>Now list running containers (add <code>-a</code> to include stopped ones), run a second command <em>inside</em> the running container with <code>exec</code>, and finally remove it (<code>-f</code> stops it first if it is still running).</p>
+      <pre data-lang="bash" class="cmd" data-id="00-everyday" data-expect="oslab-00-sleeper"><code>docker ps --filter label=oslab=true
+docker exec oslab-00-sleeper uname -r
+docker rm -f oslab-00-sleeper</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>CONTAINER ID   IMAGE            COMMAND       CREATED         STATUS         PORTS   NAMES
+66cc82ffae4b   debian:13-slim   "sleep 300"   2 seconds ago   Up 1 second            oslab-00-sleeper
+5.15.146.1-microsoft-standard-WSL2
+oslab-00-sleeper</code></pre>
+      <p class="why"><b>Why this matters:</b> <code>exec</code> started a new process inside the same container, and it reported the same kernel as before. The word-for-word vocabulary is small: an <b>image</b> is the recipe (files), a <b>container</b> is a running (or stopped) instance made from it, <code>run</code> creates and starts one, <code>exec</code> runs another command in it, <code>ps</code> lists them and <code>rm</code> deletes them.</p>
+    </li>
+  </ol>
+
+  <h2>The picture</h2>
+  <figure class="diagram">
+    <svg viewBox="0 0 640 250" role="img" aria-labelledby="dg-title dg-desc" width="640" height="250">
+      <title id="dg-title">Containers share one kernel; virtual machines and emulators each run their own</title>
+      <desc id="dg-desc">Three stacks drawn side by side. Containers: several applications, each with its own files, all on one shared kernel on the hardware. Virtual machine: applications on a guest kernel, on a hypervisor, on the hardware. Emulator: applications on a guest kernel, on an emulator program, on the host's kernel, on the hardware.</desc>
+      <g class="dg-text" text-anchor="middle" font-size="13">
+        <text x="105" y="20" font-weight="700">Containers</text>
+        <rect class="dg-box" x="10" y="30" width="60" height="36" rx="4"/><text x="40" y="52">App A</text>
+        <rect class="dg-box" x="75" y="30" width="60" height="36" rx="4"/><text x="105" y="52">App B</text>
+        <rect class="dg-box" x="140" y="30" width="60" height="36" rx="4"/><text x="170" y="52">App C</text>
+        <rect class="dg-box" x="10" y="70" width="190" height="34" rx="4"/><text x="105" y="92">own files and libraries</text>
+        <rect class="dg-kernel" x="10" y="108" width="190" height="40" rx="4"/><text x="105" y="133" class="dg-ktext">ONE shared kernel</text>
+        <rect class="dg-box" x="10" y="152" width="190" height="34" rx="4"/><text x="105" y="174">hardware</text>
+
+        <text x="325" y="20" font-weight="700">Virtual machine</text>
+        <rect class="dg-box" x="230" y="30" width="190" height="36" rx="4"/><text x="325" y="52">App</text>
+        <rect class="dg-kernel" x="230" y="70" width="190" height="34" rx="4"/><text x="325" y="92" class="dg-ktext">guest kernel</text>
+        <rect class="dg-box" x="230" y="108" width="190" height="40" rx="4"/><text x="325" y="133">hypervisor</text>
+        <rect class="dg-box" x="230" y="152" width="190" height="34" rx="4"/><text x="325" y="174">hardware</text>
+
+        <text x="540" y="20" font-weight="700">Emulator (Lab 7)</text>
+        <rect class="dg-box" x="445" y="30" width="190" height="30" rx="4"/><text x="540" y="50">App</text>
+        <rect class="dg-kernel" x="445" y="63" width="190" height="30" rx="4"/><text x="540" y="83" class="dg-ktext">guest kernel</text>
+        <rect class="dg-box" x="445" y="96" width="190" height="30" rx="4"/><text x="540" y="116">emulator program (QEMU)</text>
+        <rect class="dg-kernel" x="445" y="129" width="190" height="30" rx="4"/><text x="540" y="149" class="dg-ktext">host kernel</text>
+        <rect class="dg-box" x="445" y="162" width="190" height="24" rx="4"/><text x="540" y="179">hardware</text>
+      </g>
+      <text x="320" y="225" text-anchor="middle" font-size="12" class="dg-text">Blue boxes are kernels. Containers use one; a virtual machine adds its own guest kernel; an emulator stack has a guest kernel on top of the host's.</text>
+    </svg>
+    <figcaption>In plain words: containers (left) are programs with their own files running on the one kernel the computer already has. A virtual machine (middle) boots a whole second kernel on top of a hypervisor. An emulator (right, Lab 7) is a program that pretends to be hardware, so a different kernel can run on top of it. On Windows and macOS, Docker Desktop uses a small virtual machine (middle) to supply the Linux kernel that the containers (left) share.</figcaption>
+  </figure>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Run <code>docker run --rm --label oslab=true alpine:3.22 cat /etc/os-release</code>, then the same with <code>debian:13-slim</code>. Which one file tells you the distribution? Which command from step 4 could <em>not</em> tell them apart?</li>
+    <li>Run <code>docker run --rm --label oslab=true alpine:3.22 sh -c 'nproc; head -n 2 /proc/meminfo'</code>. These numbers describe the machine the container sees. On Windows and macOS compare them to your real computer. What do you notice? (Docker Desktop's virtual machine may have fewer processors and less memory than your computer.)</li>
+    <li>Run <code>docker images</code>. Which images are smallest and which are largest? Keep the answer in mind for Lab 1.</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="0"></div>
+
+  <h2>Clean up</h2>
+  <p>Every container in this lab was removed by <code>--rm</code> or <code>docker rm -f</code>. Check that none are left (the list should be empty):</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-lines="1"><code>docker ps -a --filter label=oslab=true</code></pre>
+  <p>The images you downloaded can stay: the next labs reuse them. To remove the <code>hello-world</code> image: <code>docker rmi hello-world</code>. The <a href="index.html#cleanup-everything">overview page</a> has a command that removes everything from this whole guide.</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>“Cannot connect to the Docker daemon” / “error during connect”:</b> the engine is not running. Start Docker Desktop and wait until it says it is running, or on Linux run <code>sudo systemctl start docker</code>.</li>
+    <li><b>“permission denied … /var/run/docker.sock” (Linux):</b> your user is not allowed to use Docker. Either put <code>sudo</code> in front of each command or add yourself to the <code>docker</code> group (see Docker's Linux post-install steps), then log out and back in.</li>
+    <li><b>“docker: command not found” or “is not recognized”:</b> close and reopen your terminal after installing, so it sees the new command.</li>
+    <li><b>Downloads fail or hang:</b> check your internet connection; on a work or school network a proxy may be needed. See the <a href="troubleshooting.html">troubleshooting page</a>.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>A container is a set of user-space files run on a <b>shared kernel</b>. It is not a separate operating system.</li>
+    <li>Different distributions (Debian, Ubuntu, Alpine, Fedora) report the same kernel because they all use the machine's one kernel.</li>
+    <li>On Windows and macOS, Docker Desktop hides a small Linux virtual machine whose kernel every Linux container shares.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>

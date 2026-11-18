@@ -12,7 +12,16 @@
     return a;
   }
 
+  /** A question with no choices (short answer): think first, then reveal the model answer. */
+  function renderShort(q, idx, onAnswer) {
+    const stemId = window.OSUI.nextId("q");
+    const explain = h("div", { class: "explain", hidden: true, role: "status" }, h("strong", { text: "Answer: " }), h("span", { text: q.explain }));
+    const reveal = h("button", { type: "button", class: "btn secondary reveal", text: "Show answer", onclick: () => { explain.hidden = false; reveal.hidden = true; if (onAnswer) onAnswer(); } });
+    return h("div", { class: "q short" }, h("p", { class: "stem", id: stemId, text: `${idx + 1}. ${q.q}` }), h("p", { class: "small", text: "Short answer: write your own, then compare." }), reveal, explain);
+  }
+
   function renderQuestion(q, idx, opts, onAnswer) {
+    if (!q.choices) return renderShort(q, idx, onAnswer);
     let order = q.choices.map((_, i) => i);
     if (opts.shuffleChoices !== false) order = shuffled(order); // shuffled by default so the answer position can't be guessed
     const stemId = window.OSUI.nextId("q");
@@ -57,14 +66,27 @@
     container.replaceChildren();
     let right = 0, done = 0;
     const score = h("p", { class: "score", "aria-live": "polite" });
-    const update = () => { score.textContent = done ? `Score: ${right} / ${done} answered (${questions.length} questions)` : `${questions.length} questions`; };
-    update();
+    let update = () => {};
     container.append(score);
-    questions.forEach((q, i) => container.append(renderQuestion(q, i, opts, (ok, revealed) => { done++; if (ok) right++; update(); if (!revealed && window.OSProgress) window.OSProgress.answer(q.mod, q.q, ok); })));
+    const graded = questions.filter((q) => q.choices).length;
+    update = () => { score.textContent = done ? `Score: ${right} / ${done} answered (${graded === questions.length ? questions.length + " questions" : graded + " multiple-choice questions"})` : `${questions.length} questions`; };
+    update();
+    questions.forEach((q, i) => container.append(renderQuestion(q, i, opts, (ok, revealed) => {
+      if (!q.choices) return;   // short answers are not scored
+      done++; if (ok) right++; update();
+      if (!revealed && opts.record !== false && window.OSProgress) window.OSProgress.answer(q.mod, q.q, ok);
+    })));
     if (!questions.length) container.append(h("p", { text: "No questions match this filter." }));
   }
 
   window.OSQuiz = { render, shuffled };
+
+  // Hands-on labs: <div data-handson-quiz="2"> shows that lab's knowledge checks. They are not recorded in the progress record, which tracks the modules.
+  document.querySelectorAll("[data-handson-quiz]").forEach((el) => {
+    const n = +el.dataset.handsonQuiz;
+    el.classList.add("quiz");
+    render(el, (window.OSData.handsonChecks || []).filter((q) => q.lab === n), { record: false });
+  });
 
   document.querySelectorAll("[data-quiz]").forEach((el) => {
     const n = +el.dataset.quiz;

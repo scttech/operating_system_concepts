@@ -6,7 +6,7 @@
   const { h } = OSUI;
   const root = document.body.dataset.root || "";
   const EXT = { py: "python", c: "c", h: "c", sh: "bash", bash: "bash" };
-  const LABEL = { python: "Python", c: "C", bash: "Shell" };
+  const LABEL = { python: "Python", c: "C", bash: "Shell", docker: "Dockerfile", powershell: "PowerShell" };
 
   function languageOf(el) {
     if (el.dataset.lang) return el.dataset.lang;

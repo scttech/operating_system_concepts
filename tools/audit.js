@@ -33,7 +33,7 @@ function listPages() {
   const only = flag("pages");
   if (only) return only.split(",");
   const out = fs.readdirSync(ROOT).filter((f) => f.endsWith(".html"));
-  for (const dir of ["pages", "modules", "labs"]) {
+  for (const dir of ["pages", "modules", "labs", "handson"]) {
     const d = path.join(ROOT, dir);
     if (fs.existsSync(d)) out.push(...fs.readdirSync(d).filter((f) => f.endsWith(".html")).sort().map((f) => `${dir}/${f}`));
   }

@@ -45,6 +45,7 @@
     (d.glossary || []).forEach((g) => add("Glossary", g.term, g.cat, `pages/glossary.html#${slug(g.term)}`, g.def));
     (d.faq || []).forEach((f) => add("FAQ", f.q, f.group, "pages/faq.html", stripTags(f.a)));
     (d.labs || []).forEach((l) => add("Lab", `Lab ${l.n}: ${l.title}`, "Lab overview", `labs/${l.slug}.html`, `${l.summary} ${l.platform || ""}`));
+    (d.handson || []).forEach((l) => add("Lab", `Hands-on Lab ${l.n}: ${l.title}`, "Hands-on with Docker (optional)", `handson/${l.slug}.html`, `${l.summary} Docker containers`));
     (d.osList || []).forEach((o) => add("Operating system", o.name, o.group, `modules/18-os-landscape.html#compare=${o.id}`,
       [o.tagline, o.category, o.maker, o.uses, o.kernel, o.scheduling, o.memory, o.files, o.security, o.strengths, o.tradeoffs, o.fact].filter(Boolean).join(" ")));
     (d.paths || []).forEach((p) => add("Study path", p.title, "Study paths", `pages/paths.html#${p.id}`, [p.who, p.goal, ...p.steps.map((s) => `${s.label} ${s.note}`)].join(" ")));

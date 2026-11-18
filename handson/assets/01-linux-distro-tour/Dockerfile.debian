@@ -1,0 +1,6 @@
+# Build and run hello.c on Debian, which uses the glibc C library.
+FROM debian:13-slim
+RUN apt-get update -qq && apt-get install -y -qq gcc libc6-dev > /dev/null
+COPY hello.c .
+RUN gcc -o hello hello.c
+CMD ["./hello"]

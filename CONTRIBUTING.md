@@ -68,6 +68,11 @@ a practice problem, a lab, a glossary term, an FAQ entry, a study aid. In short:
 * A **module** must be added to exactly one part in `OSData.parts`, have `js/data/study.js` entries, quiz questions (six or more), and a
   *Going deeper* block. The tests check each of these.
 * **Quiz questions** have four choices, one answer, and an explanation that teaches rather than just confirms.
+* A **hands-on (Docker) lab** is a page in `handson/` plus an entry in `js/data/handson.js` and four to six knowledge checks there. Follow the template of the
+  existing labs, give every container the `oslab-<lab number>-…` name and the `oslab=true` label, pin image tags, use no double quotes in commands (older Windows PowerShell
+  strips them), and put downloadable files in `handson/assets/<lab>/` (shown on the page by `npm run build:labs`). Mark each command block with `data-expect` (a pattern the output
+  must match) so it can be tested. The checks of the rules run in `npm test`; to also **run every command** against Docker, use `HANDSON_DOCKER=1 npm test` (needs Docker and bash;
+  set `HANDSON_BASH` to choose the bash). The attributes are listed at the top of `tests/handson.test.js`. Never present a command or example output you have not run.
 
 ## Pull requests
 

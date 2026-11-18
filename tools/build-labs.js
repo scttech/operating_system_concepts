@@ -11,16 +11,16 @@
 const fs = require("node:fs"), path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
-const DIRS = ["labs", "modules"].map((d) => path.join(ROOT, d));   // lab pages and lesson pages may both contain listings
+const DIRS = ["labs", "modules", "handson"].map((d) => path.join(ROOT, d));   // lab, lesson and hands-on pages may all contain listings
 const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const BLOCK = /<pre class="code" data-src="([^"]+)">[\s\S]*?<\/pre>/g;
+const BLOCK = /<pre class="code" data-src="([^"]+)"([^>]*)>[\s\S]*?<\/pre>/g;   // more attributes may follow data-src, such as data-lang="docker"
 
 function render(html) {
-  return html.replace(BLOCK, (m, src) => {
+  return html.replace(BLOCK, (m, src, attrs) => {
     const file = path.join(ROOT, src);
     if (!file.startsWith(ROOT) || !fs.existsSync(file)) throw new Error(`labs: ${src} does not exist`);
     const code = fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n").replace(/\n$/, "");
-    return `<pre class="code" data-src="${src}"><code>${escapeHtml(code)}</code></pre>`;
+    return `<pre class="code" data-src="${src}"${attrs}><code>${escapeHtml(code)}</code></pre>`;
   });
 }
 

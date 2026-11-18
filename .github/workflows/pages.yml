@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir _site
           cp index.html 404.html LICENSE.txt _site/
-          cp -r css js pages modules labs examples images _site/
+          cp -r css js pages modules labs handson examples images _site/
           node tools/build-redirects.js _site
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

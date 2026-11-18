@@ -5,7 +5,7 @@
   if (typeof require !== "undefined") {
     globalThis.window = globalThis;
     delete globalThis.OSData;
-    ["modules", "glossary", "faq", "labs", "oslist", "search-index", "paths", "prompts", "teaching"].forEach((f) => { delete require.cache[require.resolve(`../js/data/${f}.js`)]; require(`../js/data/${f}.js`); });
+    ["modules", "glossary", "faq", "labs", "oslist", "search-index", "paths", "prompts", "teaching", "handson"].forEach((f) => { delete require.cache[require.resolve(`../js/data/${f}.js`)]; require(`../js/data/${f}.js`); });
     L = require("../js/lib/search.js");
   } else L = window.OSLib;
   D = window.OSData;
@@ -21,7 +21,7 @@
     assert.equal(docs.filter((d) => d.kind === "Glossary").length, D.glossary.length);
     assert.equal(docs.filter((d) => d.kind === "FAQ").length, D.faq.length);
     assert.ok(docs.filter((d) => d.kind === "Lesson").length >= 100, "lesson sections are indexed");
-    docs.forEach((d) => { if (!/^(modules|labs)\/[\w.-]+\.html(#[\w=,.-]+)?$|^pages\/[a-z]+\.html(#[\w=,.-]+)?$/.test(d.url)) assert.ok(false, `odd url: ${d.url}`); });
+    docs.forEach((d) => { if (!/^(modules|labs|handson)\/[\w.-]+\.html(#[\w=,.-]+)?$|^pages\/[a-z]+\.html(#[\w=,.-]+)?$/.test(d.url)) assert.ok(false, `odd url: ${d.url}`); });
     assert.ok(L.buildDocs({}).every((d) => d.kind === "Study tool"), "missing sources are fine: only the built-in study tool pages remain");
     assert.ok(L.buildDocs().every((d) => d.kind === "Study tool"));
   });

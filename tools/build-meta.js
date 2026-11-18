@@ -29,7 +29,7 @@ function siteUrl() {
 
 function pages() {
   const out = fs.readdirSync(ROOT).filter((f) => f.endsWith(".html"));
-  for (const dir of ["pages", "modules", "labs"]) out.push(...fs.readdirSync(path.join(ROOT, dir)).filter((f) => f.endsWith(".html")).sort().map((f) => `${dir}/${f}`));
+  for (const dir of ["pages", "modules", "labs", "handson"]) out.push(...fs.readdirSync(path.join(ROOT, dir)).filter((f) => f.endsWith(".html")).sort().map((f) => `${dir}/${f}`));
   return out;
 }
 

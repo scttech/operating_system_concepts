@@ -21,6 +21,7 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ### Added
 - **Shareable simulation setups**: a "Copy link to this setup" button on 22 simulations (schedulers, page replacement, disk, Banker's, paging, memory allocation, Amdahl's law, RAID, SSD wear, journaling, the stack-overflow demo and more). Opening the link restores the setup; invalid or oversized links are ignored.
+- **Hands-on with Docker** (optional, in progress): `handson/` with an overview, a troubleshooting page, a short appendix on Windows containers and Labs 0 to 3 (the big idea: containers share a kernel; a tour of Linux distributions; processes and namespaces; resource limits with cgroups), each with real example output and knowledge checks. More labs are planned.
 - **Search** now also finds study paths, discussion prompts, teaching notes and the study tools and handouts pages.
 - **Study paths** (`paths.html`): seven ordered routes through lessons, simulations, labs and practice.
 - **Discussion and journal prompts** on every module page ("Think, discuss, write"), also printable with writing space.
