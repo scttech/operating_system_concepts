@@ -180,7 +180,7 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 Goal: let learners *observe* operating-system ideas on a real kernel, with Docker, in small self-guided labs. Everything is optional and separate from the lessons. Built in phases; every command is run by an opt-in test, and example output comes from real runs.
 
 - [x] **HD-1 Overview, troubleshooting, appendix and Labs 0 to 3** (L). **Done:** `handson/`: the big idea (containers share a kernel), a tour of five Linux distributions (user space, package managers, glibc against musl), processes and namespaces (PID 1, `unshare`, `NSpid`), and cgroup limits (OOM killer, CPU quota). Tested on Docker Desktop with WSL2, x86-64, cgroup v1; not tested on cgroup v2, macOS or ARM64 (the pages say so).
-- [ ] **HD-2 Labs 4 to 6** (L). Filesystems (layers, copy-on-write, volumes, `/proc`), system calls (`strace`), init, signals and zombies.
+- [x] **HD-2 Labs 4 to 6** (L). **Done:** filesystems (layers, copy-on-write, volumes, tmpfs, `/proc`, inodes and links), system calls (`strace`), init, signals and zombies (`--init`). Found while verifying: `strace` needed no `SYS_PTRACE` on the tested setup, and the default `docker stop` timeout there was 1 second, so the labs say so and pass `-t` explicitly.
 - [ ] **HD-3 Lab 7** (L). Boot a different kernel: xv6 (RISC-V) under QEMU, headless, no KVM. The riskiest lab; needs verifying on its own.
 - [ ] **HD-4 Lab 8** (M). Exploring other operating systems (optional capstone); only recipes that boot reliably headless are written as working.
 - [ ] Possible later: run the Docker test in CI (it would also exercise cgroup v2), and link the labs from more lessons and the study paths.

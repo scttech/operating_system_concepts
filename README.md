@@ -20,8 +20,8 @@ what you should be able to do, its key takeaways, and free further reading. Resu
 schedulers or two page-replacement policies can be compared side by side on the same workload.
 
 **Hands-on with Docker (optional, in progress):** `handson/` is a separate set of small labs that use Docker to explore operating-system ideas on a real
-kernel: containers share the host's kernel, processes and namespaces, and memory and CPU limits. Labs 0 to 3 are written; filesystems, system calls, init and
-zombies, booting another kernel under QEMU, and other operating systems are planned. Every command on those pages is run by an opt-in test
+kernel: containers share the host's kernel, processes and namespaces, memory and CPU limits, filesystems, system calls, and init, signals and zombies. Labs 0 to 6
+are written; booting another kernel under QEMU and other operating systems are planned. Every command on those pages is run by an opt-in test
 (`HANDSON_DOCKER=1 npm test`), so the example output is from real runs.
 
 **Shareable setups:** 22 simulations (both scheduler and page-replacement comparisons, Banker's, paging, memory allocation, disk, Amdahl's law, RAID, SSD wear, journaling, the stack-overflow demo and more) have a "Copy link to this setup" button.

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 6: Init, signals and zombies — OS Concepts</title>
+<meta name="description" content="Send signals to a container's first process, see why a polite stop request can be ignored, make a zombie process on purpose, and fix both problems with an init process.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/06-init-signals-zombies.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 6: Init, signals and zombies — OS Concepts">
+<meta property="og:description" content="Send signals to a container's first process, see why a polite stop request can be ignored, make a zombie process on purpose, and fix both problems with an init process.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/06-init-signals-zombies.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="6">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 6</p>
+  <h1>Init, signals and zombies</h1>
+  <p class="lead">The first process in a container has a job most programs never expect: it must handle signals the way init does, and it must collect the exit status of orphaned processes. Break both rules on purpose, then fix them.</p>
+  <div class="lab-meta"><span>About 40 minutes</span><span>Intermediate</span><span>Related: <a href="../modules/05-processes.html">Module 5 Processes</a>, <a href="../modules/04-boot.html">Module 4 Boot Process</a>, <a href="../modules/12-ipc.html">Module 12 Inter-Process Communication</a></span></div>
+  <p><b>Concept link:</b> <a href="../modules/05-processes.html">Module 5</a> covers process creation, termination and zombies, and <a href="../modules/04-boot.html">Module 4</a> shows where init comes from at boot. <a href="02-processes-and-namespaces.html">Lab 2</a> explained why PID 1 is special.</p>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Send <b>signals</b> (<code>SIGTERM</code>, <code>SIGINT</code>, <code>SIGKILL</code>) to a container with <code>docker kill</code> and <code>docker stop</code>.</li>
+    <li>See why a program running as PID 1 can ignore <code>SIGTERM</code>, and what <code>docker stop</code> does about it (exit code 137).</li>
+    <li>Make a <b>zombie</b> process on purpose and find it in <code>/proc</code>.</li>
+    <li>Fix both problems with <code>docker run --init</code>, and explain what an <b>init process</b> does.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Prerequisites:</b> <a href="00-setup-and-big-idea.html">Lab 0</a>, and <a href="02-processes-and-namespaces.html">Lab 2</a> is strongly recommended (PID 1 and namespaces).</li>
+    <li>Make an empty folder for this lab (for example <code>oslab-06</code>) and open your terminal in it. You will download three small files into it.</li>
+    <li>A zombie process uses almost nothing: only an entry in the process table. This lab is safe, and every container is removed at the end.</li>
+  </ul>
+  <div class="callout">
+    <p><b>Platform notes.</b> <b>The stop timeout.</b> <code>docker stop</code> sends <code>SIGTERM</code>, waits, and then sends <code>SIGKILL</code>. Docker documents the wait as 10 seconds. On the Docker used to write this guide (Docker 29 in Docker Desktop) the default turned out to be shorter, so every <code>docker stop</code> below says <code>-t 3</code> (three seconds) explicitly and the result does not depend on your version. <b>Times and numbers</b> in the example output will differ. <i>Not tested on macOS or ARM64.</i></p>
+  </div>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>Build the lab image</h3>
+      <p>Download these three files into your lab folder. <code>sleeper.py</code> does nothing and installs no signal handlers, like most simple programs. <code>zombie.py</code> creates a zombie. The Dockerfile packages both.</p>
+      <pre class="code" data-src="handson/assets/06-init-signals-zombies/Dockerfile" data-lang="docker"><code># A small Python image holding the two lab programs.
+FROM python:3.12-slim
+WORKDIR /lab
+COPY sleeper.py zombie.py ./
+# -u: do not buffer output, so you see each line as it is printed
+ENTRYPOINT ["python", "-u"]</code></pre>
+      <pre class="code" data-src="handson/assets/06-init-signals-zombies/sleeper.py"><code>"""Do nothing, politely, and never install a signal handler: what most programs do."""
+import time
+
+print("sleeping; I installed no signal handlers", flush=True)
+while True:
+    time.sleep(1)</code></pre>
+      <pre class="code" data-src="handson/assets/06-init-signals-zombies/zombie.py"><code>"""Make a zombie. A grandchild is orphaned, so the kernel hands it to PID 1. When it exits, it stays a zombie unless PID 1 collects it."""
+import os
+import time
+
+middle = os.fork()
+if middle == 0:
+    if os.fork() == 0:          # the grandchild: lives two seconds, then exits
+        time.sleep(2)
+        os._exit(0)
+    os._exit(0)                 # the middle process exits at once, so the grandchild is orphaned
+os.waitpid(middle, 0)           # we collect only our own child, as most programs do
+print("started; I never wait for anything else", flush=True)
+time.sleep(60)</code></pre>
+      <pre data-lang="bash" class="cmd" data-id="06-build" data-expect="sha256:" data-assets="06-init-signals-zombies"><code>docker build -q --label oslab=true -t oslab-06-lab .</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>sha256:29cc6efc1ea8bc9e415c0ca26c26e82d685f1a5bd9eac6df69e6711f1c5c36b2</code></pre>
+    </li>
+    <li>
+      <h3>Send signals: one is ignored, one works</h3>
+      <p>A <b>signal</b> is a short message the kernel delivers to a process. <code>SIGTERM</code> means “please finish and exit”. <code>SIGINT</code> is what <kbd>Ctrl</kbd>+<kbd>C</kbd> sends. Start <code>sleeper.py</code> in the background, then send it <code>SIGTERM</code> and ask whether it is still running:</p>
+      <pre data-lang="bash" class="cmd" data-id="06-term" data-expect="running=true"><code>docker run -d --name oslab-06-sleeper --label oslab=true oslab-06-lab sleeper.py
+docker kill --signal=SIGTERM oslab-06-sleeper
+docker inspect oslab-06-sleeper --format 'running={{.State.Running}}'</code></pre>
+      <p class="small"><b>Example output</b> (the first line is the container's ID, which <code>docker run -d</code> prints, and the signal's target, which <code>docker kill</code> prints back):</p>
+      <pre class="output"><code>3f1c0f2a59b8c3a1d3e6f6f2b3b0a8f7a3d5c0e9b1f4c7d2a6e8b9c0d1e2f3a4
+oslab-06-sleeper
+running=true</code></pre>
+      <p>It ignored the polite request. Now send <code>SIGINT</code>, wait for the container to finish (<code>docker wait</code> prints its exit code) and read its log:</p>
+      <pre data-lang="bash" class="cmd" data-id="06-int" data-expect="130[\s\S]*KeyboardInterrupt"><code>docker kill --signal=SIGINT oslab-06-sleeper
+docker wait oslab-06-sleeper
+docker logs oslab-06-sleeper
+docker rm oslab-06-sleeper</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>oslab-06-sleeper
+130
+sleeping; I installed no signal handlers
+Traceback (most recent call last):
+  File "/lab/sleeper.py", line 6, in &lt;module&gt;
+    time.sleep(1)
+KeyboardInterrupt
+oslab-06-sleeper</code></pre>
+      <p class="why"><b>Why this matters:</b> the same program, the same process, two signals, two results. The cause is the rule you met in Lab 2: <b>PID 1 is protected by the kernel</b>. For any other process, <code>SIGTERM</code> kills it unless it has installed a handler. For PID 1, the kernel <em>ignores</em> a signal unless the program has installed a handler for it. Our script installed none for <code>SIGTERM</code>, so it was ignored. Python itself does install a handler for <code>SIGINT</code> (it turns it into a <code>KeyboardInterrupt</code> error), so that one worked, and the exit code <b>130</b> is 128 + 2, the number of <code>SIGINT</code>. This is why <kbd>Ctrl</kbd>+<kbd>C</kbd> sometimes does nothing in a container: a program that installs no handler, such as <code>sleep</code> or many small tools, is PID 1 and ignores it.</p>
+    </li>
+    <li>
+      <h3>Watch <code>docker stop</code> give up waiting</h3>
+      <p><code>docker stop</code> sends <code>SIGTERM</code>, waits for the number of seconds after <code>-t</code>, and if the process is still there sends <code>SIGKILL</code>. <code>SIGKILL</code> can never be caught or ignored, not even by PID 1. This command pauses for about three seconds, which is the waiting:</p>
+      <pre data-lang="bash" class="cmd" data-id="06-stop" data-expect="exit=137"><code>docker run -d --name oslab-06-stop --label oslab=true oslab-06-lab sleeper.py
+docker stop -t 3 oslab-06-stop
+docker inspect oslab-06-stop --format 'exit={{.State.ExitCode}}'
+docker rm oslab-06-stop</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>3f1c0f2a59b8c3a1d3e6f6f2b3b0a8f7a3d5c0e9b1f4c7d2a6e8b9c0d1e2f3a4
+oslab-06-stop
+exit=137
+oslab-06-stop</code></pre>
+      <p class="why"><b>Why this matters:</b> exit code <b>137</b> is 128 + 9: the container was ended by <code>SIGKILL</code>, the same code you saw from the out-of-memory killer in Lab 3. The program never got a chance to save its work, close connections or delete temporary files. Real services (databases, web servers) can lose data this way. The fix is not to wait longer, it is to make sure <code>SIGTERM</code> reaches code that handles it.</p>
+    </li>
+    <li>
+      <h3>Add an init process with <code>--init</code></h3>
+      <p><code>--init</code> puts a tiny program (Docker's copy of <b>tini</b>) in front of yours. It becomes PID 1; your program becomes an ordinary child. Run the same test:</p>
+      <pre data-lang="bash" class="cmd" data-id="06-init" data-expect="exit=143"><code>docker run -d --init --name oslab-06-init --label oslab=true oslab-06-lab sleeper.py
+docker stop -t 3 oslab-06-init
+docker inspect oslab-06-init --format 'exit={{.State.ExitCode}}'
+docker rm oslab-06-init</code></pre>
+      <p class="small"><b>Example output</b> (and this time there is no three-second wait):</p>
+      <pre class="output"><code>3f1c0f2a59b8c3a1d3e6f6f2b3b0a8f7a3d5c0e9b1f4c7d2a6e8b9c0d1e2f3a4
+oslab-06-init
+exit=143
+oslab-06-init</code></pre>
+      <p class="why"><b>Why this matters:</b> the same program stopped at once, with exit code <b>143</b>, which is 128 + 15 (<code>SIGTERM</code>). The init program <em>forwards</em> the signal to its child. The child is no longer PID 1, so the kernel treats <code>SIGTERM</code> normally and its default action, ending the process, applies. Nothing in the program changed; only its place in the process tree did.</p>
+    </li>
+    <li>
+      <h3>Make a zombie</h3>
+      <p>When a process ends, the kernel keeps a small record of it, its exit status, until its parent collects it with <code>wait</code>. A process in that state is a <b>zombie</b>: dead, but still listed. <code>zombie.py</code> starts a process that starts another and exits at once. That leaves the youngest process an <b>orphan</b>, and the kernel gives orphans to PID 1. Here PID 1 is our script, which never waits for it. Wait four seconds for the orphan to finish, then list every process's name, state and parent in <code>/proc</code>:</p>
+      <pre data-lang="bash" class="cmd" data-id="06-zombie" data-expect="State:\s+Z \(zombie\)"><code>docker run -d --name oslab-06-zombie --label oslab=true oslab-06-lab zombie.py
+docker exec oslab-06-zombie sleep 4
+docker exec oslab-06-zombie sh -c 'grep -H -e Name -e State -e PPid /proc/[0-9]*/status'</code></pre>
+      <p class="small"><b>Example output</b> (process numbers vary; look for the line with <code>Z (zombie)</code>):</p>
+      <pre class="output"><code>3f1c0f2a59b8c3a1d3e6f6f2b3b0a8f7a3d5c0e9b1f4c7d2a6e8b9c0d1e2f3a4
+/proc/1/status:Name:	python
+/proc/1/status:State:	S (sleeping)
+/proc/1/status:PPid:	0
+/proc/8/status:Name:	python
+/proc/8/status:State:	Z (zombie)
+/proc/8/status:PPid:	1
+/proc/…/status:Name:	sh
+…</code></pre>
+      <p class="why"><b>Why this matters:</b> process 8 has finished, yet it is still in the table: <code>State: Z (zombie)</code>, with parent 1. Its parent, our script, will never ask for its exit status, so it stays until the container ends. One zombie is harmless, but each one occupies a process-table slot, and a long-running service that keeps creating them can eventually fill the table and be unable to start anything new. (<code>ps</code> shows these as <code>Z</code> or <code>&lt;defunct&gt;</code>.) You cannot kill a zombie, because it is already dead. Only its parent collecting it, or the parent's own end, removes it.</p>
+    </li>
+    <li>
+      <h3>Fix it: an init that collects orphans</h3>
+      <p>Remove that container, and run exactly the same thing with <code>--init</code>. <code>-e</code>, <code>-H</code> and the other letters are the same as before; <code>--init</code> is the only difference.</p>
+      <pre data-lang="bash" class="cmd" data-id="06-reap" data-expect="docker-init" data-absent="Z \(zombie\)"><code>docker rm -f oslab-06-zombie
+docker run -d --init --name oslab-06-reaped --label oslab=true oslab-06-lab zombie.py
+docker exec oslab-06-reaped sleep 4
+docker exec oslab-06-reaped sh -c 'grep -H -e Name -e State /proc/[0-9]*/status'</code></pre>
+      <p class="small"><b>Example output</b> (no <code>Z</code> anywhere):</p>
+      <pre class="output"><code>oslab-06-zombie
+3f1c0f2a59b8c3a1d3e6f6f2b3b0a8f7a3d5c0e9b1f4c7d2a6e8b9c0d1e2f3a4
+/proc/1/status:Name:	docker-init
+/proc/1/status:State:	S (sleeping)
+/proc/7/status:Name:	python
+/proc/7/status:State:	S (sleeping)
+/proc/…/status:Name:	sh
+…</code></pre>
+      <p class="why"><b>Why this matters:</b> now PID 1 is <code>docker-init</code> and our script is process 7. When the orphan was left behind, the kernel gave it to PID 1, and <code>docker-init</code> did what every init program does: it called <code>wait</code> and collected the exit status, so the zombie vanished at once. Reaping orphans is PID 1's second job, and most application programs do not know they have it. This is also why <code>--init</code> is a common recommendation for containers that start helper processes, such as shell scripts that launch other programs.</p>
+    </li>
+    <li>
+      <h3>What init systems do, and how they differ</h3>
+      <p>On a full computer, PID 1 is a full <b>init system</b> (<a href="../modules/04-boot.html">Module 4</a>). Check what PID 1 is in a plain container and with <code>--init</code>. <code>/proc/1/comm</code> holds the name of PID 1's program:</p>
+      <pre data-lang="bash" class="cmd" data-id="06-pid1" data-expect="cat[\s\S]*docker-init"><code>docker run --rm --label oslab=true alpine:3.22 cat /proc/1/comm
+docker run --rm --init --label oslab=true alpine:3.22 cat /proc/1/comm</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>cat
+docker-init</code></pre>
+      <p>Four ways to be PID 1, from the largest to the smallest. This table is for reading; nothing here is run.</p>
+      <table>
+        <thead><tr><th>Approach</th><th>What it does</th><th>Where you see it</th></tr></thead>
+        <tbody>
+          <tr><td><b>systemd</b></td><td>Starts and supervises many services in dependency order, handles logging, mounts, timers and more, reaps orphans.</td><td>Most mainstream desktop and server Linux (Debian, Ubuntu, Fedora, Arch).</td></tr>
+          <tr><td><b>OpenRC, runit</b></td><td>Smaller init systems: start and supervise services, reap orphans, with far fewer features.</td><td>Alpine Linux (OpenRC), some minimal systems (runit).</td></tr>
+          <tr><td><b>tini / <code>--init</code></b></td><td>Does only two jobs: forwards signals to one child and reaps orphans.</td><td>Containers.</td></tr>
+          <tr><td><b>Nothing</b></td><td>Your program is PID 1 and must do both jobs itself.</td><td>The default in Docker, as you saw.</td></tr>
+        </tbody>
+      </table>
+      <p class="small"><b>Not run here:</b> a container can run systemd, but it needs extra privileges and settings that differ by platform, so this guide only describes it.</p>
+      <p class="why"><b>Why this matters:</b> “init” is a <em>role</em>, not one program. The kernel starts exactly one program as PID 1 and gives it extra duties: adopt orphans, and decide what to do with signals. A big init system adds service management; <code>tini</code> adds nothing else; with no init, your application is that role, whether it knows it or not.</p>
+    </li>
+  </ol>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Run <code>docker run --rm --label oslab=true alpine:3.22 sleep 300</code> in one terminal and try <kbd>Ctrl</kbd>+<kbd>C</kbd>. (From a second terminal, <code>docker rm -f</code> the container if it will not stop; find its name with <code>docker ps</code>.) Now add <code>--init</code> and try again.</li>
+    <li>Run <code>sleeper.py</code> and stop it with <code>docker stop -t 1</code> and with <code>docker stop -t 20</code>. Does the exit code change? Does the time?</li>
+    <li>Run <code>docker run --rm --label oslab=true alpine:3.22 sh -c 'sleep 30 &amp; sleep 30'</code> with <code>--init</code> and without, and compare how <code>docker stop</code> behaves (use <code>-d</code> and <code>--name oslab-06-try</code> for this, and remove the container afterwards).</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="6"></div>
+
+  <h2>Clean up</h2>
+  <p>Remove anything left running or stopped, then the image you built, and check nothing from this lab remains (the last command lists any <code>oslab</code> containers and should print only its header line):</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-expect="CONTAINER ID"><code>docker rm -f oslab-06-sleeper oslab-06-stop oslab-06-init oslab-06-zombie oslab-06-reaped oslab-06-try
+docker rmi oslab-06-lab
+docker ps -a --filter label=oslab=true</code></pre>
+  <p>(Names of containers that were already removed are listed without any effect. That is fine.)</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>The zombie does not appear:</b> run the <code>docker exec … sleep 4</code> line first and make sure at least two seconds have passed since the container started, because the orphan lives two seconds before it becomes a zombie. A zombie also disappears when the container's script ends after 60 seconds.</li>
+    <li><b><code>docker top</code> or <code>ps</code> do not list the zombie:</b> some versions of <code>ps</code> hide or label it differently. Reading <code>/proc/*/status</code>, as the steps do, always works.</li>
+    <li><b>“The container name … is already in use”:</b> remove the old one (<code>docker rm -f NAME</code>) and run the command again.</li>
+    <li><b><code>docker stop</code> returns at once even without <code>--init</code>:</b> a program that handles <code>SIGTERM</code> exits at once, and so does one that ends by itself. Use <code>sleeper.py</code> exactly as shown.</li>
+    <li>See the <a href="troubleshooting.html">troubleshooting page</a> for other problems.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>As PID 1, a program must install its own signal handlers or the kernel ignores the signals. That is why <code>docker stop</code> can time out and fall back to <code>SIGKILL</code> (exit code 137).</li>
+    <li>A zombie is a finished process whose parent has not collected its exit status. Orphans are handed to PID 1, which must collect them.</li>
+    <li>An init process (<code>docker run --init</code>) takes over both jobs: it forwards signals and reaps orphans, so ordinary programs can run safely as its children.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>

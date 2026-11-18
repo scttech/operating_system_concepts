@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 4: Filesystems — OS Concepts</title>
+<meta name="description" content="Explore layered images and copy-on-write, volumes against bind mounts and tmpfs, the special filesystems /proc, /sys and /dev, and inodes with hard and symbolic links.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/04-filesystems.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 4: Filesystems — OS Concepts">
+<meta property="og:description" content="Explore layered images and copy-on-write, volumes against bind mounts and tmpfs, the special filesystems /proc, /sys and /dev, and inodes with hard and symbolic links.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/04-filesystems.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="4">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 4</p>
+  <h1>Filesystems</h1>
+  <p class="lead">A container's files are not one disk. They are stacked read-only layers with a thin writable layer on top, plus mounts that bring in storage from elsewhere. Look at each, then look at the “files” that are not files at all.</p>
+  <div class="lab-meta"><span>About 40 minutes</span><span>Intermediate</span><span>Related: <a href="../modules/16-file-systems.html">Module 16 File Systems</a>, <a href="../modules/15-disk-io.html">Module 15 Disk I/O</a>, <a href="../modules/19-virtualization.html">Module 19 Virtualization &amp; Containers</a></span></div>
+  <p><b>Concept link:</b> <a href="../modules/16-file-systems.html">Module 16</a> explains inodes, links and mounting; here you will see all three in a running system.</p>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Read an image's <b>layers</b> with <code>docker history</code>, and see why deleting a file in a later layer does not make the image smaller.</li>
+    <li>Watch <b>copy-on-write</b> with <code>docker diff</code>, and see that changes to a container's own layer disappear with the container.</li>
+    <li>Keep data with a <b>named volume</b>, and compare it with a <b>tmpfs</b> mount and a <b>bind mount</b>.</li>
+    <li>Explore <code>/proc</code>, <code>/sys</code> and <code>/dev</code>, which look like files but are windows into the kernel.</li>
+    <li>See an <b>inode</b>, and the difference between a <b>hard link</b> and a <b>symbolic link</b>.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Prerequisites:</b> <a href="00-setup-and-big-idea.html">Lab 0</a>.</li>
+    <li>Make an empty folder for this lab (for example <code>oslab-04</code>) and open your terminal in it. You will download one small file into it.</li>
+    <li>Everything here is throwaway. The one thing that outlives a container is the volume you create in step 3, and the clean-up removes it.</li>
+  </ul>
+  <div class="callout">
+    <p><b>Platform notes.</b> On Windows and macOS, Docker keeps its layers and volumes <em>inside the hidden Linux virtual machine</em>, so you will not find them in your own folders; paths such as <code>/var/lib/docker/…</code> belong to that machine. The bind-mount example in step 4 is the exception: it deliberately shares a folder from your computer, and its command differs between bash and PowerShell. The examples were captured on Docker Desktop with WSL2. <i>Not tested on macOS or ARM64.</i></p>
+  </div>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>Build an image with layers, and read its history</h3>
+      <p>Each instruction in a Dockerfile that changes files makes one <b>layer</b>. This one makes a small file, then a 5 MB file, then deletes the 5 MB file. Download it into your lab folder:</p>
+      <pre class="code" data-src="handson/assets/04-filesystems/Dockerfile" data-lang="docker"><code># Three layers on top of Alpine. The last one deletes the file the second one made.
+FROM alpine:3.22
+RUN echo one &gt; /one.txt
+RUN dd if=/dev/zero of=/big.bin bs=1M count=5
+RUN rm /big.bin</code></pre>
+      <pre data-lang="bash" class="cmd" data-id="04-build" data-expect="sha256:" data-assets="04-filesystems"><code>docker build -q --label oslab=true -t oslab-04-layers .</code></pre>
+      <p>Now list the layers. Each row is one instruction, newest first, with the size of the files it added:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-history" data-expect="rm /big.bin[\s\S]*dd if=/dev/zero"><code>docker history oslab-04-layers</code></pre>
+      <p class="small"><b>Example output</b> (IDs, ages and wording vary between Docker versions):</p>
+      <pre class="output"><code>IMAGE          CREATED                  CREATED BY                                      SIZE      COMMENT
+0b8034b5fdff   Less than a second ago   RUN /bin/sh -c rm /big.bin # buildkit           0B        buildkit.dockerfile.v0
+&lt;missing&gt;      1 second ago             RUN /bin/sh -c dd if=/dev/zero of=/big.bin b…   5.24MB    buildkit.dockerfile.v0
+&lt;missing&gt;      1 second ago             RUN /bin/sh -c echo one &gt; /one.txt # buildkit   4B        buildkit.dockerfile.v0
+&lt;missing&gt;      13 days ago              CMD ["/bin/sh"]                                 0B        buildkit.dockerfile.v0
+&lt;missing&gt;      13 days ago              ADD alpine-minirootfs-3.22.8-x86_64.tar.gz /…   8.3MB     buildkit.dockerfile.v0</code></pre>
+      <p>The file really is gone from the finished image, yet the layer that made it is still there, still 5.24 MB. Check both facts:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-gone" data-fail data-expect="size=\d{8}[\s\S]*No such file"><code>docker image inspect oslab-04-layers --format 'size={{.Size}}'
+docker run --rm --label oslab=true oslab-04-layers ls /big.bin</code></pre>
+      <p class="small"><b>Example output</b> (the last line is an error; <code>ls</code> failing is the point):</p>
+      <pre class="output"><code>size=13548...
+ls: /big.bin: No such file or directory</code></pre>
+      <p class="why"><b>Why this matters:</b> an image is a stack of read-only layers, and each layer only <em>adds</em> to the stack. Deleting <code>/big.bin</code> in the third layer hides it with a marker (a “whiteout”) but the second layer still holds its bytes, so the image stays about 5 MB larger than Alpine alone (about 8.3 MB). This is why people combine commands in one <code>RUN</code> line, or build in stages (Lab 1), so that temporary files never reach a layer. Layers are shared too: a hundred containers from this image use one copy of each.</p>
+    </li>
+    <li>
+      <h3>Copy-on-write: change files and ask what changed</h3>
+      <p>Start a container and, from a second command, change three things in it: create a file, append to a file that came from the image, and delete another one.</p>
+      <pre data-lang="bash" class="cmd" data-id="04-cow" data-expect="[0-9a-f]{12}"><code>docker run -d --name oslab-04-cow --label oslab=true alpine:3.22 sleep 300
+docker exec oslab-04-cow sh -c 'echo hi &gt; /newfile; echo x &gt;&gt; /etc/motd; rm /bin/true'</code></pre>
+      <p><code>docker diff</code> lists every difference between the container and the image it started from. <code>A</code> means added, <code>C</code> changed and <code>D</code> deleted:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-diff" data-expect="(?=[\s\S]*D /bin/true)(?=[\s\S]*A /newfile)"><code>docker diff oslab-04-cow</code></pre>
+      <p class="small"><b>Example output</b> (the order of the lines can vary):</p>
+      <pre class="output"><code>C /bin
+D /bin/true
+C /etc
+C /etc/motd
+A /newfile</code></pre>
+      <p>Where do those changes live? Ask the container how its root filesystem is mounted:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-overlay" data-expect="overlay / overlay"><code>docker exec oslab-04-cow sh -c 'grep overlay /proc/mounts'</code></pre>
+      <p class="small"><b>Example output</b> (shortened; the real line is much longer):</p>
+      <pre class="output"><code>overlay / overlay rw,relatime,lowerdir=/var/lib/docker/overlay2/l/…:/var/lib/docker/overlay2/l/…,upperdir=/var/lib/docker/overlay2/…/diff,workdir=…/work 0 0</code></pre>
+      <p>Last, throw the container away and start a new one from the same image. Is your new file still there?</p>
+      <pre data-lang="bash" class="cmd" data-id="04-lost" data-fail data-expect="No such file"><code>docker rm -f oslab-04-cow
+docker run --rm --label oslab=true alpine:3.22 ls /newfile</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>oslab-04-cow
+ls: /newfile: No such file or directory</code></pre>
+      <p class="why"><b>Why this matters:</b> the root filesystem is an <b>overlay</b>: the image's layers (<code>lowerdir</code>, read-only) with one empty writable layer on top (<code>upperdir</code>). Reading a file finds it in the highest layer that has it. Writing to a file that came from the image first <em>copies</em> it up into the writable layer and changes the copy: this is <b>copy-on-write</b>. A deleted file is hidden by a marker, and the layers below are never touched. The writable layer belongs to the container, so removing the container removes your changes. Data you want to keep must live somewhere else.</p>
+    </li>
+    <li>
+      <h3>Keep data with a named volume</h3>
+      <p>A <b>volume</b> is storage managed by Docker that lives outside any one container's layers. Create one, write to it from one container, and read it from a completely different one. <code>-v NAME:/data</code> mounts the volume at <code>/data</code>.</p>
+      <pre data-lang="bash" class="cmd" data-id="04-volume" data-expect="saved"><code>docker volume create --label oslab=true oslab-04-data
+docker run --rm --label oslab=true -v oslab-04-data:/data alpine:3.22 sh -c 'echo saved &gt; /data/note.txt'
+docker run --rm --label oslab=true -v oslab-04-data:/data alpine:3.22 cat /data/note.txt</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>oslab-04-data
+saved</code></pre>
+      <p>Both containers are gone (<code>--rm</code>), yet the note survived. Ask Docker where it is kept:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-volume-where" data-expect="/var/lib/docker/volumes/oslab-04-data/_data"><code>docker volume inspect oslab-04-data --format '{{.Mountpoint}}'</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>/var/lib/docker/volumes/oslab-04-data/_data</code></pre>
+      <p class="why"><b>Why this matters:</b> the volume is an ordinary folder that Docker mounts into the container, in front of the container's own layers. It has its own life: it exists before the container and after it. That folder is inside Docker's Linux VM on Windows and macOS, which is why you cannot browse to it in File Explorer or Finder. Databases and anything else that must outlive a container belong on a volume.</p>
+    </li>
+    <li>
+      <h3>tmpfs and bind mounts</h3>
+      <p>Two more kinds of mount. A <b>tmpfs</b> mount is a filesystem that exists only in memory: fast, and gone when the container stops.</p>
+      <pre data-lang="bash" class="cmd" data-id="04-tmpfs" data-expect="tmpfs on /scratch type tmpfs"><code>docker run --rm --label oslab=true --tmpfs /scratch alpine:3.22 sh -c 'echo gone &gt; /scratch/f; mount | grep scratch'</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>tmpfs on /scratch type tmpfs (rw,nosuid,nodev,noexec,relatime)</code></pre>
+      <p>A <b>bind mount</b> shares a folder from <em>your own computer</em> with the container, so both sides see the same files. That is useful for editing code on your computer while it runs in a container, and it is exactly what this guide avoids elsewhere, because a container with a bind mount can change your files. Run the next command <b>only from your empty lab folder</b>: it shares just that folder.</p>
+      <pre data-lang="bash" class="cmd" data-manual><code># bash, zsh or WSL (run from your lab folder)
+docker run --rm --label oslab=true -v $PWD:/work alpine:3.22 sh -c 'echo from-the-container &gt; /work/made.txt'
+cat made.txt</code></pre>
+      <pre data-lang="powershell" class="cmd" data-manual><code># PowerShell (run from your lab folder)
+docker run --rm --label oslab=true -v ${PWD}:/work alpine:3.22 sh -c 'echo from-the-container &gt; /work/made.txt'
+Get-Content made.txt</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>from-the-container</code></pre>
+      <p>Delete <code>made.txt</code> afterwards. (If your path contains spaces, these simple commands need quotes, and the double quotes this guide avoids; see the Docker documentation on <code>--mount</code>.)</p>
+      <p class="why"><b>Why this matters:</b> now a file made inside a container exists on your real disk, and it stays after the container is gone. The three mounts differ in <em>where the bytes live</em>: a volume in Docker's own storage, a bind mount in a folder you choose, and tmpfs only in memory. On Windows and macOS a bind mount crosses from the Linux VM to your host's filesystem, which is much slower than a volume for programs that do many small file operations.</p>
+    </li>
+    <li>
+      <h3>“Everything is a file”: /proc, /sys and /dev</h3>
+      <p>Unix presents many things as files. Some are <b>special filesystems</b> that hold no data on any disk: the kernel makes their contents when you read them. See three of them. First <code>/proc</code>: look at the size <code>ls</code> reports for <code>/proc/cpuinfo</code>, then at how many bytes you actually get:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-proc" data-expect="-r--r--r--[\s\S]*MemTotal"><code>docker run --rm --label oslab=true alpine:3.22 sh -c 'ls -l /proc/cpuinfo; wc -c /proc/cpuinfo; head -n 2 /proc/meminfo'</code></pre>
+      <p class="small"><b>Example output</b> (the numbers depend on the computer):</p>
+      <pre class="output"><code>-r--r--r--    1 root     root             0 Nov 18 19:37 /proc/cpuinfo
+20194 /proc/cpuinfo
+MemTotal:        8067492 kB
+MemFree:         4867388 kB</code></pre>
+      <p>Now <code>/dev</code> (devices as files) and the mount list that shows what kind each of these is:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-dev" data-expect="crw-rw-rw-[\s\S]*proc /proc proc[\s\S]*sysfs /sys sysfs"><code>docker run --rm --label oslab=true alpine:3.22 sh -c 'ls -l /dev/null /dev/zero; head -c 8 /dev/zero | od -c; grep -e ^proc -e ^sysfs /proc/mounts'</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>crw-rw-rw-    1 root     root        1,   3 Nov 18 19:37 /dev/null
+crw-rw-rw-    1 root     root        1,   5 Nov 18 19:37 /dev/zero
+0000000  \0  \0  \0  \0  \0  \0  \0  \0
+0000010
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+sysfs /sys sysfs ro,nosuid,nodev,noexec,relatime 0 0</code></pre>
+      <p class="why"><b>Why this matters:</b> <code>/proc/cpuinfo</code> claims to be 0 bytes long yet produces about 20,000 bytes: it is not stored anywhere, the kernel writes it as you read it. The leading <code>c</code> in <code>crw-rw-rw-</code> marks <code>/dev/null</code> and <code>/dev/zero</code> as <b>character devices</b>: reading <code>/dev/zero</code> gives endless zero bytes, and writing to <code>/dev/null</code> discards them. They are interfaces to the kernel's code, not to a disk. <code>/proc</code> (processes and kernel state) and <code>/sys</code> (devices and settings; read-only in a container) are the mounts of type <code>proc</code> and <code>sysfs</code>. You already read <code>/sys/fs/cgroup</code> in Lab 3 and <code>/proc/PID/status</code> in Lab 2.</p>
+    </li>
+    <li>
+      <h3>Inodes, hard links and symbolic links</h3>
+      <p>A file's real identity is its <b>inode</b>, a record holding its size, owner, permissions and where its data is. A file name is only an entry in a directory that points to an inode. Make a file, a <b>hard link</b> to it (<code>ln</code>) and a <b>symbolic link</b> to it (<code>ln -s</code>), and list their inode numbers with <code>ls -i</code>:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-links" data-expect="soft -> a"><code>docker run --rm --label oslab=true alpine:3.22 sh -c 'cd /tmp; echo hello &gt; a; ln a hard; ln -s a soft; ls -li'</code></pre>
+      <p class="small"><b>Example output</b> (the first column is the inode number):</p>
+      <pre class="output"><code>total 8
+ 210255 -rw-r--r--    2 root     root             6 Nov 18 19:37 a
+ 210255 -rw-r--r--    2 root     root             6 Nov 18 19:37 hard
+ 210258 lrwxrwxrwx    1 root     root             1 Nov 18 19:37 soft -&gt; a</code></pre>
+      <p>Now delete the original name <code>a</code> and try each link:</p>
+      <pre data-lang="bash" class="cmd" data-id="04-links-rm" data-fail data-expect="hello[\s\S]*can't open 'soft'"><code>docker run --rm --label oslab=true alpine:3.22 sh -c 'cd /tmp; echo hello &gt; a; ln a hard; ln -s a soft; rm a; cat hard; cat soft'</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>hello
+cat: can't open 'soft': No such file or directory</code></pre>
+      <p class="why"><b>Why this matters:</b> <code>a</code> and <code>hard</code> have the <em>same inode number</em> (and a link count of 2): they are two names for one file, so deleting one name leaves the data reachable through the other. The data is freed only when the last name is removed. The symbolic link has its own inode and holds only the <em>text</em> “a”: when <code>a</code> is gone, the link points at nothing. (<a href="../modules/16-file-systems.html">Module 16</a> draws this picture.) The inode table is also finite: <code>df -i /</code> shows how many inodes the filesystem has, and a disk can run out of them before it runs out of space.</p>
+    </li>
+  </ol>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Change the Dockerfile so the second and third instructions are one line (<code>RUN dd if=/dev/zero of=/big.bin bs=1M count=5 &amp;&amp; rm /big.bin</code>), build it as <code>oslab-04-layers2</code>, and compare <code>docker history</code>. What happened to the 5 MB layer? (Remove the image afterwards with <code>docker rmi oslab-04-layers2</code>.)</li>
+    <li>Run <code>docker run --rm --label oslab=true alpine:3.22 df -i /</code>. How many inodes does the root filesystem have, and how many are in use?</li>
+    <li>Make a volume-backed container and a plain one, write the same file into each, remove both containers, and start new ones. Which files survive, and why?</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="4"></div>
+
+  <h2>Clean up</h2>
+  <p>Remove the container (if you stopped before the end of step 2), the volume and the image, then check that nothing from this lab remains. The last command lists any <code>oslab</code> containers and should print only its header line. Also delete <code>made.txt</code> from your lab folder if you did the bind-mount example.</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-expect="CONTAINER ID"><code>docker rm -f oslab-04-cow
+docker volume rm oslab-04-data
+docker rmi oslab-04-layers
+docker ps -a --filter label=oslab=true</code></pre>
+  <p>(Any line that says “No such …” is for something you had already removed. That is fine.)</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>“volume is in use”:</b> a container still has it mounted, even a stopped one. Run <code>docker rm -f NAME</code> for it, then remove the volume again.</li>
+    <li><b>The bind-mount command creates an empty folder or is refused:</b> on Docker Desktop, the folder must be shared with Docker (in the settings, under file sharing). A path with spaces needs quotes. This is the one place the guide asks you to run something that depends on your shell.</li>
+    <li><b>“rm: can't remove '/etc/hostname': Resource busy”</b> if you try to delete <code>/etc/hostname</code>, <code>/etc/hosts</code> or <code>/etc/resolv.conf</code>: Docker mounts those files into every container. That is why step 2 deletes <code>/bin/true</code> instead.</li>
+    <li><b><code>docker history</code> shows <code>&lt;missing&gt;</code> for most rows:</b> expected. Only the newest layer has an image ID on your computer.</li>
+    <li>See the <a href="troubleshooting.html">troubleshooting page</a> for other problems.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>An image is a stack of read-only layers; a container adds one thin writable layer using copy-on-write. Remove the container and the writable layer goes with it.</li>
+    <li>Data that must survive lives in a volume (Docker's storage) or a bind mount (your folder); tmpfs lives only in memory.</li>
+    <li>Not every “file” is data on a disk: <code>/proc</code>, <code>/sys</code> and <code>/dev</code> are interfaces to the kernel, and a file name is just one of possibly several names for an inode.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>

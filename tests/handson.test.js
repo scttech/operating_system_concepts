@@ -6,6 +6,7 @@
  * Attributes on <pre class="cmd">:
  *   data-id        a name for the block                      data-expect   a pattern the output must match
  *   data-fail      the command is EXPECTED to fail           data-exit     the exact exit status expected
+ *   data-absent    a pattern the output must NOT match
  *   data-lines     the output must have exactly this many non-empty lines
  *   data-manual    shown for the learner, not run here (platform-specific or shown in another shell)
  *   data-bash-only  uses bash syntax (such as $(...)), so it is not held to the rules for commands that must also work in PowerShell, but it is run
@@ -118,6 +119,7 @@
             const tail = b.replace(/^docker run\s+/, "");
             [...tail.matchAll(IMAGES)].forEach((m) => assert.ok(m[2] && m[2] !== ":latest", `${where}: image ${m[0]} is pinned to a tag`));
           }
+          if (/^docker volume create\b/.test(b.trim())) assert.ok(/--label oslab=true/.test(b) && new RegExp(`oslab-${lab}-[a-z0-9-]+$`).test(b.trim()), `${where}: volume is labelled and named oslab-${lab}-…: ${line}`);
           if (/^docker build\b/.test(b.trim())) {
             assert.ok(/--label oslab=true/.test(b) && new RegExp(`-t oslab-${lab}-[a-z0-9-]+`).test(b), `${where}: built image is labelled and named oslab-${lab}-…: ${line}`);
           }
@@ -135,9 +137,10 @@
       all.filter((p) => !p.hasAttribute("data-cleanup")).forEach((p) => {
         [...p.textContent.matchAll(/--name (oslab-\d\d-[a-z0-9-]+)/g)].forEach((m) => { if (!/--rm\b/.test(p.textContent.split("\n").find((l) => l.includes(m[1])))) made.add(m[1]); });
         [...p.textContent.matchAll(/-t (oslab-\d\d-[a-z0-9-]+)/g)].forEach((m) => made.add(m[1]));
+        [...p.textContent.matchAll(/docker volume create .*?(oslab-\d\d-[a-z0-9-]+)\s*$/gm)].forEach((m) => made.add(m[1]));
       });
       made.forEach((name) => {
-        const inSteps = all.filter((p) => !p.hasAttribute("data-cleanup")).some((p) => new RegExp(`docker rm -f ${name}\\b|docker rm ${name}\\b`).test(p.textContent));
+        const inSteps = all.filter((p) => !p.hasAttribute("data-cleanup")).some((p) => new RegExp(`docker rm -f ${name}\\b|docker rm ${name}\\b|docker volume rm ${name}\\b`).test(p.textContent));
         assert.ok(clean.includes(name) || inSteps, `${f}: ${name} is removed (in the steps or the clean-up)`);
       });
       assert.ok(/docker ps -a --filter label=oslab=true/.test(clean), `${f}: the clean-up ends by checking that nothing is left (lab ${lab})`);
@@ -206,6 +209,7 @@
           else if (expectFail) assert.notEqual(r.status, 0, `${id}: is expected to fail`);
           else assert.equal(r.status, 0, `${id}: succeeds${r.status ? "\n" + out.slice(-400) : ""}`);
           if (pre.dataset.expect) assert.ok(new RegExp(pre.dataset.expect, "i").test(out), `${id}: output matches /${pre.dataset.expect}/ — got: ${out.slice(0, 300)}`);
+          if (pre.dataset.absent) assert.ok(!new RegExp(pre.dataset.absent, "i").test(out), `${id}: output must not match /${pre.dataset.absent}/ — got: ${out.slice(0, 300)}`);
           if (pre.dataset.lines) assert.equal(out.split("\n").filter((l) => l.trim()).length, +pre.dataset.lines, `${id}: ${pre.dataset.lines} line(s) of output: ${out.slice(0, 200)}`);
           if (cleanup && pre.dataset.lines) { /* the check above is the leftover test for this lab */ }
         });
