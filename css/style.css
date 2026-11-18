@@ -352,6 +352,20 @@ input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
   @page { margin: 1.6cm; }
 }
 
+/* Study paths, prompts and teaching notes */
+.path-steps { padding-left: 1.4rem; }
+.path-steps li { margin: .55rem 0; }
+.tag.step-read { background: var(--c1); color: var(--on-c1); }
+.tag.step-try { background: var(--c3); color: var(--on-c3); }
+.tag.step-lab { background: var(--c2); color: var(--on-c2); }
+.tag.step-practice { background: var(--c5); color: var(--on-c5); }
+.tag.step-review { background: var(--c4); color: var(--on-c4); }
+.prompt-list li { margin: .5rem 0; }
+.teach-module { margin-bottom: 2rem; }
+.teach-module .demo { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: .25rem 1rem .5rem; margin: .5rem 0; }
+.teach-module .demo h4 { margin: .5rem 0 .25rem; }
+.teach-module .listen { margin: .15rem 0 .6rem; font-size: .9rem; }
+
 /* Handouts: how the sheets look on screen (a paper-like preview) and on paper. */
 .sheet { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1.5rem; }
 .sheet h2:first-child { margin-top: 0; }
@@ -366,13 +380,14 @@ input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
 .wq .stem { margin: 0 0 .2rem; }
 .wq ol.letters { list-style-type: upper-alpha; margin: 0; padding-left: 2rem; }
 .ak { margin: .35rem 0; }
+.lines span { display: block; border-bottom: 1px solid var(--border); height: 1.9rem; }
 .gloss dt { font-weight: 700; margin-top: .4rem; }
 .gloss dd { margin: 0 0 0 1rem; }
 .sheet[hidden], #mod-set[hidden], #count-label[hidden] { display: none; }
 @media print {
   .sheet { border: 0; padding: 0; margin: 0; font-size: 10.5pt; }
   .sheet h3 { break-after: avoid; }
-  .handout-module, .wq, .ak, .gloss section > h3 { break-inside: avoid; }
+  .teach-module .demo, .path-steps li, .handout-module, .wq, .ak, .gloss section > h3 { break-inside: avoid; }
   .gloss { column-count: 2; column-gap: 1cm; font-size: 9pt; line-height: 1.3; }
   .gloss section { break-inside: auto; }
   .gloss dd { margin-bottom: .15rem; }

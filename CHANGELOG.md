@@ -15,6 +15,9 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ## [Unreleased]
 
 ### Added
+- **Study paths** (`paths.html`): seven ordered routes through lessons, simulations, labs and practice.
+- **Discussion and journal prompts** on every module page ("Think, discuss, write"), also printable with writing space.
+- **Teaching notes** (`teaching.html`) for instructors: misconceptions, a classroom demonstration and what to listen for, for every module.
 - **Printable handouts** (`handouts.html`): a study guide with check-off objectives, a quiz worksheet, a matching answer key (print it separately), and a glossary sheet, for any choice of modules. The cheat sheet now prints in two columns.
 - **Printing**: a print stylesheet (black on white, no menus or controls, only the chosen code language, tables and code kept whole, link addresses spelled out) and a friendly 404 page that works from any folder. Every page now carries link-preview tags (title, description and the logo) so shared links look right.
 - **Module 18, Security in Depth** (part: Foundations): a stack-frame simulator showing how an overflow reaches the return address and what a canary, non-executable memory, ASLR and an information leak each change; password-guessing time estimates and a salted, repeated hashing demo; and STRIDE threat-modeling exercises for three small systems. Two C and Python examples (a simulated stack frame, password hashing with its own SHA-256).

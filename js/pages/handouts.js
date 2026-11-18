@@ -61,6 +61,16 @@
     return out;
   }
 
+  function prompts() {
+    const out = [h("h2", { text: "Discussion and journal prompts" }), h("div", { class: "fills" }, ruledLine("Name"), ruledLine("Date"))];
+    L.promptSheet(OSData, chosen(), OSData.readingOrder).forEach((b) => {
+      out.push(h("h3", { text: `Module ${b.n}: ${b.title}` }));
+      b.prompts.forEach((p, i) => out.push(h("div", { class: "wq" }, h("p", { class: "stem" }, h("b", { text: `${i + 1}. ${p.kind}: ` }), p.text),
+        h("div", { class: "lines", "aria-hidden": "true" }, h("span", {}), h("span", {}), h("span", {})))));
+    });
+    return out;
+  }
+
   function glossary() {
     const groups = L.glossarySheet(OSData.glossary);
     return [h("h2", { text: "Glossary" }), h("div", { class: "gloss" }, groups.map((g) => h("section", {},
@@ -75,7 +85,7 @@
     const needs = k !== "glossary" && !chosen().length;
     $("setup-msg").textContent = needs ? "Choose at least one module." : "";
     if (needs) { sheet.replaceChildren(); $("print").disabled = true; return; }
-    sheet.replaceChildren(...({ guide, worksheet, key, glossary }[k])());
+    sheet.replaceChildren(...({ guide, worksheet, key, prompts, glossary }[k])());
     sheet.dataset.kind = k;
   }
 

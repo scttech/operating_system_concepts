@@ -15,7 +15,7 @@
 
   const links = [
     ["index.html", "Home", ["home"]], ["labs.html", "Labs", ["labs"]],
-    ["study.html", "Study tools", ["study", "practice", "problems", "flashcards", "scenarios", "exam", "progress", "handouts"]],
+    ["study.html", "Study tools", ["study", "practice", "problems", "flashcards", "scenarios", "exam", "progress", "handouts", "paths", "teaching"]],
     ["glossary.html", "Glossary", ["glossary"]], ["faq.html", "FAQ", ["faq"]],
     ["cheatsheet.html", "Cheat sheet", ["cheatsheet"]], ["search.html", "Search", ["search"]]
   ];
@@ -111,6 +111,13 @@
     if (quiz) {
       const quizHeading = quiz.previousElementSibling && quiz.previousElementSibling.tagName === "H2" ? quiz.previousElementSibling : quiz;
       quizHeading.before(el("section", { class: "study takeaways", "aria-labelledby": "key-takeaways" }, el("h2", { id: "key-takeaways" }, "Key takeaways"), list(study.takeaways)));
+      // Discussion and journal prompts (js/data/prompts.js): for a group, a journal or an exit ticket.
+      const prompts = window.OSLib && OSLib.promptsFor ? OSLib.promptsFor(modNum, window.OSData) : [];
+      if (prompts.length) {
+        const items = prompts.map((p) => el("li", {}, el("b", {}, p.kind + ": "), p.text, ...(p.href ? [" ", el("a", { href: root + p.href }, p.label || "Open")] : [])));
+        quizHeading.before(el("section", { class: "study prompts", "aria-labelledby": "think-and-discuss" }, el("h2", { id: "think-and-discuss" }, "Think, discuss, write"),
+          el("p", { class: "small" }, "For a study group, a journal or a short exit ticket. There is no single right answer: a good answer names the trade-off."), el("ul", { class: "prompt-list" }, ...items)));
+      }
       const links = el("ul", {}, ...study.reading.map(([title, url, note]) => {
         const a = el("a", { href: url, rel: "noopener" }, title);
         return el("li", {}, a, el("span", { class: "small" }, ` (${note}; opens an outside site)`));

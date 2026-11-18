@@ -7,10 +7,22 @@
   const { JSDOM, VirtualConsole } = require("jsdom");
   const ROOT = path.resolve(__dirname, "..");
 
-  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html", "study.html", "progress.html", "flashcards.html", "exam.html", "scenarios.html", "handouts.html"];
+  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html", "study.html", "progress.html", "flashcards.html", "exam.html", "scenarios.html", "handouts.html", "paths.html", "teaching.html"];
   const moduleFiles = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => f.endsWith(".html")).sort();
   const labFiles = fs.readdirSync(path.join(ROOT, "labs")).filter((f) => f.endsWith(".html")).sort();
   const allPages = [...rootPages, ...moduleFiles.map((f) => "modules/" + f), ...labFiles.map((f) => "labs/" + f)];
+
+  /** Ids on a page: those in its HTML plus the ones js/site.js gives headings at run time (same rule as the search index). */
+  const anchorCache = {};
+  function anchorIds(file) {
+    if (!anchorCache[file]) {
+      const doc = new JSDOM(fs.readFileSync(file, "utf8")).window.document;
+      const set = new Set([...doc.querySelectorAll("[id]")].map((e) => e.id));
+      require("../tools/build-search-index.js").headingIds(doc).forEach((id) => set.add(id));
+      anchorCache[file] = set;
+    }
+    return anchorCache[file];
+  }
 
   function load(rel, hash) {
     return new Promise((resolve, reject) => {
@@ -90,7 +102,7 @@
           if (!fs.existsSync(target)) { missing.push(href); return; }
           if (!hash || /^(term|part)-/.test(hash) || hash.includes("=")) return; // runtime anchors and state hashes (#topic=…, #p=…) are checked by their own tests; // term-… and part-… anchors are assigned at run time and verified by their own tests's live DOM below
           if (!file) { if (!doc.getElementById(hash)) missing.push(href + " (anchor)"); } // same page: check the live DOM
-          else if (target.endsWith(".html") && !/glossary\.html$/.test(target) && !fs.readFileSync(target, "utf8").includes(`id="${hash}"`)) missing.push(href + " (anchor)");
+          else if (target.endsWith(".html") && !/glossary\.html$/.test(target) && !anchorIds(target).has(hash)) missing.push(href + " (anchor)");
         });
         doc.querySelectorAll("img").forEach((img) => {
           const ref = img.getAttribute("src");
@@ -1278,9 +1290,9 @@
 
   QUnit.test("Study hub links to every tool, and the nav marks it current on each tool's page", async (assert) => {
     await withPage("study.html", ({ document: doc }) => {
-      assert.deepEqual([...doc.querySelectorAll("main a.card")].map((a) => a.getAttribute("href")), ["practice.html", "flashcards.html", "scenarios.html", "problems.html", "exam.html", "progress.html", "handouts.html"]);
+      assert.deepEqual([...doc.querySelectorAll("main a.card")].map((a) => a.getAttribute("href")), ["practice.html", "flashcards.html", "scenarios.html", "problems.html", "exam.html", "progress.html", "paths.html", "handouts.html", "teaching.html"]);
     });
-    for (const rel of ["practice.html", "problems.html", "flashcards.html", "exam.html", "scenarios.html", "progress.html", "handouts.html", "study.html"]) {
+    for (const rel of ["practice.html", "problems.html", "flashcards.html", "exam.html", "scenarios.html", "progress.html", "handouts.html", "paths.html", "teaching.html", "study.html"]) {
       await withPage(rel, ({ document: doc }) => {
         const cur = [...doc.querySelectorAll('header.site nav a[aria-current="page"]')].map((a) => a.textContent);
         assert.deepEqual(cur, ["Study tools"], `${rel}: the Study tools link is current`);
@@ -1342,6 +1354,71 @@
       assert.ok(doc.querySelector('a[href="handouts.html"]'), "links to the handouts");
     });
   });
+
+  QUnit.module("pages: paths, prompts and teaching notes");
+
+  QUnit.test("Study paths: every path can be chosen, every step is a link that exists, and the address can choose the path", async (assert) => {
+    await withPage("paths.html", ({ window: w, document: doc }) => {
+      const D = w.OSData, sel = doc.getElementById("path");
+      assert.equal(sel.options.length, D.paths.length);
+      D.paths.forEach((p) => {
+        sel.value = p.id; sel.dispatchEvent(new w.Event("change", { bubbles: true }));
+        const links = [...doc.querySelectorAll("#path-view ol.path-steps li a")];
+        assert.equal(links.length, p.steps.length, `${p.id}: a link per step`);
+        links.forEach((a) => { const href = a.getAttribute("href"); assert.ok(fs.existsSync(path.join(ROOT, href.split("#")[0])), `${p.id}: ${href} exists`); });
+        assert.equal(doc.querySelector("#path-view h2").textContent, p.title, `${p.id}: shown`);
+      });
+    });
+    await withPage("paths.html", ({ document: doc }) => { assert.equal(doc.getElementById("path").value, "security"); assert.ok(/Security/.test(doc.querySelector("#path-view h2").textContent)); }, "#security");
+    await withPage("paths.html", ({ document: doc }) => { assert.equal(doc.getElementById("path").value, "newcomer", "an unknown path falls back to the first"); }, "#nonsense");
+  });
+
+  QUnit.test("Every module page shows its prompts with working links, and never the teaching notes", async (assert) => {
+    for (const f of moduleFiles) {
+      await withPage("modules/" + f, ({ window: w, document: doc }) => {
+        const n = +f.slice(0, 2), D = w.OSData, sec = doc.querySelector("section.prompts");
+        assert.ok(sec, `${f}: has a prompts section`);
+        const items = [...sec.querySelectorAll("li")];
+        assert.equal(items.length, D.prompts[n].length, `${f}: one item per prompt`);
+        sec.querySelectorAll("a").forEach((a) => {
+          const href = a.getAttribute("href"), file = path.normalize(path.join(ROOT, "modules", href.split("#")[0]));
+          assert.ok(fs.existsSync(file), `${f}: ${href} exists`);
+          const frag = href.split("#")[1];
+          if (frag && href.startsWith(f)) assert.ok(doc.getElementById(frag), `${f}: #${frag} is on the page`);
+        });
+        assert.ok(sec.compareDocumentPosition(doc.querySelector("[data-quiz]")) & 4, `${f}: before the quiz`);
+        assert.ok(!doc.body.textContent.includes(w.OSData.teaching ? "Listen for" : " "), `${f}: no teaching notes`);
+      });
+    }
+  });
+
+  QUnit.test("Teaching notes: every module is shown with its misconceptions, demonstration and listen-for lines; the picker narrows it", async (assert) => {
+    await withPage("teaching.html", ({ window: w, document: doc }) => {
+      const D = w.OSData, sel = doc.getElementById("mod");
+      assert.equal(doc.querySelectorAll(".teach-module").length, D.modules.length, "all modules at first");
+      assert.equal(doc.querySelectorAll(".listen").length, Object.values(D.prompts).reduce((n, l) => n + l.length, 0), "a listen-for line per prompt");
+      sel.value = "6"; sel.dispatchEvent(new w.Event("change", { bubbles: true }));
+      const blocks = doc.querySelectorAll(".teach-module");
+      assert.equal(blocks.length, 1);
+      assert.ok(/Module 6: /.test(blocks[0].querySelector("h2").textContent));
+      assert.equal(blocks[0].querySelectorAll(".demo").length, D.teaching[6].demos.length);
+      assert.equal(blocks[0].querySelectorAll("h3").length, 3);
+      assert.ok(doc.querySelector('a[href="handouts.html"]'), "points to the answer keys");
+    });
+    await withPage("teaching.html", ({ document: doc }) => { assert.equal(doc.querySelectorAll(".teach-module").length, 1); assert.ok(/Module 15: /.test(doc.querySelector(".teach-module h2").textContent)); }, "#module-15");
+  });
+
+  QUnit.test("Handouts: the prompts sheet has the chosen modules' prompts with writing lines", async (assert) => {
+    await withPage("handouts.html", ({ window: w, document: doc }) => {
+      const D = w.OSData, form = doc.getElementById("setup"), sheet = doc.getElementById("sheet");
+      [...doc.querySelectorAll("#modules input")].forEach((b) => { b.checked = [3, 7].includes(+b.value); });
+      const r = form.querySelector("input[name=kind][value=prompts]"); r.checked = true; r.dispatchEvent(new w.Event("change", { bubbles: true }));
+      assert.equal(sheet.querySelectorAll(".wq").length, D.prompts[3].length + D.prompts[7].length);
+      assert.equal(sheet.querySelectorAll(".lines").length, sheet.querySelectorAll(".wq").length, "space to write for each");
+      assert.ok(!sheet.textContent.includes("Listen for"));
+    });
+  });
+
 
   QUnit.test("Answering a quiz question records progress, and visiting a module records the visit", async (assert) => {
     await withPage("modules/06-synchronization.html", ({ window: w, document: doc }) => {

@@ -117,11 +117,11 @@ Goal: an instructor can assign "run this exact case and explain it" by sending o
 
 Goal: make the site easy to use in the actual course.
 
-- [ ] **IN-1 Learning paths** (S). *Reframed:* the site is an independent supplement, so instead of mapping one course's syllabus,
+- [x] **IN-1 Learning paths** (S). **Done:** `paths.html`, seven paths (newcomer to advanced, how programs run, memory and storage, concurrency, security, performance, and other designs), data in `js/data/paths.js`; a test checks every step's link and that the paths together cover every module and lab. *Reframed:* the site is an independent supplement, so instead of mapping one course's syllabus,
   provide a few study paths (newcomer to advanced; "how programs run"; "memory and storage"; "concurrency"; "security") that name which
   lessons, simulations, labs and problems to use in what order. Anyone can then map a path onto their own course.
-- [ ] **IN-2 Prompts** (M). Discussion and journal prompts per module, each linked to a simulation or comparison ("use the scheduler to show a convoy effect, then argue for a better algorithm").
-- [ ] **IN-3 Answer keys and teaching notes** (M). Notes on common misconceptions and suggested in-class demos.
+- [x] **IN-2 Prompts** (M). **Done:** three or more prompts for every module (`js/data/prompts.js`), shown on each module page as "Think, discuss, write" and printable with writing space from the handouts page. Discussion and journal prompts per module, each linked to a simulation or comparison ("use the scheduler to show a convoy effect, then argue for a better algorithm").
+- [x] **IN-3 Answer keys and teaching notes** (M). **Done:** `teaching.html` (misconceptions, a classroom demonstration and what to listen for in each prompt, for every module; `js/data/teaching.js`); answer keys come from the handouts page. Notes on common misconceptions and suggested in-class demos.
 - [x] **IN-4 Printable handouts** (M). A print stylesheet and print-friendly versions of the cheat sheet and key tables (see Phase 7).
   **Done:** `handouts.html` (study guide, worksheet, answer key, glossary sheet for chosen modules; logic and tests in `js/lib/handouts.js`) and a two-column printed cheat sheet with a Print button.
 
