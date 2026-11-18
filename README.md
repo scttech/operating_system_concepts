@@ -19,6 +19,9 @@ and a private **progress record** kept only in the learner's own browser (export
 what you should be able to do, its key takeaways, and free further reading. Result tables can be copied or downloaded as CSV, and two
 schedulers or two page-replacement policies can be compared side by side on the same workload.
 
+**On paper** (`handouts.html`): a study guide with check-off objectives, a quiz worksheet with a separate answer key, and a glossary sheet, for the
+modules you choose. Every page also has a print stylesheet, and the cheat sheet prints in two columns.
+
 No build step, no framework, no CDN: open the files or serve the folder. d3 v7.9.0 is vendored in `js/vendor/`.
 
 ## Run locally

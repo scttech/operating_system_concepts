@@ -334,7 +334,7 @@ input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
   :root, :root[data-theme="dark"] { --bg: #fff; --fg: #000; --muted: #333; --card: #fff; --border: #999; --accent: #000; --code-bg: #f2f2f2; --shadow: none; --grid: #ccc; }
   html { scroll-behavior: auto; }
   body { background: #fff; color: #000; font-size: 11pt; line-height: 1.4; }
-  .skip, header.site, #theme-toggle, .pager, .controls, .export-bar, .code-tabs .tablist .tab[aria-selected="false"],
+  .no-print, .skip, header.site, #theme-toggle, .pager, .controls, .export-bar, .code-tabs .tablist .tab[aria-selected="false"],
   .sim button, .sim input, .sim select, .codebar button, .row .btn, noscript { display: none !important; }
   main, main.narrow { max-width: none; padding: 0; }
   h1, h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
@@ -350,4 +350,38 @@ input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
   .hero-logo { box-shadow: none; max-width: 60%; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
   @page { margin: 1.6cm; }
+}
+
+/* Handouts: how the sheets look on screen (a paper-like preview) and on paper. */
+.sheet { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1.5rem; }
+.sheet h2:first-child { margin-top: 0; }
+.sheet h3 { margin: 1.25rem 0 .25rem; font-size: 1.1rem; }
+.sheet h4 { margin: .6rem 0 .1rem; font-size: .95rem; }
+.sheet ul.checks { list-style: none; padding-left: .25rem; }
+.sheet ul.checks li::before { content: "\2610\00a0"; }
+.fills { display: flex; flex-wrap: wrap; gap: .5rem 2rem; }
+.fill { display: flex; align-items: baseline; gap: .5rem; flex: 1 1 14rem; margin: .5rem 0; }
+.fill .rule { flex: 1; border-bottom: 1px solid var(--fg); min-width: 6rem; height: 1em; }
+.wq { margin: .6rem 0; }
+.wq .stem { margin: 0 0 .2rem; }
+.wq ol.letters { list-style-type: upper-alpha; margin: 0; padding-left: 2rem; }
+.ak { margin: .35rem 0; }
+.gloss dt { font-weight: 700; margin-top: .4rem; }
+.gloss dd { margin: 0 0 0 1rem; }
+.sheet[hidden], #mod-set[hidden], #count-label[hidden] { display: none; }
+@media print {
+  .sheet { border: 0; padding: 0; margin: 0; font-size: 10.5pt; }
+  .sheet h3 { break-after: avoid; }
+  .handout-module, .wq, .ak, .gloss section > h3 { break-inside: avoid; }
+  .gloss { column-count: 2; column-gap: 1cm; font-size: 9pt; line-height: 1.3; }
+  .gloss section { break-inside: auto; }
+  .gloss dd { margin-bottom: .15rem; }
+  .wq ol.letters { list-style-type: upper-alpha; }
+  /* the cheat sheet: small type, two columns, tables kept whole */
+  body[data-page="cheatsheet"] { font-size: 9.5pt; line-height: 1.3; }
+  body[data-page="cheatsheet"] main { column-count: 2; column-gap: 1cm; }
+  body[data-page="cheatsheet"] h1, body[data-page="cheatsheet"] .lead { column-span: all; }
+  body[data-page="cheatsheet"] h2 { font-size: 11.5pt; margin-top: .9rem; }
+  body[data-page="cheatsheet"] th, body[data-page="cheatsheet"] td { padding: .1rem .35rem; }
+  body[data-page="cheatsheet"] pre { font-size: 8pt; }
 }

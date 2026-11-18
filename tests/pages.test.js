@@ -7,7 +7,7 @@
   const { JSDOM, VirtualConsole } = require("jsdom");
   const ROOT = path.resolve(__dirname, "..");
 
-  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html", "study.html", "progress.html", "flashcards.html", "exam.html", "scenarios.html"];
+  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html", "study.html", "progress.html", "flashcards.html", "exam.html", "scenarios.html", "handouts.html"];
   const moduleFiles = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => f.endsWith(".html")).sort();
   const labFiles = fs.readdirSync(path.join(ROOT, "labs")).filter((f) => f.endsWith(".html")).sort();
   const allPages = [...rootPages, ...moduleFiles.map((f) => "modules/" + f), ...labFiles.map((f) => "labs/" + f)];
@@ -1278,14 +1278,69 @@
 
   QUnit.test("Study hub links to every tool, and the nav marks it current on each tool's page", async (assert) => {
     await withPage("study.html", ({ document: doc }) => {
-      assert.deepEqual([...doc.querySelectorAll("main a.card")].map((a) => a.getAttribute("href")), ["practice.html", "flashcards.html", "scenarios.html", "problems.html", "exam.html", "progress.html"]);
+      assert.deepEqual([...doc.querySelectorAll("main a.card")].map((a) => a.getAttribute("href")), ["practice.html", "flashcards.html", "scenarios.html", "problems.html", "exam.html", "progress.html", "handouts.html"]);
     });
-    for (const rel of ["practice.html", "problems.html", "flashcards.html", "exam.html", "scenarios.html", "progress.html", "study.html"]) {
+    for (const rel of ["practice.html", "problems.html", "flashcards.html", "exam.html", "scenarios.html", "progress.html", "handouts.html", "study.html"]) {
       await withPage(rel, ({ document: doc }) => {
         const cur = [...doc.querySelectorAll('header.site nav a[aria-current="page"]')].map((a) => a.textContent);
         assert.deepEqual(cur, ["Study tools"], `${rel}: the Study tools link is current`);
       });
     }
+  });
+
+  QUnit.module("pages: handouts");
+
+  QUnit.test("Handouts: each sheet is drawn from the chosen modules, and the worksheet never shows an answer", async (assert) => {
+    await withPage("handouts.html", ({ window: w, document: doc }) => {
+      const D = w.OSData, sheet = doc.getElementById("sheet"), form = doc.getElementById("setup");
+      const pick = (k) => { const r = form.querySelector(`input[name=kind][value=${k}]`); r.checked = true; r.dispatchEvent(new w.Event("change", { bubbles: true })); };
+      const boxes = [...doc.querySelectorAll("#modules input[type=checkbox]")];
+      assert.equal(boxes.length, D.modules.length, "one checkbox per module");
+      assert.equal(sheet.querySelectorAll(".handout-module").length, D.modules.length, "the study guide starts with every module");
+      assert.ok(sheet.querySelectorAll("ul.checks li").length >= 3 * D.modules.length, "objectives are check-off lines");
+      // choose two modules
+      const only = (nums) => boxes.forEach((b) => { b.checked = nums.includes(+b.value); });
+      only([4, 6]);
+      pick("guide");
+      assert.deepEqual([...sheet.querySelectorAll(".handout-module h3")].map((e) => e.textContent), ["Module 4: " + D.modules[3].title, "Module 6: " + D.modules[5].title]);
+      pick("worksheet");
+      assert.equal(sheet.querySelectorAll(".wq").length, 10, "five questions for each of two modules");
+      assert.ok(sheet.querySelector(".fill .rule"), "name and date lines");
+      const wtext = sheet.textContent;
+      const q = D.quizzes.filter((x) => x.mod === 4)[0];
+      assert.ok(wtext.includes(q.q) && !wtext.includes(q.explain), "the question appears, its explanation does not");
+      assert.equal(sheet.querySelectorAll(".wq ol.letters li").length, [...sheet.querySelectorAll(".wq")].length * 4, "four lettered choices each");
+      pick("key");
+      assert.equal(sheet.querySelectorAll(".ak").length, 10, "a key line per question");
+      assert.ok(sheet.textContent.includes(q.explain), "the key has the explanation");
+      assert.ok(/^1\. [A-D]\. /.test(sheet.querySelector(".ak").textContent), "numbered with the correct letter");
+      const count = doc.getElementById("count"); count.value = "0"; count.dispatchEvent(new w.Event("change", { bubbles: true }));
+      assert.equal(sheet.querySelectorAll(".ak").length, D.quizzes.filter((x) => x.mod === 4 || x.mod === 6).length, "all of them");
+      pick("glossary");
+      assert.equal(sheet.querySelectorAll(".gloss dt").length, D.glossary.length, "every term");
+      assert.ok(doc.getElementById("mod-set").hidden && doc.getElementById("count-label").hidden, "module and count choices hide for the glossary");
+      pick("guide");
+      only([]);
+      boxes[0].dispatchEvent(new w.Event("change", { bubbles: true }));
+      assert.equal(sheet.children.length, 0, "nothing chosen, nothing drawn");
+      assert.ok(doc.getElementById("setup-msg").textContent.length > 0 && doc.getElementById("print").disabled, "a message, and Print is off");
+    });
+  });
+
+  QUnit.test("Handouts: Print opens the print dialog, and the cheat sheet has its own Print button", async (assert) => {
+    await withPage("handouts.html", ({ window: w, document: doc }) => {
+      let n = 0; w.print = () => { n++; };
+      doc.getElementById("print").click();
+      assert.equal(n, 1);
+    });
+    await withPage("cheatsheet.html", ({ window: w, document: doc }) => {
+      let n = 0; w.print = () => { n++; };
+      const b = doc.querySelector("button[data-print]");
+      assert.ok(b && b.closest(".no-print"), "a button that is hidden on paper");
+      b.click();
+      assert.equal(n, 1);
+      assert.ok(doc.querySelector('a[href="handouts.html"]'), "links to the handouts");
+    });
   });
 
   QUnit.test("Answering a quiz question records progress, and visiting a module records the visit", async (assert) => {

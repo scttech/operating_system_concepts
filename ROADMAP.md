@@ -122,7 +122,8 @@ Goal: make the site easy to use in the actual course.
   lessons, simulations, labs and problems to use in what order. Anyone can then map a path onto their own course.
 - [ ] **IN-2 Prompts** (M). Discussion and journal prompts per module, each linked to a simulation or comparison ("use the scheduler to show a convoy effect, then argue for a better algorithm").
 - [ ] **IN-3 Answer keys and teaching notes** (M). Notes on common misconceptions and suggested in-class demos.
-- [ ] **IN-4 Printable handouts** (M). A print stylesheet and print-friendly versions of the cheat sheet and key tables (see Phase 7).
+- [x] **IN-4 Printable handouts** (M). A print stylesheet and print-friendly versions of the cheat sheet and key tables (see Phase 7).
+  **Done:** `handouts.html` (study guide, worksheet, answer key, glossary sheet for chosen modules; logic and tests in `js/lib/handouts.js`) and a two-column printed cheat sheet with a Print button.
 
 ## Phase 4: Python labs
 

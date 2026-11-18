@@ -15,7 +15,7 @@
 
   const links = [
     ["index.html", "Home", ["home"]], ["labs.html", "Labs", ["labs"]],
-    ["study.html", "Study tools", ["study", "practice", "problems", "flashcards", "scenarios", "exam", "progress"]],
+    ["study.html", "Study tools", ["study", "practice", "problems", "flashcards", "scenarios", "exam", "progress", "handouts"]],
     ["glossary.html", "Glossary", ["glossary"]], ["faq.html", "FAQ", ["faq"]],
     ["cheatsheet.html", "Cheat sheet", ["cheatsheet"]], ["search.html", "Search", ["search"]]
   ];

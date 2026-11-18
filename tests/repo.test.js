@@ -145,6 +145,9 @@
     assert.ok(/break-inside:\s*avoid/.test(print), "tables, code and answers are not split");
     assert.ok(/aria-selected="false"/.test(print), "only the chosen language's tab label prints");
     assert.ok(/@page/.test(print), "page margins are set");
+    assert.ok(print.includes(".no-print"), "anything marked no-print is hidden on paper");
+    assert.ok(/data-page="cheatsheet"\] main \{ column-count: 2/.test(print), "the cheat sheet prints in two columns");
+    assert.ok(/\.gloss \{ column-count: 2/.test(print), "the glossary handout prints in two columns");
   });
 
 })();
