@@ -1,0 +1,47 @@
+name: Bug report
+description: A page, simulation or tool does not work as it should.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Which page?
+      placeholder: "modules/04-scheduling.html, the scheduler simulation"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What did you do, and what happened?
+      description: The steps, what you expected, and what you saw instead. A screenshot helps.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: "Firefox 160 on Windows 11, or Safari on an iPhone"
+    validations:
+      required: true
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Theme and screen
+      description: Layout problems often depend on these.
+      options:
+        - Light theme, wide screen
+        - Dark theme, wide screen
+        - Light theme, phone or narrow window
+        - Dark theme, phone or narrow window
+        - Not sure
+    validations:
+      required: false
+  - type: textarea
+    id: console
+    attributes:
+      label: Error messages (optional)
+      description: If you know how, paste anything from the browser console.
+      render: text
+    validations:
+      required: false

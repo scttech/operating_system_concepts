@@ -147,7 +147,14 @@
   const licenseLink = document.createElement("a");
   licenseLink.href = root + "LICENSE.txt"; licenseLink.textContent = "MIT License";
   footer.append("Operating System Concepts: an independent, open educational resource. Free to copy and adapt under the ", licenseLink,
-    ". Simulations are simplified for teaching.");
+    ". Simulations are simplified for teaching. ");
+  // Where to send corrections and ideas (the issue forms ask for the page, so reports are easy to act on). OSData.site.repo sets it.
+  const repo = window.OSData && window.OSData.site && window.OSData.site.repo;
+  if (repo) {
+    const report = document.createElement("a");
+    report.href = (repo.endsWith("/") ? repo.slice(0, -1) : repo) + "/issues/new/choose"; report.rel = "noopener"; report.textContent = "Report a problem or suggest a change";
+    footer.append(report, ".");
+  }
   body.append(footer);
 
   // <dfn data-term="deadlock">…</dfn> -> tooltip + link to glossary

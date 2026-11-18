@@ -162,6 +162,13 @@ What is covered:
 * **Module:** add an entry to `js/data/modules.js` and create `modules/NN-slug.html` (copy an existing page).
   The navigation, home page cards and previous/next links update automatically.
 
+## Contributing and changes
+
+Corrections, questions and ideas are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) (it also lists the generated files to refresh and how to run the tests
+the way CI does) and use the issue forms under **Issues**. Every page's footer links to them. What changed between versions is in
+[CHANGELOG.md](CHANGELOG.md). If you copy this project for your own course, set `OSData.site.repo` in `js/data/modules.js` to your repository
+(or `""` to hide the feedback link), and replace the live-demo link and badge at the top of this file.
+
 ## Roadmap
 
 Planned improvements, in suggested order, are tracked in [ROADMAP.md](ROADMAP.md).

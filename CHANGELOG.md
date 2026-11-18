@@ -1,0 +1,63 @@
+# Changelog
+
+All notable changes to the content and behavior of this site are listed here, newest first, so instructors can see what changed between
+terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+**Things worth knowing when you update a course that links to this site**
+
+* **Module numbers are stable.** A module keeps its number and its page address even when the reading order changes, so existing links keep working.
+* **Quiz progress is tied to the wording of a question.** Learners' saved results are stored against a short fingerprint of each question's text.
+  If a question's wording is edited, that one question counts as unanswered again for learners who had answered it. Changes of this kind are
+  marked **(resets saved progress for that item)** below.
+* **Shared problem links stay stable.** Practice-problem links such as `problems.html#p=disk:48213:2` keep producing the same problem and answer.
+  A change that would alter one is marked **(changes shared links)**.
+
+## [Unreleased]
+
+### Added
+- `CONTRIBUTING.md`: how to report a problem, how to run the tests (including the glibc check that CI effectively performs), the generated files to
+  refresh, and what a good change looks like.
+- Issue forms for a content problem, a bug and a topic request, and a pull-request checklist.
+- "Report a problem or suggest a change" link in every page's footer. A fork can point it at its own repository (or remove it) with
+  `OSData.site.repo` in `js/data/modules.js`.
+- This changelog.
+
+## [1.0.0] - 2026-11-17
+
+First complete release.
+
+### Lessons (17 modules in five parts)
+- **Foundations:** 1 OS fundamentals and system calls, 2 security and access control, 16 the boot process.
+- **Processes and the CPU:** 3 processes, 4 CPU scheduling, 5 threads and parallel performance, 17 advanced scheduling.
+- **Concurrency:** 6 synchronization, 15 monitors and readers-writers, 7 deadlocks, 13 inter-process communication.
+- **Memory and storage:** 8 memory management (including multi-level page tables and the TLB), 9 virtual memory, 10 disk scheduling and I/O, 11 file systems.
+- **Modern systems:** 12 operating systems beyond Windows, macOS and Linux (with a compare tool and a family tree), 14 virtualization and containers.
+- Each module has learning objectives, key takeaways, a collapsed **Going deeper** section for advanced readers, and free further reading.
+- The home page, the Modules menu and the Previous/Next links follow the order of the parts.
+
+### Simulations
+- More than 40 interactive d3 simulations with playback controls where they help: scheduler, page replacement, disk arm, Amdahl, race condition,
+  bounded buffer, Banker's algorithm, dining philosophers, page-table walk with a TLB, pipes and message queues, namespaces, control groups,
+  VM exits, boot stages, service start order, multilevel feedback queue, real-time scheduling, work stealing, and more.
+- Side-by-side comparison of two schedulers (Module 4) and two page-replacement policies (Module 9).
+- Results tables in Modules 4, 10 and 17 can be copied or downloaded as CSV.
+
+### Code in C and Python
+- 18 lesson examples, each in C and Python with the same numbered comments and identical output. Both versions are compiled and run by the tests.
+  The Python tab says honestly where an idea is clearer in C or contrived in Python.
+- 4 Python labs (processes, threads and the GIL, system resources, semaphores and deadlock), with C versions of Labs 1, 2 and 4.
+- Syntax-highlighted source viewer with a C and Python tab, remembered across pages.
+
+### Study tools
+- 134 quiz questions with instant feedback and explanations.
+- Randomized calculation practice with worked solutions: scheduling, page replacement, disk scheduling, paging, effective access time,
+  inode size, Amdahl's law, permissions, Banker's algorithm and memory allocation. Answers are checked against independent calculations.
+- Flashcards from the glossary, 17 scenario questions, a timed exam mode with a review of misses, and a private progress record kept only in the
+  learner's browser (exportable, importable, clearable).
+- A 161-term glossary whose entries link back to the lesson where each term is discussed, 34 FAQ entries, a cheat sheet, and a site-wide search.
+
+### Site
+- Neutral, independent branding, light and dark themes, a layout that works on phones, and keyboard and screen-reader support. A real-browser
+  audit (layout, tap targets and axe) is part of the checks.
+- No build step, no framework and no CDN: d3, Prism and QUnit are vendored.
+- MIT license. GitHub Actions runs the tests and deploys to GitHub Pages.

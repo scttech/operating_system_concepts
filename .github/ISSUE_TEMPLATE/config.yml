@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read how to contribute
+    url: https://github.com/scttech/operating_system_concepts/blob/main/CONTRIBUTING.md
+    about: How the project works, how to run the tests, and what makes a good change.

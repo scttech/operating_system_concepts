@@ -1,0 +1,26 @@
+name: Topic request
+description: Suggest a topic, simulation, lab or code example to add.
+title: "Topic: "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: topic
+    attributes:
+      label: The topic
+      placeholder: "Memory-mapped files, RAID levels, how an SSD wears out..."
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it belong here?
+      description: Who is it for, what should a learner be able to do afterwards, and what is missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: An idea for how to teach it (optional)
+      description: A simulation, a worked example, a short program in C or Python, a question that makes the idea click.
+    validations:
+      required: false

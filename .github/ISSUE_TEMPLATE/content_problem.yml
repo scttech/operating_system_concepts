@@ -1,0 +1,42 @@
+name: Content problem
+description: Something in a lesson, quiz, glossary entry, answer or worked solution is wrong, unclear or out of date.
+title: "Content: "
+labels: ["content"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. A wrong answer or a confusing explanation is the most useful thing you can report.
+  - type: input
+    id: page
+    attributes:
+      label: Where is it?
+      description: The page address or title, and the section, question or term.
+      placeholder: "Module 9: Virtual Memory, the page-replacement section"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What is the problem?
+      description: Quote the sentence or question. Say what is wrong or what confused you.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should it say?
+      description: If you know the right answer, say it and, if you can, point to a reliable source.
+    validations:
+      required: false
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Who are you?
+      options:
+        - Student
+        - Instructor
+        - Self-learner
+        - Other
+    validations:
+      required: false

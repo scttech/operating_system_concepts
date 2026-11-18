@@ -1533,6 +1533,21 @@
     assert.ok(Object.keys(byPage).length >= 22, "modules, labs and the cheat sheet are indexed");
   });
 
+  QUnit.test("Every page's footer offers a way to report a problem, which a fork can change or remove", async (assert) => {
+    for (const rel of allPages) {
+      await withPage(rel, ({ window: w, document: doc }) => {
+        const a = doc.querySelector("footer.site a[href$='/issues/new/choose']");
+        assert.ok(a, `${rel}: has the report link`);
+        if (!a) return;
+        assert.equal(a.getAttribute("href"), w.OSData.site.repo + "/issues/new/choose", `${rel}: it points at OSData.site.repo`);
+        assert.equal(a.getAttribute("rel"), "noopener");
+      });
+    }
+    await withPage("index.html", ({ window: w, document: doc }) => {
+      assert.equal(doc.querySelectorAll("footer.site a[href$='/issues/new/choose']").length, 1, "one link, not duplicated");
+    });
+  });
+
   QUnit.module("pages: course parts");
 
   QUnit.test("Home page groups the modules into parts, in reading order, with every module once", async (assert) => {
