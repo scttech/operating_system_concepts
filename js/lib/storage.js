@@ -1,4 +1,4 @@
-/* Storage reliability: pure models behind the Module 19 simulations.
+/* Storage reliability: pure models behind the Module 17 simulations.
  *   raid*          : RAID levels (capacity, how many failures they survive, the cost of a small write), XOR parity and rebuilding,
  *                    and the chance of hitting a read error during a rebuild;
  *   ssdSimulate    : a tiny flash translation layer with garbage collection, to measure write amplification and wear;

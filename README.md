@@ -59,23 +59,23 @@ python -m http.server 8000      # or: npm run serve
 |---|-------|---------------------|
 | 1 | OS fundamentals & system calls | System-call walkthrough (user/kernel mode) |
 | 2 | Security & access control | chmod/umask calculator, access-control matrix (ACL vs. capabilities) |
-| 3 | Processes | Process state diagram, fork() process tree |
-| 4 | CPU scheduling | FCFS / SJF / SRTF / RR / Priority with Gantt charts and metrics |
-| 5 | Threads & parallel performance | Amdahl's law explorer, context-switch overhead |
-| 6 | Process synchronization | Race-condition lab, bounded-buffer semaphores |
-| 7 | Deadlocks | Dining philosophers (4 strategies), Banker's algorithm |
-| 8 | Memory management | First/best/worst-fit & fragmentation, paging address translation, **multi-level page-table walk with a TLB** (16-bit teaching layout, 32-bit x86, x86-64), C and Python code tabs, an opt-in "Going deeper" section |
-| 9 | Virtual memory | FIFO / LRU / OPT / Clock, Belady's anomaly, effective access time |
-| 10 | Disk scheduling & I/O | FCFS / SSTF / SCAN / C-SCAN / LOOK / C-LOOK |
-| 11 | File systems | Allocation methods, inode capacity calculator |
-| 12 | Beyond Windows, macOS & Linux | OS family tree, **compare tool** for 14 systems: Android, iOS, Qubes OS, Raspberry Pi OS, ChromeOS, FreeBSD, FreeRTOS, QNX and the IBM mainframe/midrange systems z/OS (MVS), z/VSE and IBM i |
-| 13 | Inter-process communication | Pipe and message-queue explorer (blocking, end of file, broken pipe), IPC cost comparison, C and Python examples for pipes, sockets and shared memory |
-| 14 | Virtualization & containers | What-runs-on-what stacks, namespace explorer, CPU and memory control groups, VM-exit counter, C and Python examples for namespaces and resource limits |
-| 15 | Monitors & readers–writers | Mesa-semantics stepper (if vs while, with random-schedule trials), readers–writers timeline with reader, writer and fair policies and a starvation flag, C and Python examples for condition variables and read-write locks |
-| 16 | The boot process | Boot stepper (BIOS, UEFI, Secure Boot, with injected failures), editable 512-byte MBR viewer, service start-order scheduler with critical path, chain of trust, C and Python examples for the MBR and for dependency ordering |
-| 17 | Advanced scheduling | Multilevel feedback queue with priority boost, rate-monotonic vs EDF with exact schedulability analysis, multicore work stealing with migration cost, C and Python examples for real-time scheduling and CPU affinity |
-| 18 | Security in depth | Stack-smashing simulator with canary, NX, ASLR and information leaks, password-guessing time estimates, salted and stretched hashing demo, STRIDE threat-modeling exercises, C and Python examples for a stack frame and for password hashing |
-| 19 | Storage reliability | RAID levels with failing disks, XOR parity and rebuild, rebuild-risk estimates, SSD write amplification and wear, journaling crash points, C and Python examples for parity and for a write-ahead log |
+| 3 | Security in depth | Stack-smashing simulator with canary, NX, ASLR and information leaks, password-guessing time estimates, salted and stretched hashing demo, STRIDE threat-modeling exercises, C and Python examples for a stack frame and for password hashing |
+| 4 | The boot process | Boot stepper (BIOS, UEFI, Secure Boot, with injected failures), editable 512-byte MBR viewer, service start-order scheduler with critical path, chain of trust, C and Python examples for the MBR and for dependency ordering |
+| 5 | Processes | Process state diagram, fork() process tree |
+| 6 | CPU scheduling | FCFS / SJF / SRTF / RR / Priority with Gantt charts and metrics |
+| 7 | Threads & parallel performance | Amdahl's law explorer, context-switch overhead |
+| 8 | Advanced scheduling | Multilevel feedback queue with priority boost, rate-monotonic vs EDF with exact schedulability analysis, multicore work stealing with migration cost, C and Python examples for real-time scheduling and CPU affinity |
+| 9 | Process synchronization | Race-condition lab, bounded-buffer semaphores |
+| 10 | Monitors & readers–writers | Mesa-semantics stepper (if vs while, with random-schedule trials), readers–writers timeline with reader, writer and fair policies and a starvation flag, C and Python examples for condition variables and read-write locks |
+| 11 | Deadlocks | Dining philosophers (4 strategies), Banker's algorithm |
+| 12 | Inter-process communication | Pipe and message-queue explorer (blocking, end of file, broken pipe), IPC cost comparison, C and Python examples for pipes, sockets and shared memory |
+| 13 | Memory management | First/best/worst-fit & fragmentation, paging address translation, **multi-level page-table walk with a TLB** (16-bit teaching layout, 32-bit x86, x86-64), C and Python code tabs, an opt-in "Going deeper" section |
+| 14 | Virtual memory | FIFO / LRU / OPT / Clock, Belady's anomaly, effective access time |
+| 15 | Disk scheduling & I/O | FCFS / SSTF / SCAN / C-SCAN / LOOK / C-LOOK |
+| 16 | File systems | Allocation methods, inode capacity calculator |
+| 17 | Storage reliability | RAID levels with failing disks, XOR parity and rebuild, rebuild-risk estimates, SSD write amplification and wear, journaling crash points, C and Python examples for parity and for a write-ahead log |
+| 18 | Beyond Windows, macOS & Linux | OS family tree, **compare tool** for 14 systems: Android, iOS, Qubes OS, Raspberry Pi OS, ChromeOS, FreeBSD, FreeRTOS, QNX and the IBM mainframe/midrange systems z/OS (MVS), z/VSE and IBM i |
+| 19 | Virtualization & containers | What-runs-on-what stacks, namespace explorer, CPU and memory control groups, VM-exit counter, C and Python examples for namespaces and resource limits |
 
 ### Animations
 
@@ -163,7 +163,7 @@ What is covered:
   Choices are shuffled when displayed.
 * **Glossary term / FAQ:** add to `js/data/glossary.js` or `js/data/faq.js`. In a lesson, `<dfn data-term="Deadlock">deadlock</dfn>`
   gives a hover definition that links to the glossary, and marks the spot the glossary links *back* to ("First discussed in
-  Module 7 (…)"). After adding or moving terms in lessons, run `npm run build:glossary` to regenerate
+  Module 11 (…)"). After adding or moving terms in lessons, run `npm run build:glossary` to regenerate
   `js/data/glossary-index.js`. The tests fail if that file is out of date, and every term must be discussed in some lesson.
 * **Study aids:** each module's learning objectives, takeaways and further-reading links are in `js/data/study.js` (one entry per module;
   a test checks the shape and that every link is `https`). Scenario questions are in `js/data/scenarios.js`. Flashcards come from the glossary.

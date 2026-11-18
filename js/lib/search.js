@@ -33,7 +33,7 @@
     (d.glossary || []).forEach((g) => add("Glossary", g.term, g.cat, `pages/glossary.html#${slug(g.term)}`, g.def));
     (d.faq || []).forEach((f) => add("FAQ", f.q, f.group, "pages/faq.html", stripTags(f.a)));
     (d.labs || []).forEach((l) => add("Lab", `Lab ${l.n}: ${l.title}`, "Lab overview", `labs/${l.slug}.html`, `${l.summary} ${l.platform || ""}`));
-    (d.osList || []).forEach((o) => add("Operating system", o.name, o.group, `modules/12-os-landscape.html#compare=${o.id}`,
+    (d.osList || []).forEach((o) => add("Operating system", o.name, o.group, `modules/18-os-landscape.html#compare=${o.id}`,
       [o.tagline, o.category, o.maker, o.uses, o.kernel, o.scheduling, o.memory, o.files, o.security, o.strengths, o.tradeoffs, o.fact].filter(Boolean).join(" ")));
     return docs;
   }

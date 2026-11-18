@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 12: Beyond Windows, macOS and Linux — OS Concepts</title>
+<title>Module 18: Beyond Windows, macOS and Linux — OS Concepts</title>
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <meta name="description" content="Compare Android, iOS, Qubes OS, Raspberry Pi OS, real-time systems and IBM mainframe systems (z/OS, z/VSE, IBM i) with Windows, macOS and Linux.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/12-os-landscape.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/18-os-landscape.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 12: Beyond Windows, macOS and Linux — OS Concepts">
+<meta property="og:title" content="Module 18: Beyond Windows, macOS and Linux — OS Concepts">
 <meta property="og:description" content="Compare Android, iOS, Qubes OS, Raspberry Pi OS, real-time systems and IBM mainframe systems (z/OS, z/VSE, IBM i) with Windows, macOS and Linux.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/12-os-landscape.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/18-os-landscape.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <meta name="twitter:card" content="summary_large_image">
 <!-- social:end -->
 </head>
-<body data-root="../" data-module="12">
+<body data-root="../" data-module="18">
 <main>
-  <p class="eyebrow">Module 12</p>
+  <p class="eyebrow">Module 18</p>
   <h1>Beyond Windows, macOS and Linux</h1>
   <p class="lead">Every operating system is a set of trade-offs shaped by what it is for. A phone, a car's dashboard, a bank's transaction engine and a journalist's laptop each push the same ideas (scheduling, memory, files, protection) in very different directions.</p>
 
@@ -31,7 +31,7 @@
     <ul><li><a href="#pressures">Why systems differ</a></li><li><a href="#tree">Family tree</a></li><li><a href="#compare">Compare tool</a></li><li><a href="#mobile">Mobile</a></li><li><a href="#secure">Security-focused</a></li><li><a href="#embedded">Embedded and real-time</a></li><li><a href="#mainframe">Mainframe and midrange</a></li><li><a href="#checklist">Questions to ask about any OS</a></li></ul></div>
 
   <h2 id="pressures">Why systems differ</h2>
-  <p>The concepts from Modules 1–11 apply everywhere, but the <em>priorities</em> change. Compare what each kind of system optimizes for:</p>
+  <p>The concepts from the earlier modules apply everywhere, but the <em>priorities</em> change. Compare what each kind of system optimizes for:</p>
   <table>
     <thead><tr><th>Kind of system</th><th>Main goal</th><th>What that does to the design</th></tr></thead>
     <tbody>
@@ -65,7 +65,7 @@
   <p>Most operating systems try to make one big system trustworthy. Qubes does the opposite and assumes something <em>will</em> be hacked, then limits the blast radius. A <dfn data-term="Hypervisor">hypervisor</dfn> runs separate <dfn data-term="Virtual machine">virtual machines</dfn> (“qubes”) for work, personal browsing, banking and untrusted downloads. A bug in a browser in the “untrusted” qube cannot read files in the “work” qube. This is <a href="02-security.html">least privilege</a> applied to whole operating systems. The price is higher hardware needs and a more complex workflow, which is the central <em>security versus usability</em> trade-off.</p>
 
   <h2 id="embedded">Embedded and real-time</h2>
-  <p>A <dfn data-term="Real-time operating system (RTOS)">real-time operating system</dfn> guarantees that important work finishes <em>on time</em>, not that it finishes fast on average. That pushes the design toward predictable <a href="04-scheduling.html">fixed-priority scheduling</a> and away from features such as virtual memory, whose page faults make timing unpredictable. At the small end (FreeRTOS), the “OS” is a library compiled into the firmware on a microcontroller. At the larger end (QNX), a <dfn data-term="Microkernel">microkernel</dfn> runs drivers as separate processes so that a driver failure in a car does not crash the whole system.</p>
+  <p>A <dfn data-term="Real-time operating system (RTOS)">real-time operating system</dfn> guarantees that important work finishes <em>on time</em>, not that it finishes fast on average. That pushes the design toward predictable <a href="06-scheduling.html">fixed-priority scheduling</a> and away from features such as virtual memory, whose page faults make timing unpredictable. At the small end (FreeRTOS), the “OS” is a library compiled into the firmware on a microcontroller. At the larger end (QNX), a <dfn data-term="Microkernel">microkernel</dfn> runs drivers as separate processes so that a driver failure in a car does not crash the whole system.</p>
   <p><b>Raspberry Pi OS</b> sits between worlds: a full Linux system on a tiny, inexpensive board whose GPIO pins let your code blink LEDs or read sensors. It is excellent for learning but, being standard Linux, it is not a hard real-time system.</p>
 
   <h2 id="mainframe">Mainframe and midrange systems</h2>
@@ -89,7 +89,7 @@
     <li><b>IBM i</b> (formerly AS/400, iSeries, System i) is a midrange system with a database built into the OS, an <em>object-based</em> design, and <dfn data-term="Single-level storage">single-level storage</dfn>: memory and disk form one address space, so applications never manage paging or files the way they do on a PC.</li>
     <li><b>z/VM</b> is IBM's mainframe hypervisor: it runs many virtual machines, often Linux, alongside z/OS and z/VSE guests. <b>z/TPF</b> is a very lean system for enormous volumes of short transactions, such as airline bookings and payments.</li>
   </ul>
-  <div class="callout"><p><b>Connect it back:</b> single-level storage is <a href="09-virtual-memory.html">virtual memory</a> taken to its logical extreme, and the channel subsystem is a more powerful version of the <a href="10-disk-io.html">DMA</a> idea.</p></div>
+  <div class="callout"><p><b>Connect it back:</b> single-level storage is <a href="14-virtual-memory.html">virtual memory</a> taken to its logical extreme, and the channel subsystem is a more powerful version of the <a href="15-disk-io.html">DMA</a> idea.</p></div>
 
   <h2 id="more">More designs worth a look</h2>
   <p>Beyond the systems above, a handful of others are worth knowing because each shows one idea more clearly than the mainstream ones do. Select a link to put it into the comparison tool.</p>
@@ -98,11 +98,11 @@
     <tbody>
       <tr><td><b>Fuchsia</b></td><td>The <dfn data-term="Capability">capability</dfn> idea from <a href="02-security.html">Module 2</a> as a whole operating system: no root user, and a program can use only the handles it was given. Built on the Zircon <dfn data-term="Microkernel">microkernel</dfn>.</td><td><a href="#compare=fuchsia,qnx,minix3">vs. other microkernels</a></td></tr>
       <tr><td><b>MINIX 3</b></td><td>Why a microkernel is reliable: drivers run outside the kernel, and a “reincarnation server” restarts a driver that crashes.</td><td><a href="#compare=minix3,qnx,linux">vs. QNX and Linux</a></td></tr>
-      <tr><td><b>Plan 9</b></td><td>“Everything is a file” taken to its end, with a private namespace for every process. Linux <a href="14-virtualization.html">namespaces</a> (the basis of containers) descend from it.</td><td><a href="#compare=plan9,solaris,openbsd">vs. other Unix heirs</a></td></tr>
+      <tr><td><b>Plan 9</b></td><td>“Everything is a file” taken to its end, with a private namespace for every process. Linux <a href="19-virtualization.html">namespaces</a> (the basis of containers) descend from it.</td><td><a href="#compare=plan9,solaris,openbsd">vs. other Unix heirs</a></td></tr>
       <tr><td><b>Solaris and illumos</b></td><td>ZFS, DTrace and zones all appeared here first: copy-on-write storage, safe live tracing, and OS-level containers.</td><td><a href="#compare=solaris,freebsd,linux">vs. FreeBSD and Linux</a></td></tr>
       <tr><td><b>OpenBSD</b></td><td>Security by default and least privilege: a program promises which system calls it will use (<code>pledge</code>) and the kernel holds it to the promise.</td><td><a href="#compare=openbsd,freebsd,qubes">vs. other security designs</a></td></tr>
       <tr><td><b>HarmonyOS</b></td><td>A third mobile ecosystem, designed to treat a phone, watch and TV as one distributed system. It also shows how hard it is to leave an app ecosystem behind.</td><td><a href="#compare=harmonyos,android,ios">vs. Android and iOS</a></td></tr>
-      <tr><td><b>z/VM</b></td><td>The origin of <a href="14-virtualization.html">virtualization</a>: a hypervisor from the 1960s and 70s that still runs thousands of guests on one mainframe.</td><td><a href="#compare=zvm,zos,zvse">vs. z/OS and z/VSE</a></td></tr>
+      <tr><td><b>z/VM</b></td><td>The origin of <a href="19-virtualization.html">virtualization</a>: a hypervisor from the 1960s and 70s that still runs thousands of guests on one mainframe.</td><td><a href="#compare=zvm,zos,zvse">vs. z/OS and z/VSE</a></td></tr>
       <tr><td><b>z/TPF</b></td><td>An operating system designed around one workload, millions of short transactions such as airline bookings and card payments, trading flexibility for speed and predictability.</td><td><a href="#compare=ztpf,zos,freertos">vs. z/OS and an RTOS</a></td></tr>
     </tbody>
   </table>
@@ -130,7 +130,7 @@
   </details>
 
   <h2>Check your understanding</h2>
-  <div data-quiz="12"></div>
+  <div data-quiz="18"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -145,6 +145,6 @@
 <script src="../js/lib/progress.js"></script>
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
-<script src="../js/sims/m12-os.js"></script>
+<script src="../js/sims/m18-os.js"></script>
 </body>
 </html>

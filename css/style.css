@@ -165,7 +165,7 @@ table.compact td, table.compact th { padding: .2rem .45rem; font-size: .9rem; }
 .chip.faded { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
 .chip.done { background: var(--code-bg); color: var(--muted); text-decoration: line-through; }
 tr.hl td, tr.hl th { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-/* Module 12: OS cards and comparison table */
+/* Module 18: OS cards and comparison table */
 .os-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: .75rem; }
 .os-cards .os-group { grid-column: 1 / -1; margin: .75rem 0 0; font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .os-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: .7rem .8rem; }
@@ -318,7 +318,7 @@ kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 
 .pagegrid td.differs, .pagegrid th.differs { outline: 3px solid var(--fg); outline-offset: -3px; }
 .pagegrid caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
 input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
-/* stack-frame diagram (Module 18) */
+/* stack-frame diagram (Module 3) */
 .stack-frame { display: flex; flex-direction: column; gap: 4px; max-width: 34rem; margin: .75rem 0; }
 .stack-seg { border: 1px solid var(--border); border-radius: 6px; padding: .3rem .5rem; background: var(--card); }
 .stack-name { font-size: .9rem; }

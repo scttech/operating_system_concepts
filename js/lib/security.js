@@ -1,4 +1,4 @@
-/* Security in depth: pure models behind the Module 18 simulations.
+/* Security in depth: pure models behind the Module 3 simulations.
  *   stackAttack            : what happens when input overflows a buffer on the stack, with and without a canary, NX and ASLR;
  *   passwordSpace / crack* : how long guessing takes for a given password and a given kind of attacker;
  *   sha256Hex / *Hash      : SHA-256 and the salted and stretched hashes the example programs use;

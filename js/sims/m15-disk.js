@@ -1,4 +1,4 @@
-/* Module 10: disk scheduling, with an animated disk arm */
+/* Module 15: disk scheduling, with an animated disk arm */
 (function () {
   "use strict";
   const { h, panel, select, slider, button, svg, number, player } = OSUI;

@@ -24,8 +24,8 @@
     const flat = D.parts.flatMap((p) => p.modules);
     assert.deepEqual([...flat].sort((a, b) => a - b), D.modules.map((m) => m.n), "each module appears once, and none is missing");
     assert.deepEqual(D.readingOrder, flat);
-    assert.equal(D.partOf(15).part.id, "concurrency");
-    assert.deepEqual([D.partOf(15).index, D.partOf(15).of, D.partOf(15).number], [2, 4, 3]);
+    assert.equal(D.partOf(10).part.id, "concurrency");
+    assert.deepEqual([D.partOf(10).index, D.partOf(10).of, D.partOf(10).number], [2, 4, 3]);
     assert.equal(D.partOf(99), null);
     assert.ok(D.readingOrder.indexOf(1) === 0, "the course starts with Module 1");
   });

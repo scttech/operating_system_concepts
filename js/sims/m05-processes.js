@@ -1,4 +1,4 @@
-/* Module 3: process state machine and fork tree */
+/* Module 5: process state machine and fork tree */
 (function () {
   "use strict";
   const { h, panel, slider, button, svg } = OSUI;

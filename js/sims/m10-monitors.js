@@ -1,4 +1,4 @@
-/* Module 15: monitors, condition variables and readers-writers */
+/* Module 10: monitors, condition variables and readers-writers */
 (function () {
   "use strict";
   const { h, panel, select, button, svg, player } = OSUI;

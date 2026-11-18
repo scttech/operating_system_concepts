@@ -1,4 +1,4 @@
-/* Module 5: Amdahl's law and context-switch overhead */
+/* Module 7: Amdahl's law and context-switch overhead */
 (function () {
   "use strict";
   const { h, panel, slider, svg } = OSUI;

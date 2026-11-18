@@ -1,4 +1,4 @@
-/* Module 19: storage reliability. RAID, rebuild risk, SSD write amplification and journaling. */
+/* Module 17: storage reliability. RAID, rebuild risk, SSD write amplification and journaling. */
 (function () {
   "use strict";
   const { h, panel, select, slider, button, svg } = OSUI;

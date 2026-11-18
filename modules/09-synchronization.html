@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 6: Process Synchronization — OS Concepts</title>
+<title>Module 9: Process Synchronization — OS Concepts</title>
 <meta name="description" content="Race conditions, critical sections, mutexes and semaphores, with a race-condition lab and a bounded-buffer simulator.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/06-synchronization.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/09-synchronization.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 6: Process Synchronization — OS Concepts">
+<meta property="og:title" content="Module 9: Process Synchronization — OS Concepts">
 <meta property="og:description" content="Race conditions, critical sections, mutexes and semaphores, with a race-condition lab and a bounded-buffer simulator.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/06-synchronization.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/09-synchronization.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="6">
+<body data-root="../" data-module="9">
 <main>
-  <p class="eyebrow">Module 6</p>
+  <p class="eyebrow">Module 9</p>
   <h1>Process Synchronization</h1>
   <p class="lead">When <dfn data-term="Concurrency">concurrent</dfn> threads or processes share data, the result can depend on exact timing. Synchronization tools enforce order and exclusive access.</p>
 
@@ -54,7 +54,7 @@
       <tr><td><dfn data-term="Mutex">Mutex</dfn></td><td>Lock with an owner; waiters sleep</td><td>Best for longer critical sections</td></tr>
       <tr><td><dfn data-term="Spinlock">Spinlock</dfn></td><td>Waiter busy-loops until the lock is free</td><td>Good for very short sections on multicore; wasteful otherwise</td></tr>
       <tr><td><dfn data-term="Semaphore">Semaphore</dfn></td><td>Integer with atomic <code>wait()</code> (P) and <code>signal()</code> (V)</td><td>Binary (mutex-like) or counting (resource pools)</td></tr>
-      <tr><td>Monitor / condition variable</td><td>Language-level lock plus wait/notify queues</td><td>Java <code>synchronized</code>, Python <code>threading.Condition</code>. See <a href="15-monitors.html">Module 15</a></td></tr>
+      <tr><td>Monitor / condition variable</td><td>Language-level lock plus wait/notify queues</td><td>Java <code>synchronized</code>, Python <code>threading.Condition</code>. See <a href="10-monitors.html">Module 10</a></td></tr>
     </tbody>
   </table>
   <pre><code>wait(S):   while (S &lt;= 0) block;  S--;   // must be atomic
@@ -146,13 +146,13 @@ print(f"{THREADS} threads x {ITERATIONS} increments, protected by a spinlock: co
   insert item                   remove item
   signal(mutex)                 signal(mutex)
   signal(full)                  signal(empty)</code></pre>
-  <div class="callout warn"><p><b>Order matters:</b> if a producer does <code>wait(mutex)</code> <em>before</em> <code>wait(empty)</code> and the buffer is full, it sleeps while holding the mutex, so the consumer can never get in to make room. That is a deadlock. See <a href="07-deadlocks.html">Module 7</a>.</p></div>
+  <div class="callout warn"><p><b>Order matters:</b> if a producer does <code>wait(mutex)</code> <em>before</em> <code>wait(empty)</code> and the buffer is full, it sleeps while holding the mutex, so the consumer can never get in to make room. That is a deadlock. See <a href="11-deadlocks.html">Module 11</a>.</p></div>
   <div data-sim="boundedbuffer"></div>
 
   <h2>Other classic problems</h2>
   <ul>
-    <li><b>Readers–writers:</b> many readers may share data, but writers need exclusive access (beware writer starvation). <a href="15-monitors.html#rw">Module 15</a> simulates the policies.</li>
-    <li><b>Dining philosophers:</b> see <a href="07-deadlocks.html#philosophers">Module 7</a>.</li>
+    <li><b>Readers–writers:</b> many readers may share data, but writers need exclusive access (beware writer starvation). <a href="10-monitors.html#rw">Module 10</a> simulates the policies.</li>
+    <li><b>Dining philosophers:</b> see <a href="11-deadlocks.html#philosophers">Module 11</a>.</li>
     <li><b><dfn data-term="Priority inversion">Priority inversion</dfn>:</b> a high-priority task blocked on a lock held by a low-priority task that is preempted by a medium one. Fix with priority inheritance.</li>
   </ul>
 
@@ -171,7 +171,7 @@ print(f"{THREADS} threads x {ITERATIONS} increments, protected by a spinlock: co
   </details>
 
   <h2>Check your understanding</h2>
-  <div data-quiz="6"></div>
+  <div data-quiz="9"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -188,6 +188,6 @@ print(f"{THREADS} threads x {ITERATIONS} increments, protected by a spinlock: co
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/sync.js"></script>
-<script src="../js/sims/m06-sync.js"></script>
+<script src="../js/sims/m09-sync.js"></script>
 </body>
 </html>

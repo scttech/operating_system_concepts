@@ -1,4 +1,4 @@
-/* Threat-modeling exercises for Module 18. Each system lists threats; the learner classifies each one with STRIDE
+/* Threat-modeling exercises for Module 3. Each system lists threats; the learner classifies each one with STRIDE
  * (Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege).
  * threat: { text, cat: "S|T|R|I|D|E", why: why it belongs to that category, fix: a usual defense } */
 window.OSData = window.OSData || {};

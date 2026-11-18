@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 18: Security in Depth — OS Concepts</title>
+<title>Module 3: Security in Depth — OS Concepts</title>
 <meta name="description" content="Buffer overflows and the defenses against them, how passwords should be stored and why, and how to find threats before attackers do.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/18-security-depth.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/03-security-depth.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 18: Security in Depth — OS Concepts">
+<meta property="og:title" content="Module 3: Security in Depth — OS Concepts">
 <meta property="og:description" content="Buffer overflows and the defenses against them, how passwords should be stored and why, and how to find threats before attackers do.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/18-security-depth.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/03-security-depth.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="18">
+<body data-root="../" data-module="3">
 <main>
-  <p class="eyebrow">Module 18</p>
+  <p class="eyebrow">Module 3</p>
   <h1>Security in Depth</h1>
   <p class="lead"><a href="02-security.html">Module 2</a> covered who is allowed to do what. This module covers what happens when something goes wrong anyway: a bug that lets an attacker run their own code, a stolen password file, or a design that never asked how it could be abused. The recurring lesson is <b>defense in depth</b>: no single protection is enough, so you layer them.</p>
 
@@ -32,7 +32,7 @@
 
   <h2 id="memory">When memory is not protected: buffer overflows</h2>
   <p>An operating system keeps processes apart, but it cannot protect a process from its own bugs. The most famous bug is the <dfn data-term="Buffer overflow">buffer overflow</dfn>: a program copies input into a fixed-size buffer and never checks how long the input is. In C, nothing stops the extra bytes from landing on whatever lies next to the buffer.</p>
-  <p>On the <a href="03-processes.html">stack</a>, that is a problem, because a function's frame holds more than its local variables. Just above a local buffer sit the <em>saved frame pointer</em> and, above that, the <em>return address</em>: the place the CPU will jump to when the function finishes. An attacker who can write past the end of the buffer can choose that address, and so choose what code runs next.</p>
+  <p>On the <a href="05-processes.html">stack</a>, that is a problem, because a function's frame holds more than its local variables. Just above a local buffer sit the <em>saved frame pointer</em> and, above that, the <em>return address</em>: the place the CPU will jump to when the function finishes. An attacker who can write past the end of the buffer can choose that address, and so choose what code runs next.</p>
   <div data-sim="stackattack"></div>
   <div class="callout"><p><b>Try it:</b> start with “Fits in the buffer”, then “Plain overflow”: filler bytes (<code>AAAA…</code>) wreck the return address and the program crashes. That is bad (an attacker can crash your service) but not a takeover. Now “Real attack, no defenses”: the attacker writes a chosen address, and the function returns <em>there</em>. Then switch on the defenses one by one.</p></div>
 
@@ -147,7 +147,7 @@ report("copy of 28 bytes (checked, cut to 16):", mem)</code></pre>
       <tr><td><dfn data-term="Stack canary">Stack canary</dfn></td><td>A secret value between the buffer and the return address; checked before the function returns, so an overflow is noticed.</td><td>An <dfn data-term="Information leak">information leak</dfn> that reveals the canary, so the attacker can write it back; or a bug that skips over it.</td></tr>
       <tr><td><dfn data-term="Non-executable memory (NX)">Non-executable memory (NX)</dfn></td><td>The hardware refuses to run code from the stack or heap, so code the attacker injected cannot run.</td><td>Reusing code that already exists (return-oriented programming): the attacker chains small pieces of the program's own code.</td></tr>
       <tr><td><dfn data-term="ASLR">ASLR</dfn></td><td>Places the stack, heap and libraries at random addresses each run, so the attacker does not know where to jump.</td><td>A leak that reveals one address; or guessing, when there is little randomness (about 8 bits in the simulator).</td></tr>
-      <tr><td>Least privilege, sandboxes</td><td>Even if the program is taken over, it can do only what its account and sandbox allow (<a href="02-security.html">Module 2</a>, <a href="14-virtualization.html">Module 14</a>).</td><td>A second bug, in the kernel or the sandbox, that lets the attacker out.</td></tr>
+      <tr><td>Least privilege, sandboxes</td><td>Even if the program is taken over, it can do only what its account and sandbox allow (<a href="02-security.html">Module 2</a>, <a href="19-virtualization.html">Module 19</a>).</td><td>A second bug, in the kernel or the sandbox, that lets the attacker out.</td></tr>
     </tbody>
   </table>
   <p>This is <dfn data-term="Defense in depth">defense in depth</dfn>. In the simulator, tick all three defenses and the attack fails. Then add an information leak and a code-reuse target and it succeeds again, which is exactly how real exploits are built: first a leak, then the overflow.</p>
@@ -333,15 +333,15 @@ for guess in (PASSWORD, "correct horsf"):
       <li><b>Control-flow integrity and shadow stacks.</b> Newer defenses check that a return goes where the matching call came from. Hardware shadow stacks keep a second, protected copy of return addresses, so overwriting the one on the stack is detected. Pointer authentication on Arm signs return addresses cryptographically.</li>
       <li><b>Other memory bugs.</b> Overflows on the heap, use-after-free, and integer overflows that make a length check pass wrongly are the same family. About two-thirds of serious vulnerabilities in large C and C++ code bases have been reported as memory-safety bugs, which is why Rust and other safe languages are being adopted for system software.</li>
       <li><b>Fuzzing.</b> Automated tools feed a program millions of mangled inputs and watch for crashes. Sanitizers (AddressSanitizer and others) turn silent overflows into immediate, reportable errors during testing.</li>
-      <li><b>Speculative execution.</b> Spectre and Meltdown showed that a CPU’s speed tricks can leak data across the boundaries the operating system sets up, through timing alone. Fixes such as page-table isolation (<a href="08-memory.html">Module 8</a>) cost performance, a reminder that security is a trade-off.</li>
-      <li><b>Time-of-check to time-of-use (TOCTOU).</b> A program checks that a file is safe and then opens it, but an attacker swaps it between the two steps. Like the race conditions of <a href="06-synchronization.html">Module 6</a>, the fix is to make check and use one atomic operation.</li>
+      <li><b>Speculative execution.</b> Spectre and Meltdown showed that a CPU’s speed tricks can leak data across the boundaries the operating system sets up, through timing alone. Fixes such as page-table isolation (<a href="13-memory.html">Module 13</a>) cost performance, a reminder that security is a trade-off.</li>
+      <li><b>Time-of-check to time-of-use (TOCTOU).</b> A program checks that a file is safe and then opens it, but an attacker swaps it between the two steps. Like the race conditions of <a href="09-synchronization.html">Module 9</a>, the fix is to make check and use one atomic operation.</li>
       <li><b>The confused deputy.</b> A privileged program is tricked into using its authority on an attacker’s behalf. Capability systems avoid it by passing the authority explicitly with each request, rather than letting a program use whatever its identity allows.</li>
       <li><b>Password storage in practice.</b> The memory cost of scrypt and Argon2 defeats attackers who use GPUs, which have many cores but little memory each. A system-wide secret kept outside the database (a “pepper”) adds a further layer. Breach checking and rate limiting protect against stolen passwords being reused across sites.</li>
     </ul>
   </details>
 
   <h2 id="quiz">Check your understanding</h2>
-  <div data-quiz="18"></div>
+  <div data-quiz="3"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -359,6 +359,6 @@ for guess in (PASSWORD, "correct horsf"):
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/security.js"></script>
-<script src="../js/sims/m18-security.js"></script>
+<script src="../js/sims/m03-security.js"></script>
 </body>
 </html>

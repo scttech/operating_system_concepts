@@ -1,4 +1,4 @@
-/* Module 11: file allocation methods and inode capacity */
+/* Module 16: file allocation methods and inode capacity */
 (function () {
   "use strict";
   const { h, panel, select, slider, svg } = OSUI;

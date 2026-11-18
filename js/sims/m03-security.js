@@ -1,4 +1,4 @@
-/* Module 18: security in depth. Stack smashing and its defenses, password guessing and hashing, and a STRIDE exercise. */
+/* Module 3: security in depth. Stack smashing and its defenses, password guessing and hashing, and a STRIDE exercise. */
 (function () {
   "use strict";
   const { h, panel, select, slider, button } = OSUI;

@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 14: Virtualization and Containers — OS Concepts</title>
+<title>Module 19: Virtualization and Containers — OS Concepts</title>
 <meta name="description" content="Hypervisors and virtual machines, containers built from namespaces and control groups, and what each one really isolates.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/14-virtualization.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/19-virtualization.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 14: Virtualization and Containers — OS Concepts">
+<meta property="og:title" content="Module 19: Virtualization and Containers — OS Concepts">
 <meta property="og:description" content="Hypervisors and virtual machines, containers built from namespaces and control groups, and what each one really isolates.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/14-virtualization.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/19-virtualization.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="14">
+<body data-root="../" data-module="19">
 <main>
-  <p class="eyebrow">Module 14</p>
+  <p class="eyebrow">Module 19</p>
   <h1>Virtualization and Containers</h1>
   <p class="lead">An operating system already makes one computer look like many: each process believes it has the CPU and its own memory. <b>Virtualization</b> pushes that idea further, so that a whole <em>machine</em> or a whole <em>system environment</em> can be copied, moved, limited and thrown away.</p>
 
@@ -46,7 +46,7 @@
   <h3>How the CPU is shared</h3>
   <p>The guest operating system believes it runs in kernel mode and may execute privileged instructions, but the hypervisor cannot allow that, or the guest could take over the machine. Early virtualization used <em>trap-and-emulate</em>: the guest actually runs in user mode, the first privileged instruction traps (as in <a href="01-fundamentals.html">Module 1</a>), and the hypervisor emulates what the instruction would have done and resumes the guest. Some older CPUs had instructions that misbehaved silently instead of trapping, so products rewrote the guest’s code on the fly. Modern CPUs (Intel VT-x, AMD-V, ARM virtualization extensions) add a dedicated <em>guest mode</em>, so most guest code runs at full speed and the hardware does the switch for you.</p>
   <h3>How memory is shared</h3>
-  <p>The guest has its own page tables mapping guest-virtual addresses to what it thinks is physical memory. The hypervisor adds another level of translation behind it (nested or extended page tables), which is the “virtual machines pay twice” point from <a href="08-memory.html">Module 8</a>. The hypervisor can then give each VM a different slice of real RAM, or even promise more than exists.</p>
+  <p>The guest has its own page tables mapping guest-virtual addresses to what it thinks is physical memory. The hypervisor adds another level of translation behind it (nested or extended page tables), which is the “virtual machines pay twice” point from <a href="13-memory.html">Module 13</a>. The hypervisor can then give each VM a different slice of real RAM, or even promise more than exists.</p>
   <h3>How I/O is shared</h3>
   <p>Pretending to be a real network card is simple but slow, because each poke at a pretend register stops the guest: a <dfn data-term="VM exit">VM exit</dfn>. <dfn data-term="Paravirtualization">Paravirtualized</dfn> devices such as <em>virtio</em> trade the pretence for cooperation: the guest knows it is a guest, queues many requests in memory it shares with the hypervisor, and exits once per batch.</p>
   <div data-sim="vmexits"></div>
@@ -148,7 +148,7 @@ os.waitpid(child, 0)</code></pre>
   <p>Because the kernel is shared, a container is limited to what that kernel can run. A Linux container needs a Linux kernel. That is why Docker on a Mac or Windows laptop quietly starts a small Linux virtual machine and runs all containers in it.</p>
 
   <h2 id="cgroups">Limits: control groups</h2>
-  <p>Namespaces do not stop one container from eating all the memory. That is the job of <dfn data-term="Control group (cgroup)">control groups (cgroups)</dfn>, which let the kernel limit and account for the CPU, memory, disk I/O and number of processes used by a group. Compare the CPU controls to the scheduling algorithms in <a href="04-scheduling.html">Module 4</a>: weights give proportional shares under contention (as in a fair-share scheduler), while a cap is a hard limit.</p>
+  <p>Namespaces do not stop one container from eating all the memory. That is the job of <dfn data-term="Control group (cgroup)">control groups (cgroups)</dfn>, which let the kernel limit and account for the CPU, memory, disk I/O and number of processes used by a group. Compare the CPU controls to the scheduling algorithms in <a href="06-scheduling.html">Module 6</a>: weights give proportional shares under contention (as in a fair-share scheduler), while a cap is a hard limit.</p>
   <div data-sim="cgcpu"></div>
   <div class="callout"><p><b>Try it:</b> set the cap on the batch job to none and watch it take its share. Then make the web group ask for just one core and see the others receive the leftover. That is what <em>work-conserving</em> means. Finally put a cap on a group when the machine is nearly idle: the cap holds it back anyway.</p></div>
   <div data-sim="cgmem"></div>
@@ -214,14 +214,14 @@ print(f"allocating 2048 MiB: {try_allocate(2048)}")                   # (3) over
       <li><b>Capabilities and system-call filters.</b> Container runtimes drop most of root’s powers (see <a href="02-security.html">Module 2</a>) and install a <em>seccomp</em> filter listing which system calls are allowed. A user namespace can also map “root inside” to an unprivileged ID on the host, which is how rootless containers work.</li>
       <li><b>MicroVMs and sandboxes.</b> Firecracker boots a minimal VM in roughly a tenth of a second with very few virtual devices, so each customer function gets a VM boundary at nearly container speed. gVisor and Kata Containers go the other ways: gVisor intercepts system calls in a user-space “kernel”, and Kata runs each pod in a lightweight VM.</li>
       <li><b>Hardware assists.</b> Beyond VT-x there are nested page tables (EPT/NPT) for memory, an IOMMU to keep a device inside its owner’s memory, SR-IOV to split one network card into many virtual ones, and confidential-computing extensions that encrypt a VM’s memory even from the hypervisor.</li>
-      <li><b>Live migration.</b> A running VM can move between hosts with almost no pause: the hypervisor copies memory while the guest keeps running, tracks which pages get dirtied (using the page-table dirty bits from <a href="09-virtual-memory.html">Module 9</a>), re-copies them, and finally pauses the guest for a few milliseconds to move the last of its state.</li>
+      <li><b>Live migration.</b> A running VM can move between hosts with almost no pause: the hypervisor copies memory while the guest keeps running, tracks which pages get dirtied (using the page-table dirty bits from <a href="14-virtual-memory.html">Module 14</a>), re-copies them, and finally pauses the guest for a few milliseconds to move the last of its state.</li>
       <li><b>Memory overcommit in VMs.</b> Hypervisors reclaim memory from idle guests with <em>ballooning</em> (a driver in the guest asks its own OS for pages and hands them back), share identical pages, and compress or swap as a last resort. A guest that does not know it is being squeezed can choose its own page replacement badly.</li>
-      <li><b>Orchestration.</b> Kubernetes schedules <em>pods</em> (groups of containers that share a network namespace) onto machines using the CPU and memory requests that become cgroup settings. It is a cluster-wide scheduler in the sense of <a href="04-scheduling.html">Module 4</a>, placing work rather than time slices.</li>
+      <li><b>Orchestration.</b> Kubernetes schedules <em>pods</em> (groups of containers that share a network namespace) onto machines using the CPU and memory requests that become cgroup settings. It is a cluster-wide scheduler in the sense of <a href="06-scheduling.html">Module 6</a>, placing work rather than time slices.</li>
     </ul>
   </details>
 
   <h2 id="quiz">Check your understanding</h2>
-  <div data-quiz="14"></div>
+  <div data-quiz="19"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -238,6 +238,6 @@ print(f"allocating 2048 MiB: {try_allocate(2048)}")                   # (3) over
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/virt.js"></script>
-<script src="../js/sims/m14-virt.js"></script>
+<script src="../js/sims/m19-virt.js"></script>
 </body>
 </html>

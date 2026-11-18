@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 15: Monitors and Readers–Writers — OS Concepts</title>
+<title>Module 10: Monitors and Readers–Writers — OS Concepts</title>
 <meta name="description" content="Monitors and condition variables, why a wait belongs in a while loop, and read-write locks with their starvation trade-offs.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/15-monitors.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/10-monitors.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 15: Monitors and Readers–Writers — OS Concepts">
+<meta property="og:title" content="Module 10: Monitors and Readers–Writers — OS Concepts">
 <meta property="og:description" content="Monitors and condition variables, why a wait belongs in a while loop, and read-write locks with their starvation trade-offs.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/15-monitors.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/10-monitors.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="15">
+<body data-root="../" data-module="10">
 <main>
-  <p class="eyebrow">Module 15</p>
+  <p class="eyebrow">Module 10</p>
   <h1>Monitors and Readers–Writers</h1>
   <p class="lead">Semaphores can solve any synchronization problem, but they are easy to get wrong: swap two calls, forget one, and the program deadlocks or races. This module covers the tools that real programs use instead: the <b>monitor</b> with its <b>condition variables</b>, and the <b>read-write lock</b>, which shows that even “who goes first?” is a design decision with consequences.</p>
 
@@ -31,7 +31,7 @@
     <ul><li><a href="#monitor">Monitors and condition variables</a></li><li><a href="#mesa">Why “while”, not “if”</a></li><li><a href="#queue">A bounded queue, done properly</a></li><li><a href="#rw">Readers and writers</a></li><li><a href="#langs">In real languages</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
 
   <h2 id="monitor">Monitors and condition variables</h2>
-  <p>Recall the bounded buffer from <a href="06-synchronization.html">Module 6</a>: it needed one semaphore as a mutex and two more to count empty and full slots, and the order of the calls mattered. A <dfn data-term="Monitor">monitor</dfn> packages the same ideas more safely. It bundles the <b>shared data</b>, the <b>lock</b> that protects it, and one or more <dfn data-term="Condition variable">condition variables</dfn> on which threads can sleep until something they need has happened. Because the data can only be touched through the monitor’s own operations, the locking discipline lives in one place instead of in every caller.</p>
+  <p>Recall the bounded buffer from <a href="09-synchronization.html">Module 9</a>: it needed one semaphore as a mutex and two more to count empty and full slots, and the order of the calls mattered. A <dfn data-term="Monitor">monitor</dfn> packages the same ideas more safely. It bundles the <b>shared data</b>, the <b>lock</b> that protects it, and one or more <dfn data-term="Condition variable">condition variables</dfn> on which threads can sleep until something they need has happened. Because the data can only be touched through the monitor’s own operations, the locking discipline lives in one place instead of in every caller.</p>
   <p>A condition variable has three operations, always used while holding the lock:</p>
   <ul>
     <li><b>wait</b>: <em>atomically</em> release the lock and go to sleep. When woken, reacquire the lock before returning. Doing both at once is essential: if a thread released the lock, then slept, a signal sent in between would be lost forever.</li>
@@ -171,7 +171,7 @@ print(f"the queue never held more than {CAPACITY} items: {state['most'] &lt;= CA
   <p>That leaves a policy question for when both kinds are waiting:</p>
   <ul>
     <li><b>Reader preference.</b> A reader never waits behind another reader, even if a writer is already waiting. Maximum sharing, but a steady stream of readers can keep a writer out indefinitely.</li>
-    <li><b>Writer preference.</b> When a writer is waiting, new readers wait too. Data stays fresh, but a steady stream of writers can <a href="04-scheduling.html">starve</a> the readers.</li>
+    <li><b>Writer preference.</b> When a writer is waiting, new readers wait too. Data stays fresh, but a steady stream of writers can <a href="06-scheduling.html">starve</a> the readers.</li>
     <li><b>First come, first served.</b> Requests are admitted in arrival order, and a run of readers at the front can go together. Nobody starves, at the cost of some sharing.</li>
   </ul>
   <div data-sim="rwsim"></div>
@@ -320,14 +320,14 @@ print(f"the writer made {UPDATES} updates; final value: {pair['a']}")</code></pr
       <li><b>Signal or broadcast?</b> Signaling one waiter is only safe when any waiter can use the change. If waiters want different things (a buffer of unequal-size requests, say), signaling one may wake a thread that cannot proceed and leave the right one asleep. <code>broadcast</code> is always correct; it can be slower because everyone wakes and re-checks (a <em>thundering herd</em>).</li>
       <li><b>Lost wake-ups.</b> If a program checks a condition without holding the lock and then sleeps, a signal arriving between the two steps is lost, and the thread may sleep forever. This is the reason waiting and the lock release are one atomic operation.</li>
       <li><b>Read–write locks are not free.</b> Even shared readers must update the lock’s counter, which bounces a cache line between cores. With short read sections, a plain mutex or a lock-free design can beat a read–write lock. Linux uses <em>RCU</em> for read-mostly kernel data, so readers do not write to shared memory at all.</li>
-      <li><b>Upgrading is dangerous.</b> A thread holding a read lock cannot simply ask for the write lock: two readers both trying to upgrade will each wait for the other to leave, a deadlock (see <a href="07-deadlocks.html">Module 7</a>). Most libraries do not support upgrade for this reason.</li>
+      <li><b>Upgrading is dangerous.</b> A thread holding a read lock cannot simply ask for the write lock: two readers both trying to upgrade will each wait for the other to leave, a deadlock (see <a href="11-deadlocks.html">Module 11</a>). Most libraries do not support upgrade for this reason.</li>
       <li><b>Seqlocks.</b> For small, frequently read data, a writer increments a version number before and after updating, and a reader retries if the number changed or was odd. Readers never block the writer and never take a lock, which solves writer starvation by construction.</li>
       <li><b>Fairness versus throughput.</b> Fair queues can create a <em>lock convoy</em>: every thread wakes, runs a moment, and sleeps again behind the next. Real implementations mix policies, for example letting a thread barge in once but putting it at the back after it has waited too long.</li>
     </ul>
   </details>
 
   <h2 id="quiz">Check your understanding</h2>
-  <div data-quiz="15"></div>
+  <div data-quiz="10"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -344,6 +344,6 @@ print(f"the writer made {UPDATES} updates; final value: {pair['a']}")</code></pr
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/rw.js"></script>
-<script src="../js/sims/m15-monitors.js"></script>
+<script src="../js/sims/m10-monitors.js"></script>
 </body>
 </html>

@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 17: Advanced Scheduling — OS Concepts</title>
+<title>Module 8: Advanced Scheduling — OS Concepts</title>
 <meta name="description" content="Multilevel feedback queues, real-time scheduling with deadline guarantees (rate-monotonic and EDF), and balancing work across cores.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/17-advanced-scheduling.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/08-advanced-scheduling.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 17: Advanced Scheduling — OS Concepts">
+<meta property="og:title" content="Module 8: Advanced Scheduling — OS Concepts">
 <meta property="og:description" content="Multilevel feedback queues, real-time scheduling with deadline guarantees (rate-monotonic and EDF), and balancing work across cores.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/17-advanced-scheduling.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/08-advanced-scheduling.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,11 +21,11 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="17">
+<body data-root="../" data-module="8">
 <main>
-  <p class="eyebrow">Module 17</p>
+  <p class="eyebrow">Module 8</p>
   <h1>Advanced Scheduling</h1>
-  <p class="lead">The algorithms in <a href="04-scheduling.html">Module 4</a> assume that the scheduler knows how long each job will run, that all that matters is average speed, and that there is one CPU. Real systems break all three assumptions. This module covers the answers: queues that <em>learn</em> which jobs are interactive, schedulers that <em>guarantee deadlines</em>, and schedulers that spread work across <em>many cores</em>.</p>
+  <p class="lead">The algorithms in <a href="06-scheduling.html">Module 6</a> assume that the scheduler knows how long each job will run, that all that matters is average speed, and that there is one CPU. Real systems break all three assumptions. This module covers the answers: queues that <em>learn</em> which jobs are interactive, schedulers that <em>guarantee deadlines</em>, and schedulers that spread work across <em>many cores</em>.</p>
 
   <div class="toc"><strong>On this page</strong>
     <ul><li><a href="#mlfq">Learning from behavior: feedback queues</a></li><li><a href="#rt">Meeting deadlines: real-time scheduling</a></li><li><a href="#multi">Many cores</a></li><li><a href="#linux">What Linux actually does</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
@@ -158,7 +158,7 @@ for name, edf in (("rate-monotonic", False), ("earliest-deadline-first", True)):
     else:
         print(f"{name}: no deadline missed in {HORIZON} ticks")</code></pre>
   </div>
-  <p>Deadlines add a sharp edge to the synchronization problems of <a href="06-synchronization.html">Module 6</a>. If a low-priority task holds a lock that a high-priority task needs, and a medium-priority task then preempts the lock holder, the high-priority task is delayed by a task that is less important than it. This is <dfn data-term="Priority inversion">priority inversion</dfn>, and real-time systems fix it with <em>priority inheritance</em>: the lock holder temporarily runs at the waiter’s priority.</p>
+  <p>Deadlines add a sharp edge to the synchronization problems of <a href="09-synchronization.html">Module 9</a>. If a low-priority task holds a lock that a high-priority task needs, and a medium-priority task then preempts the lock holder, the high-priority task is delayed by a task that is less important than it. This is <dfn data-term="Priority inversion">priority inversion</dfn>, and real-time systems fix it with <em>priority inheritance</em>: the lock holder temporarily runs at the waiter’s priority.</p>
 
   <h2 id="multi">Many cores</h2>
   <p>With several CPUs the question changes from “which job next?” to “which job where?”. The usual design gives each core its own run queue, because one shared queue would need a lock that every core fights over. But separate queues can become unbalanced: one core has a backlog while another idles.</p>
@@ -229,7 +229,7 @@ print(f"after pinning, the allowed set is exactly that one CPU: {os.sched_getaff
       <tr><td><code>SCHED_FIFO</code>, <code>SCHED_RR</code></td><td>Real-time tasks</td><td>Fixed priorities 1–99, above all ordinary tasks. FIFO runs until it blocks; RR adds time slices among equals. This is rate-monotonic-style scheduling, with the priorities assigned by the programmer.</td></tr>
       <tr><td><code>SCHED_DEADLINE</code></td><td>Tasks with explicit deadlines</td><td>Earliest deadline first, with an <em>admission test</em>: the kernel refuses a new task if the total utilization would go above what it can guarantee.</td></tr>
       <tr><td>Per-CPU run queues, load balancing</td><td>Multicore</td><td>Each core has its own queue. Idle cores pull work, and a periodic balancer evens out loads, preferring moves within a cache domain or NUMA node.</td></tr>
-      <tr><td>cgroup <code>cpu.weight</code> and <code>cpu.max</code></td><td>Containers</td><td>The shares and caps from <a href="14-virtualization.html">Module 14</a>, applied to groups of tasks.</td></tr>
+      <tr><td>cgroup <code>cpu.weight</code> and <code>cpu.max</code></td><td>Containers</td><td>The shares and caps from <a href="19-virtualization.html">Module 19</a>, applied to groups of tasks.</td></tr>
     </tbody>
   </table>
 
@@ -248,7 +248,7 @@ print(f"after pinning, the allowed set is exactly that one CPU: {os.sched_getaff
   </details>
 
   <h2 id="quiz">Check your understanding</h2>
-  <div data-quiz="17"></div>
+  <div data-quiz="8"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -266,6 +266,6 @@ print(f"after pinning, the allowed set is exactly that one CPU: {os.sched_getaff
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/advsched.js"></script>
 <script src="../js/lib/csv.js"></script>
-<script src="../js/sims/m17-advsched.js"></script>
+<script src="../js/sims/m08-advsched.js"></script>
 </body>
 </html>

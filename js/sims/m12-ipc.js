@@ -1,4 +1,4 @@
-/* Module 13: inter-process communication. A pipe / message-queue explorer and a cost comparison. */
+/* Module 12: inter-process communication. A pipe / message-queue explorer and a cost comparison. */
 (function () {
   "use strict";
   const { h, panel, select, slider, button, svg } = OSUI;

@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 16: The Boot Process — OS Concepts</title>
+<title>Module 4: The Boot Process — OS Concepts</title>
 <meta name="description" content="From power-on to a login prompt: firmware, boot loaders, the master boot record, the kernel, init, and the chain of trust.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/16-boot.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/04-boot.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 16: The Boot Process — OS Concepts">
+<meta property="og:title" content="Module 4: The Boot Process — OS Concepts">
 <meta property="og:description" content="From power-on to a login prompt: firmware, boot loaders, the master boot record, the kernel, init, and the chain of trust.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/16-boot.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/04-boot.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="16">
+<body data-root="../" data-module="4">
 <main>
-  <p class="eyebrow">Module 16</p>
+  <p class="eyebrow">Module 4</p>
   <h1>The Boot Process</h1>
   <p class="lead">The operating system lives on a disk, but to read a disk you need an operating system. <b>Booting</b> is the answer to that chicken-and-egg problem: a chain of small programs, each just capable enough to load the next, until the kernel is running and can take over.</p>
 
@@ -149,7 +149,7 @@ print(f"the first partition starts at byte {byte_offset} ({byte_offset // 104857
   <h2 id="init">Starting services</h2>
   <p>Once the kernel starts <b>init</b>, boot becomes a scheduling problem. Dozens of services must start, but a database cannot start before its disk is mounted and the network is up. An init system such as systemd is told what each service comes <em>after</em> and then starts every service as soon as its prerequisites have finished. That is a dependency graph, and the schedule is the same longest-path idea used for project planning: the <b>critical path</b> decides how long boot takes.</p>
   <div data-sim="initorder"></div>
-  <div class="callout"><p><b>Try it:</b> make <code>cron</code> slower and nothing changes, because it is off the critical path. Make <code>network</code> slower and the whole boot takes longer. Then tick the mistake box: if the network waits for the web server, and the web server waits for the network, neither can ever start. This is the same circular-wait condition that causes <a href="07-deadlocks.html">deadlock</a>, found before the system has finished starting.</p></div>
+  <div class="callout"><p><b>Try it:</b> make <code>cron</code> slower and nothing changes, because it is off the critical path. Make <code>network</code> slower and the whole boot takes longer. Then tick the mistake box: if the network waits for the web server, and the web server waits for the network, neither can ever start. This is the same circular-wait condition that causes <a href="11-deadlocks.html">deadlock</a>, found before the system has finished starting.</p></div>
 
   <h3>Try it: ordering services</h3>
   <div class="code-tabs" aria-label="Start order example language">
@@ -265,7 +265,7 @@ print("critical path: " + " -&gt; ".join(reversed(chain)))                # (3) 
   <div class="callout"><p><b>Try it:</b> tamper with the kernel and the chain breaks there, with the modules never reached. Tamper with the boot loader and the kernel, which is unchanged, is also untrusted: its signature was never checked by anything trustworthy. The strength of the chain is the strength of its weakest link, and of the keys at its root.</p></div>
 
   <h2 id="others">Other kinds of machine</h2>
-  <p>The pattern, a chain of ever-more-capable loaders, is universal. The details vary, as the systems in <a href="12-os-landscape.html">Module 12</a> show:</p>
+  <p>The pattern, a chain of ever-more-capable loaders, is universal. The details vary, as the systems in <a href="18-os-landscape.html">Module 18</a> show:</p>
   <ul>
     <li><b>Raspberry Pi:</b> the graphics processor, not the CPU, starts first, running code from its own ROM that reads boot files from the SD card before the main CPU starts at all.</li>
     <li><b>Phones:</b> a ROM boot loader verifies the next stage, which verifies the next, up to the Android or iOS kernel (<em>verified boot</em>). Unlocking the bootloader deliberately breaks the chain.</li>
@@ -287,7 +287,7 @@ print("critical path: " + " -&gt; ".join(reversed(chain)))                # (3) 
   </details>
 
   <h2 id="quiz">Check your understanding</h2>
-  <div data-quiz="16"></div>
+  <div data-quiz="4"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -304,6 +304,6 @@ print("critical path: " + " -&gt; ".join(reversed(chain)))                # (3) 
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/boot.js"></script>
-<script src="../js/sims/m16-boot.js"></script>
+<script src="../js/sims/m04-boot.js"></script>
 </body>
 </html>

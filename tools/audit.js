@@ -4,7 +4,7 @@
  *
  *   npm run audit                           Edge only
  *   AUDIT_BROWSERS=edge,chrome,firefox npm run audit
- *   node tools/audit.js --pages=index.html,modules/04-scheduling.html --report-only
+ *   node tools/audit.js --pages=index.html,modules/06-scheduling.html --report-only
  *
  * Needs a locally installed browser (puppeteer-core does not download one). Not part of `npm test` because of that.
  */

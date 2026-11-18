@@ -1,4 +1,4 @@
-/* Side-by-side comparison of two algorithms on one workload: CPU schedulers (Module 4) and page-replacement policies (Module 9). */
+/* Side-by-side comparison of two algorithms on one workload: CPU schedulers (Module 6) and page-replacement policies (Module 14). */
 (function () {
   "use strict";
   const { h, panel, select, slider } = OSUI;

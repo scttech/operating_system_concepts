@@ -1,4 +1,4 @@
-/* Module 6: race condition lab and bounded buffer */
+/* Module 9: race condition lab and bounded buffer */
 (function () {
   "use strict";
   const { h, panel, slider, button, ticker, svg } = OSUI;

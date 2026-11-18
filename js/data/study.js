@@ -39,7 +39,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("security-intro", "Security"), MAN(7, "credentials", "users, groups and process identity on Linux"), MAN(7, "capabilities", "how Linux splits root's power into pieces")]
     },
-    3: {
+    5: {
       objectives: [
         "List what a process contains and what the kernel keeps about it (the process control block).",
         "Draw the process state diagram and explain what causes each transition.",
@@ -53,7 +53,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("cpu-intro", "The Abstraction: The Process"), OSTEP("cpu-api", "Interlude: Process API"), MAN(2, "fork"), MAN(2, "execve"), MAN(2, "wait")]
     },
-    4: {
+    6: {
       objectives: [
         "Define turnaround time, waiting time and response time, and compute them from a schedule.",
         "Simulate FCFS, SJF, SRTF, Round Robin and priority scheduling by hand for a small set of processes.",
@@ -67,7 +67,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("cpu-sched", "Scheduling: Introduction"), OSTEP("cpu-sched-mlfq", "Multi-Level Feedback Queue"), MAN(7, "sched", "scheduling policies and priorities on Linux")]
     },
-    5: {
+    7: {
       objectives: [
         "Say what threads share and what each one keeps for itself, compared with separate processes.",
         "Compare user-level, kernel-level and hybrid threading models.",
@@ -81,7 +81,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("threads-intro", "Concurrency: An Introduction"), OSTEP("threads-api", "Interlude: Thread API"), MAN(7, "pthreads", "POSIX threads overview"), PY("threading")]
     },
-    6: {
+    9: {
       objectives: [
         "Show how an interleaving of two threads can lose an update to a shared counter.",
         "State the three requirements of a critical-section solution: mutual exclusion, progress and bounded waiting.",
@@ -95,7 +95,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("threads-locks", "Locks"), OSTEP("threads-sema", "Semaphores"), MAN(2, "futex", "the Linux primitive underneath most user-space locks")]
     },
-    7: {
+    11: {
       objectives: [
         "State the four Coffman conditions and break a given deadlock by removing one of them.",
         "Find a cycle in a resource-allocation or wait-for graph.",
@@ -109,7 +109,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("threads-bugs", "Common Concurrency Problems (includes deadlock)"), MAN(7, "pthreads", "see the sections on mutexes and thread safety")]
     },
-    8: {
+    13: {
       objectives: [
         "Compare first-fit, best-fit and worst-fit allocation, and explain external and internal fragmentation.",
         "Translate a logical address to a physical one with a page table, splitting it into page number and offset.",
@@ -124,7 +124,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("vm-paging", "Paging: Introduction"), OSTEP("vm-tlbs", "Paging: Faster Translations (TLBs)"), OSTEP("vm-smalltables", "Paging: Smaller Tables"), OSTEP("vm-freespace", "Free-Space Management")]
     },
-    9: {
+    14: {
       objectives: [
         "Describe what happens on a page fault, from the trap to the restarted instruction.",
         "Run FIFO, LRU, OPT and Clock page replacement on a reference string and count the faults.",
@@ -138,7 +138,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("vm-beyondphys", "Beyond Physical Memory: Mechanisms"), OSTEP("vm-beyondphys-policy", "Beyond Physical Memory: Policies"), DOCS("admin-guide/mm/concepts.html", "Linux memory management concepts")]
     },
-    10: {
+    15: {
       objectives: [
         "Break the time to read a disk block into seek, rotation and transfer, and compute each.",
         "Simulate FCFS, SSTF, SCAN, C-SCAN and LOOK disk scheduling and total the head movement.",
@@ -152,7 +152,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("file-devices", "I/O Devices"), OSTEP("file-disks", "Hard Disk Drives"), OSTEP("file-raid", "Redundant Arrays of Inexpensive Disks (RAIDs)"), OSTEP("file-ssd", "Flash-based SSDs")]
     },
-    11: {
+    16: {
       objectives: [
         "Compare contiguous, linked and indexed allocation by speed, fragmentation and growth.",
         "Compute the maximum file size for an inode with direct, indirect and double-indirect pointers.",
@@ -166,7 +166,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("file-intro", "Files and Directories"), OSTEP("file-implementation", "File System Implementation"), OSTEP("file-journaling", "Crash Consistency: FSCK and Journaling"), MAN(7, "inode"), MAN(7, "symlink")]
     },
-    12: {
+    18: {
       objectives: [
         "Explain why operating systems for phones, servers, embedded devices and mainframes are designed differently.",
         "Place the major operating systems on a family tree and name what each descends from.",
@@ -180,7 +180,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [["Android architecture", "https://source.android.com/docs/core/architecture", "how Android's layers fit on the Linux kernel"], OSTEP("intro", "Introduction to Operating Systems (the common ideas)")]
     },
-    13: {
+    12: {
       objectives: [
         "Explain why isolated processes need kernel-provided ways to communicate.",
         "Compare message passing and shared memory, and say when each is the better choice.",
@@ -194,7 +194,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [MAN(7, "pipe"), MAN(7, "unix", "Unix-domain sockets"), MAN(7, "mq_overview", "POSIX message queues"), MAN(7, "shm_overview", "POSIX shared memory"), PY("multiprocessing")]
     },
-    14: {
+    19: {
       objectives: [
         "Explain what a hypervisor does and the difference between type 1 and type 2.",
         "Say what Linux namespaces and control groups each control, and how together they make a container.",
@@ -208,7 +208,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [MAN(7, "namespaces"), MAN(7, "cgroups"), DOCS("admin-guide/cgroup-v2.html", "Control group v2"), DOCS("virt/kvm/index.html", "KVM: the Linux hypervisor")]
     },
-    15: {
+    10: {
       objectives: [
         "Describe a monitor and what the wait, signal and broadcast operations of a condition variable do.",
         "Explain why a condition wait must sit in a while loop (Mesa semantics, spurious wake-ups).",
@@ -222,7 +222,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("threads-cv", "Condition Variables"), OSTEP("threads-locks-usage", "Lock-based Concurrent Data Structures"), MAN(3, "pthread_cond_wait", "the POSIX condition-variable call"), PY("threading", "includes Condition objects")]
     },
-    16: {
+    4: {
       objectives: [
         "Order the stages of a boot, from power-on to a login prompt, and say what runs at each.",
         "Compare BIOS with an MBR disk and UEFI with GPT.",
@@ -236,7 +236,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [MAN(7, "boot", "the Linux boot process in outline"), ["systemd: system bootup process", "https://www.freedesktop.org/software/systemd/man/latest/bootup.html", "what happens after the kernel starts"], ["UEFI specifications", "https://uefi.org/specifications", "the reference for UEFI and Secure Boot"], ["Arch Linux wiki: boot process", "https://wiki.archlinux.org/title/Arch_boot_process", "a practical walk-through"]]
     },
-    17: {
+    8: {
       objectives: [
         "Apply the rules of a multilevel feedback queue to a set of jobs, including demotion and priority boost.",
         "Explain how a time-sharing system tells interactive jobs from CPU-bound ones without knowing their lengths.",
@@ -251,7 +251,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("cpu-sched-mlfq", "Multi-Level Feedback Queue"), OSTEP("cpu-sched-lottery", "Proportional Share (lottery and stride)"), OSTEP("cpu-sched-multi", "Multiprocessor Scheduling"), MAN(7, "sched"), DOCS("scheduler/sched-deadline.html", "Linux deadline scheduler (EDF)"), MAN(2, "sched_setaffinity")]
     },
-    18: {
+    3: {
       objectives: [
         "Explain how an unchecked copy into a stack buffer can overwrite a function's return address, and what an attacker gains.",
         "Describe what a stack canary, non-executable memory and address-space layout randomization each stop, and how each can be bypassed.",
@@ -269,7 +269,7 @@ window.OSData = window.OSData || {};
       ],
       reading: [OSTEP("security-intro", "Security: introduction"), OSTEP("security-authentication", "Authentication (passwords and their storage)"), ["Smashing the stack for fun and profit (Aleph One, Phrack 49)", "https://phrack.org/issues/49/14.html", "the classic 1996 explanation of stack buffer overflows"], ["OWASP: Password Storage Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html", "current practical advice on salting and slow hashes"], ["OWASP: Threat modeling", "https://owasp.org/www-community/Threat_Modeling", "an introduction to the process"], DOCS("admin-guide/sysctl/kernel.html", "Linux kernel settings (including randomize_va_space for ASLR)")]
     },
-    19: {
+    17: {
       objectives: [
         "Compute the usable capacity of a RAID 0, 1, 5, 6 or 10 array, and say how many disk failures it always survives.",
         "Rebuild a lost block from the surviving blocks and the XOR parity, and explain why two lost disks cannot be recovered.",

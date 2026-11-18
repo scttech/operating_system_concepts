@@ -1,4 +1,4 @@
-/* Module 8: multi-level page-table walk with a TLB */
+/* Module 13: multi-level page-table walk with a TLB */
 (function () {
   "use strict";
   const { h, fill, panel, select, slider, button, player } = OSUI;

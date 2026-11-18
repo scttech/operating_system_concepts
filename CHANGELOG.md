@@ -5,7 +5,7 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 **Things worth knowing when you update a course that links to this site**
 
-* **Module numbers are stable.** A module keeps its number and its page address even when the reading order changes, so existing links keep working.
+* **Module numbers follow the course order.** Module 1 is first and Module 19 is last, and the page address starts with the same number (for example `modules/05-processes.html`). If a module is ever added or moved, the numbers after it change with it.
 * **Quiz progress is tied to the wording of a question.** Learners' saved results are stored against a short fingerprint of each question's text.
   If a question's wording is edited, that one question counts as unanswered again for learners who had answered it. Changes of this kind are
   marked **(resets saved progress for that item)** below.
@@ -16,6 +16,7 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ## [Unreleased]
 
 ### Changed
+- **Modules renumbered in course order.** The numbers used to be the order the modules were written; they now run 1 to 19 in the order a learner reads them (Security in depth is Module 3 and The boot process is Module 4, for example). Page addresses changed to match.
 - **Tidier source tree:** the site-level pages now live in `pages/`, leaving only `index.html` and `404.html` at the top. Old addresses redirect on the published site.
 
 ### Added
@@ -25,10 +26,10 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 - **Teaching notes** (`teaching.html`) for instructors: misconceptions, a classroom demonstration and what to listen for, for every module.
 - **Printable handouts** (`handouts.html`): a study guide with check-off objectives, a quiz worksheet, a matching answer key (print it separately), and a glossary sheet, for any choice of modules. The cheat sheet now prints in two columns.
 - **Printing**: a print stylesheet (black on white, no menus or controls, only the chosen code language, tables and code kept whole, link addresses spelled out) and a friendly 404 page that works from any folder. Every page now carries link-preview tags (title, description and the logo) so shared links look right.
-- **Module 18, Security in Depth** (part: Foundations): a stack-frame simulator showing how an overflow reaches the return address and what a canary, non-executable memory, ASLR and an information leak each change; password-guessing time estimates and a salted, repeated hashing demo; and STRIDE threat-modeling exercises for three small systems. Two C and Python examples (a simulated stack frame, password hashing with its own SHA-256).
-- **Module 19, Storage Reliability** (part: Memory and storage): RAID 0, 1, 5, 6 and 10 with failing disks, XOR parity and rebuilding, rebuild-risk estimates, SSD write amplification and wear, and a journaling simulator that crashes at every step. Two C and Python examples (XOR parity and a write-ahead log).
-- **Eight more operating systems** in the Module 12 compare tool and family tree: HarmonyOS, Fuchsia, Solaris and illumos, OpenBSD, z/VM, z/TPF, Plan 9 and MINIX 3, with five new quick comparisons and a short section on what each shows best.
-- Module 12 has four new quiz questions.
+- **Module 3, Security in Depth** (part: Foundations): a stack-frame simulator showing how an overflow reaches the return address and what a canary, non-executable memory, ASLR and an information leak each change; password-guessing time estimates and a salted, repeated hashing demo; and STRIDE threat-modeling exercises for three small systems. Two C and Python examples (a simulated stack frame, password hashing with its own SHA-256).
+- **Module 17, Storage Reliability** (part: Memory and storage): RAID 0, 1, 5, 6 and 10 with failing disks, XOR parity and rebuilding, rebuild-risk estimates, SSD write amplification and wear, and a journaling simulator that crashes at every step. Two C and Python examples (XOR parity and a write-ahead log).
+- **Eight more operating systems** in the Module 18 compare tool and family tree: HarmonyOS, Fuchsia, Solaris and illumos, OpenBSD, z/VM, z/TPF, Plan 9 and MINIX 3, with five new quick comparisons and a short section on what each shows best.
+- Module 18 has four new quiz questions.
 - `CONTRIBUTING.md`: how to report a problem, how to run the tests (including the glibc check that CI effectively performs), the generated files to
   refresh, and what a good change looks like.
 - Issue forms for a content problem, a bug and a topic request, and a pull-request checklist.
@@ -53,8 +54,8 @@ First complete release.
 - More than 40 interactive d3 simulations with playback controls where they help: scheduler, page replacement, disk arm, Amdahl, race condition,
   bounded buffer, Banker's algorithm, dining philosophers, page-table walk with a TLB, pipes and message queues, namespaces, control groups,
   VM exits, boot stages, service start order, multilevel feedback queue, real-time scheduling, work stealing, and more.
-- Side-by-side comparison of two schedulers (Module 4) and two page-replacement policies (Module 9).
-- Results tables in Modules 4, 10 and 17 can be copied or downloaded as CSV.
+- Side-by-side comparison of two schedulers (Module 6) and two page-replacement policies (Module 14).
+- Results tables in Modules 6, 15 and 8 can be copied or downloaded as CSV.
 
 ### Code in C and Python
 - 18 lesson examples, each in C and Python with the same numbered comments and identical output. Both versions are compiled and run by the tests.

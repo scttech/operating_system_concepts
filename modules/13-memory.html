@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 8: Memory Management — OS Concepts</title>
+<title>Module 13: Memory Management — OS Concepts</title>
 <meta name="description" content="Contiguous allocation with fragmentation, paging and address translation with interactive simulators.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/08-memory.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/13-memory.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 8: Memory Management — OS Concepts">
+<meta property="og:title" content="Module 13: Memory Management — OS Concepts">
 <meta property="og:description" content="Contiguous allocation with fragmentation, paging and address translation with interactive simulators.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/08-memory.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/13-memory.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="8">
+<body data-root="../" data-module="13">
 <main>
-  <p class="eyebrow">Module 8</p>
+  <p class="eyebrow">Module 13</p>
   <h1>Memory Management</h1>
   <p class="lead">Programs must be in memory to run. The OS decides where, keeps processes out of each other's memory, and makes limited RAM feel large and private.</p>
 
@@ -180,10 +180,10 @@ print(f"second-level tables allocated: {tables_created}; "
   <table>
     <thead><tr><th>Flag</th><th>Meaning</th><th>Used for</th></tr></thead>
     <tbody>
-      <tr><td>Present</td><td>The page is in a frame right now</td><td>Demand paging: a clear bit raises a <a href="09-virtual-memory.html">page fault</a></td></tr>
-      <tr><td>Read/write</td><td>Writes are allowed</td><td>Protecting code and shared data; <a href="09-virtual-memory.html">copy-on-write</a> starts read-only</td></tr>
+      <tr><td>Present</td><td>The page is in a frame right now</td><td>Demand paging: a clear bit raises a <a href="14-virtual-memory.html">page fault</a></td></tr>
+      <tr><td>Read/write</td><td>Writes are allowed</td><td>Protecting code and shared data; <a href="14-virtual-memory.html">copy-on-write</a> starts read-only</td></tr>
       <tr><td>User/supervisor</td><td>User-mode code may access it</td><td>Keeping the kernel's memory away from programs (<a href="01-fundamentals.html">kernel and user mode</a>)</td></tr>
-      <tr><td>Accessed</td><td>The page was read or written recently</td><td>The reference bit for <a href="09-virtual-memory.html">page replacement</a> (Clock)</td></tr>
+      <tr><td>Accessed</td><td>The page was read or written recently</td><td>The reference bit for <a href="14-virtual-memory.html">page replacement</a> (Clock)</td></tr>
       <tr><td>Dirty</td><td>The page was written since it was loaded</td><td>Knowing whether it must be saved before eviction</td></tr>
       <tr><td>No-execute</td><td>Instructions may not run from this page</td><td>Stopping injected data from running as code (<a href="02-security.html">security</a>)</td></tr>
     </tbody>
@@ -218,7 +218,7 @@ print(f"second-level tables allocated: {tables_created}; "
   <div class="callout"><p><b>Try it on a real computer:</b> <a href="../labs/03-resources.html">Lab 3: reading memory use with psutil</a>.</p></div>
 
   <h2>Check your understanding</h2>
-  <div data-quiz="8"></div>
+  <div data-quiz="13"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -238,7 +238,7 @@ print(f"second-level tables allocated: {tables_created}; "
 <script src="../js/vendor/prism.min.js"></script>
 <script src="../js/code.js"></script>
 <script src="../js/lib/share.js"></script>
-<script src="../js/sims/m08-memory.js"></script>
-<script src="../js/sims/m08-pagetable.js"></script>
+<script src="../js/sims/m13-memory.js"></script>
+<script src="../js/sims/m13-pagetable.js"></script>
 </body>
 </html>

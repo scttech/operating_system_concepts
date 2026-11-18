@@ -1,4 +1,4 @@
-/* Module 7: Banker's algorithm and dining philosophers */
+/* Module 11: Banker's algorithm and dining philosophers */
 (function () {
   "use strict";
   const { h, panel, select, button, ticker, svg, slider } = OSUI;

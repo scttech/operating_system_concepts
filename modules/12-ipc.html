@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 13: Inter-Process Communication — OS Concepts</title>
+<title>Module 12: Inter-Process Communication — OS Concepts</title>
 <meta name="description" content="Pipes, message queues, sockets and shared memory: how isolated processes exchange data, when each side must wait, and what each mechanism costs.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/13-ipc.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/12-ipc.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 13: Inter-Process Communication — OS Concepts">
+<meta property="og:title" content="Module 12: Inter-Process Communication — OS Concepts">
 <meta property="og:description" content="Pipes, message queues, sockets and shared memory: how isolated processes exchange data, when each side must wait, and what each mechanism costs.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/13-ipc.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/12-ipc.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="13">
+<body data-root="../" data-module="12">
 <main>
-  <p class="eyebrow">Module 13</p>
+  <p class="eyebrow">Module 12</p>
   <h1>Inter-Process Communication</h1>
   <p class="lead">Every process lives in its own protected address space, which is great for safety and terrible for cooperation. <dfn data-term="Inter-process communication (IPC)">Inter-process communication (IPC)</dfn> is the set of controlled openings the kernel provides so that processes can still work together.</p>
 
@@ -31,19 +31,19 @@
     <ul><li><a href="#why">Why processes need IPC</a></li><li><a href="#two">Two families</a></li><li><a href="#pipes">Pipes</a></li><li><a href="#sockets">Sockets and message queues</a></li><li><a href="#shm">Shared memory</a></li><li><a href="#cost">What each one costs</a></li><li><a href="#choose">Choosing a mechanism</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
 
   <h2 id="why">Why processes need IPC</h2>
-  <p>A shell pipeline such as <code>ls | grep txt | wc -l</code> runs three separate programs. A web server hands requests to worker processes. A browser keeps each tab in its own process and still has to draw them in one window. None of these programs can read another's variables, because the MMU and the page tables you met in <a href="08-memory.html">Module 8</a> make each address space private. To share anything, they must ask the kernel.</p>
+  <p>A shell pipeline such as <code>ls | grep txt | wc -l</code> runs three separate programs. A web server hands requests to worker processes. A browser keeps each tab in its own process and still has to draw them in one window. None of these programs can read another's variables, because the MMU and the page tables you met in <a href="13-memory.html">Module 13</a> make each address space private. To share anything, they must ask the kernel.</p>
 
   <h2 id="two">Two families</h2>
   <ul>
     <li><b><dfn data-term="Message passing">Message passing</dfn></b>: the sender calls a system call to hand data to the kernel, and the receiver calls another to get it. The kernel copies the data and also decides who must wait. Pipes, sockets and message queues work this way. It is easy to get right, and it works across machines.</li>
-    <li><b><dfn data-term="Shared memory">Shared memory</dfn></b>: the kernel maps the <em>same physical pages</em> into both address spaces. After the set-up, data moves with ordinary loads and stores: no system call, no copy. The price is that the kernel is no longer in the middle, so the processes must <a href="06-synchronization.html">synchronize</a> themselves.</li>
+    <li><b><dfn data-term="Shared memory">Shared memory</dfn></b>: the kernel maps the <em>same physical pages</em> into both address spaces. After the set-up, data moves with ordinary loads and stores: no system call, no copy. The price is that the kernel is no longer in the middle, so the processes must <a href="09-synchronization.html">synchronize</a> themselves.</li>
   </ul>
 
   <h2 id="pipes">Pipes</h2>
   <p>A <dfn data-term="Pipe">pipe</dfn> is a buffer inside the kernel with two ends, each referred to by a <dfn data-term="File descriptor">file descriptor</dfn>. One process writes into one end and another reads from the other end. Three rules explain almost everything about its behavior:</p>
   <ol>
     <li><b>It is a <dfn data-term="Byte stream">byte stream</dfn>.</b> The pipe does not remember where one write stopped and the next began. Two writes may be returned by one read, and one write by several reads.</li>
-    <li><b>Waiting is built in.</b> A <code>write</code> to a full pipe puts the writer to sleep, and a <code>read</code> from an empty pipe puts the reader to sleep. A sleeping process uses no CPU. This is the same producer–consumer idea as the bounded buffer in Module 6, with the kernel doing the locking.</li>
+    <li><b>Waiting is built in.</b> A <code>write</code> to a full pipe puts the writer to sleep, and a <code>read</code> from an empty pipe puts the reader to sleep. A sleeping process uses no CPU. This is the same producer–consumer idea as the bounded buffer in Module 9, with the kernel doing the locking.</li>
     <li><b>Ends close, and that means something.</b> A read returns zero bytes, <dfn data-term="End of file (EOF)">end of file</dfn>, only when the buffer is empty <em>and every write end is closed</em>. A write when no read end remains is a <dfn data-term="Broken pipe">broken pipe</dfn>: the writer gets a signal (<code>SIGPIPE</code>) or an error.</li>
   </ol>
   <div data-sim="ipc"></div>
@@ -260,14 +260,14 @@ shared.close()</code></pre>
       <li><b>Pipe capacity.</b> Linux pipes hold 64 KiB by default (adjustable with <code>fcntl</code>). A writer that outruns its reader sleeps, and that back-pressure is why a shell pipeline never needs to buffer a whole file in memory.</li>
       <li><b>Zero-copy.</b> Calls such as <code>splice</code>, <code>sendfile</code> and <code>vmsplice</code> hand page references between descriptors instead of copying bytes, which is how a web server can send a file from the disk cache to a socket without the data ever entering user space.</li>
       <li><b>Descriptors can themselves be passed.</b> A Unix-domain socket can carry an open file descriptor to another process (<code>SCM_RIGHTS</code>), which is how a privileged helper opens a file and hands the result to an unprivileged program. This is the capability idea from <a href="02-security.html">Module 2</a> in practice.</li>
-      <li><b>IPC in the systems of Module 12.</b> Android’s apps talk through <em>Binder</em>, a kernel driver that delivers a call to another process and returns the result, with the caller’s identity attached for permission checks. macOS and iOS use <em>Mach ports</em>. Windows offers named pipes, ALPC and COM. Microkernels such as QNX are built almost entirely on fast message passing.</li>
-      <li><b>Lock-free ring buffers.</b> High-performance shared-memory channels use a circular buffer with one producer and one consumer, each advancing only its own index, so neither needs a lock. They depend on the memory-ordering rules from <a href="06-synchronization.html">Module 6</a>.</li>
+      <li><b>IPC in the systems of Module 18.</b> Android’s apps talk through <em>Binder</em>, a kernel driver that delivers a call to another process and returns the result, with the caller’s identity attached for permission checks. macOS and iOS use <em>Mach ports</em>. Windows offers named pipes, ALPC and COM. Microkernels such as QNX are built almost entirely on fast message passing.</li>
+      <li><b>Lock-free ring buffers.</b> High-performance shared-memory channels use a circular buffer with one producer and one consumer, each advancing only its own index, so neither needs a lock. They depend on the memory-ordering rules from <a href="09-synchronization.html">Module 9</a>.</li>
       <li><b>Shared memory is still memory.</b> It is mapped through page tables like everything else, so each process may map it at a different virtual address. Pointers stored inside the shared block must therefore be offsets, not raw addresses.</li>
     </ul>
   </details>
 
   <h2 id="quiz">Check your understanding</h2>
-  <div data-quiz="13"></div>
+  <div data-quiz="12"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -284,6 +284,6 @@ shared.close()</code></pre>
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/ipc.js"></script>
-<script src="../js/sims/m13-ipc.js"></script>
+<script src="../js/sims/m12-ipc.js"></script>
 </body>
 </html>

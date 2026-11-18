@@ -1,4 +1,4 @@
-/* Module 17: advanced scheduling (multilevel feedback queue, real time, multicore) */
+/* Module 8: advanced scheduling (multilevel feedback queue, real time, multicore) */
 (function () {
   "use strict";
   const { h, panel, select, slider, button, svg, player } = OSUI;

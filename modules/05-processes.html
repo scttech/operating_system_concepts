@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Module 3: Processes — OS Concepts</title>
+<title>Module 5: Processes — OS Concepts</title>
 <meta name="description" content="Process states, the PCB, context switches, and an interactive fork() process tree.">
 <!-- social:start -->
-<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/03-processes.html">
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/modules/05-processes.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Operating System Concepts">
-<meta property="og:title" content="Module 3: Processes — OS Concepts">
+<meta property="og:title" content="Module 5: Processes — OS Concepts">
 <meta property="og:description" content="Process states, the PCB, context switches, and an interactive fork() process tree.">
-<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/03-processes.html">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/modules/05-processes.html">
 <meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
 <meta property="og:image:width" content="1000">
 <meta property="og:image:height" content="563">
@@ -21,9 +21,9 @@
 <link rel="stylesheet" href="../css/style.css">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 </head>
-<body data-root="../" data-module="3">
+<body data-root="../" data-module="5">
 <main>
-  <p class="eyebrow">Module 3</p>
+  <p class="eyebrow">Module 5</p>
   <h1>Processes</h1>
   <p class="lead">A program is a file on disk. A <dfn data-term="Process">process</dfn> is that program in execution, with its own <dfn data-term="Address space">address space</dfn>, open files and CPU state.</p>
 
@@ -40,7 +40,7 @@
   <div class="callout"><p><b>Notice:</b> a process whose I/O completes goes to <em>Ready</em>, not <em>Running</em>. The scheduler alone decides who runs next. A process can never go Waiting → Running directly.</p></div>
 
   <h2>Context switching</h2>
-  <p>A <dfn data-term="Context switch">context switch</dfn> saves the running process's registers into its PCB and loads another's. It is pure overhead (no user work happens), and it also disturbs caches and the TLB, so schedulers try not to switch needlessly. See <a href="05-threads.html">Module 5</a> for how the cost trades off against responsiveness.</p>
+  <p>A <dfn data-term="Context switch">context switch</dfn> saves the running process's registers into its PCB and loads another's. It is pure overhead (no user work happens), and it also disturbs caches and the TLB, so schedulers try not to switch needlessly. See <a href="07-threads.html">Module 7</a> for how the cost trades off against responsiveness.</p>
 
   <h2>Creating processes: fork, exec, wait</h2>
   <p><dfn data-term="Fork"><code>fork()</code></dfn> makes a copy of the calling process (using <dfn data-term="Copy-on-write">copy-on-write</dfn> so it's cheap). The copy is the <dfn data-term="Child process">child</dfn> and the original is its parent. It returns 0 in the child and the child's PID in the parent. <code>exec()</code> replaces the process image with a new program. <code>wait()</code> lets the parent collect the child's exit status.</p>
@@ -69,11 +69,11 @@ int main(void) {
   </ul>
 
   <h2>Interprocess communication (IPC)</h2>
-  <p>Processes are isolated, so they cooperate through the kernel. Here is the short list; <a href="13-ipc.html">Module 13</a> explores each mechanism with a simulator and runnable C and Python examples.</p>
+  <p>Processes are isolated, so they cooperate through the kernel. Here is the short list; <a href="12-ipc.html">Module 12</a> explores each mechanism with a simulator and runnable C and Python examples.</p>
   <table>
     <thead><tr><th>Mechanism</th><th>How it works</th><th>Good for</th></tr></thead>
     <tbody>
-      <tr><td>Shared memory</td><td>Processes map the same physical pages</td><td>High-throughput data sharing (needs synchronization, see <a href="06-synchronization.html">Module 6</a>)</td></tr>
+      <tr><td>Shared memory</td><td>Processes map the same physical pages</td><td>High-throughput data sharing (needs synchronization, see <a href="09-synchronization.html">Module 9</a>)</td></tr>
       <tr><td>Message passing</td><td>send / receive through the kernel</td><td>Simpler, safer, works across machines</td></tr>
       <tr><td><dfn data-term="Pipe">Pipes</dfn></td><td>One-way byte stream between processes</td><td>Shell pipelines (<code>ls | grep txt</code>)</td></tr>
       <tr><td>Sockets</td><td>Bidirectional, local or network</td><td>Client/server programs</td></tr>
@@ -95,7 +95,7 @@ int main(void) {
   </details>
 
   <h2>Check your understanding</h2>
-  <div data-quiz="3"></div>
+  <div data-quiz="5"></div>
 </main>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
@@ -112,6 +112,6 @@ int main(void) {
 <script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/misc.js"></script>
-<script src="../js/sims/m03-processes.js"></script>
+<script src="../js/sims/m05-processes.js"></script>
 </body>
 </html>

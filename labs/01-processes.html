@@ -26,7 +26,7 @@
   <p class="eyebrow">Lab 1</p>
   <h1>Processes: launching, waiting and forking</h1>
   <p class="lead">Use Python to create and manage processes the way a shell does. You will see process IDs, exit codes, inherited environments and parallel children. On Linux or macOS you will also use <code>fork</code>, <code>exec</code> and <code>wait</code> directly and catch a zombie.</p>
-  <div class="lab-meta"><span>About 45 minutes</span><span>Part A: any system</span><span>Part B: Linux, macOS, WSL or Codio</span><span>Related: <a href="../modules/03-processes.html">Module 3 Processes</a>, <a href="../modules/04-scheduling.html">Module 4 CPU Scheduling</a></span></div>
+  <div class="lab-meta"><span>About 45 minutes</span><span>Part A: any system</span><span>Part B: Linux, macOS, WSL or Codio</span><span>Related: <a href="../modules/05-processes.html">Module 5 Processes</a>, <a href="../modules/06-scheduling.html">Module 6 CPU Scheduling</a></span></div>
 
   <h2>What you will practice</h2>
   <ul>
@@ -95,7 +95,7 @@ started 4 children; all have different pids: True
   </ol>
 
   <h2>Part B: fork, exec and wait (Linux, macOS, WSL or Codio)</h2>
-  <p>Windows has no <code>os.fork()</code>, so the script exits with a message there. Run Part B in WSL, in Codio, or on a Linux or macOS computer. <b>Predict first:</b> the program calls <code>fork()</code> three times in a row. How many processes exist at the end? (Check the <a href="../modules/03-processes.html#term-fork">fork tree in Module 3</a>.)</p>
+  <p>Windows has no <code>os.fork()</code>, so the script exits with a message there. Run Part B in WSL, in Codio, or on a Linux or macOS computer. <b>Predict first:</b> the program calls <code>fork()</code> three times in a row. How many processes exist at the end? (Check the <a href="../modules/05-processes.html#term-fork">fork tree in Module 5</a>.)</p>
   <div class="code-tabs" aria-label="Part B language">
     <div class="lang-note" data-lang="c"><p><b>C is the natural language for this part.</b> <code>fork</code>, <code>exec</code> and <code>wait</code> are C library functions, and Python's <code>os.fork</code> is a thin wrapper around them. Build and run it with <code>gcc -std=c99 -D_POSIX_C_SOURCE=200809L -o lab1_fork lab1_fork.c &amp;&amp; ./lab1_fork</code> on Linux, macOS, WSL or Codio. The output is identical to the Python version.</p></div>
     <pre class="code" data-src="labs/code/lab1_fork.c"><code>/* Lab 1b (C) - fork, exec and wait. Linux, macOS, WSL or Codio: Windows has no fork(). */
@@ -269,7 +269,7 @@ after wait(): the zombie is gone</code></pre>
   <ol>
     <li>Explain in your own words why <code>fork()</code> returns two different values. What would be impossible if it returned the same value in both processes?</li>
     <li>A shell has a built-in <code>cd</code> command instead of running a separate <code>cd</code> program. Using what you saw about children and inheritance, explain why a separate program could not work.</li>
-    <li>Which process states from the <a href="../modules/03-processes.html">state diagram</a> did your children pass through while they were sleeping? When were they running on the CPU?</li>
+    <li>Which process states from the <a href="../modules/05-processes.html">state diagram</a> did your children pass through while they were sleeping? When were they running on the CPU?</li>
   </ol>
 
   <h2>Extension</h2>

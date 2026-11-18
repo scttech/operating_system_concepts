@@ -32,7 +32,7 @@
   // ---------- 1. CPU scheduling ----------
   const SCHED_NAMES = { FCFS: "First-Come, First-Served (FCFS)", SJF: "non-preemptive Shortest Job First (SJF)", SRTF: "Shortest Remaining Time First (SRTF, preemptive SJF)", RR: "Round Robin" };
   const scheduling = {
-    title: "CPU scheduling", module: 4,
+    title: "CPU scheduling", module: 6,
     random(rng, level) {
       const algo = pick(rng, level === 1 ? ["FCFS", "SJF"] : ["FCFS", "SJF", "SRTF", "RR"]);
       const n = level === 1 ? 3 : 4;
@@ -62,7 +62,7 @@
 
   // ---------- 2. Page replacement ----------
   const pagerepl = {
-    title: "Page replacement", module: 9,
+    title: "Page replacement", module: 14,
     random(rng, level) {
       const algo = pick(rng, level === 1 ? ["FIFO", "LRU"] : ["FIFO", "LRU", "OPT"]);
       const frames = level === 1 ? 3 : pick(rng, [3, 4]);
@@ -100,7 +100,7 @@
   }
   const DISK_NAMES = { FCFS: "FCFS", SSTF: "SSTF (shortest seek time first)", SCAN: "SCAN (elevator)", CSCAN: "C-SCAN", LOOK: "LOOK", CLOOK: "C-LOOK" };
   const disk = {
-    title: "Disk scheduling", module: 10,
+    title: "Disk scheduling", module: 15,
     random(rng, level) {
       const algo = pick(rng, level === 1 ? ["FCFS", "SSTF"] : ["FCFS", "SSTF", "SCAN", "CSCAN", "LOOK", "CLOOK"]);
       const n = level === 1 ? 6 : 8;
@@ -133,7 +133,7 @@
 
   // ---------- 4. Paging address translation ----------
   const paging = {
-    title: "Paging", module: 8,
+    title: "Paging", module: 13,
     random(rng, level) {
       const pageSize = pick(rng, [256, 512, 1024]), pages = level === 1 ? 6 : 8;
       const pt = sample(rng, Array.from({ length: 16 }, (_, i) => i), pages);   // page table: page i -> frame pt[i]
@@ -156,7 +156,7 @@
 
   // ---------- 5. Effective access time ----------
   const eat = {
-    title: "Effective access time", module: 9,
+    title: "Effective access time", module: 14,
     random(rng, level) {
       const variant = level === 1 ? "fault" : pick(rng, ["fault", "tlb"]);
       if (variant === "fault") return { variant, memNs: pick(rng, [100, 200]), faultMs: pick(rng, [5, 8, 10]), p: pick(rng, [0.001, 0.0005, 0.002, 0.0001]) };
@@ -199,7 +199,7 @@
   }
   const bankerTables = (s) => table(["Process", "Allocation (A B C)", "Max (A B C)"], s.alloc.map((row, i) => [`P${i}`, row.join(" "), s.max[i].join(" ")])) + `<p>Available = <b>${vec(s.available)}</b></p>`;
   const banker = {
-    title: "Banker's algorithm", module: 7,
+    title: "Banker's algorithm", module: 11,
     random(rng, level) {
       const n = pick(rng, level === 1 ? [4] : [4, 5]), kind = level === 2 && rng() < 0.5 ? "request" : "safe";
       const state = bankerState(rng, n, 3, rng() < 0.5);
@@ -243,7 +243,7 @@
   // ---------- 7. Memory allocation ----------
   const POLICY = { first: "first-fit", best: "best-fit", worst: "worst-fit" };
   const memalloc = {
-    title: "Memory allocation", module: 8,
+    title: "Memory allocation", module: 13,
     random(rng, level) {
       const sizes = sample(rng, [100, 150, 200, 250, 300, 350, 400, 500, 600, 700], 5);
       const biggest = Math.max(...sizes);
@@ -278,7 +278,7 @@
 
   // ---------- 8. Inode maximum file size ----------
   const inode = {
-    title: "File size with inodes", module: 11,
+    title: "File size with inodes", module: 16,
     random(rng, level) {
       return { blockSize: pick(rng, [512, 1024, 2048, 4096, 8192]), ptrSize: level === 1 ? 4 : pick(rng, [4, 8]), direct: pick(rng, [8, 10, 12, 15]), levels: level === 1 ? 1 : pick(rng, [1, 2]) };
     },
@@ -300,7 +300,7 @@
 
   // ---------- 9. Amdahl's law ----------
   const amdahl = {
-    title: "Amdahl's law", module: 5,
+    title: "Amdahl's law", module: 7,
     random(rng, level) {
       return { variant: level === 2 && rng() < 0.4 ? "limit" : "speedup", p: pick(rng, [0.5, 0.6, 0.75, 0.8, 0.9, 0.95]), n: pick(rng, [2, 4, 8, 16]) };
     },

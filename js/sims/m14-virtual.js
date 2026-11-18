@@ -1,4 +1,4 @@
-/* Module 9: page replacement and effective access time */
+/* Module 14: page replacement and effective access time */
 (function () {
   "use strict";
   const { h, panel, select, slider, button, svg, player } = OSUI;

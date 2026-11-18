@@ -1,4 +1,4 @@
-/* Module 8: contiguous allocation and paging address translation */
+/* Module 13: contiguous allocation and paging address translation */
 (function () {
   "use strict";
   const { h, panel, select, number, slider, button, svg } = OSUI;

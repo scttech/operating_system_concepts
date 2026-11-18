@@ -1,4 +1,4 @@
-/* Module 4: CPU scheduling simulator */
+/* Module 6: CPU scheduling simulator */
 (function () {
   "use strict";
   const { h, panel, select, slider, button, svg, player } = OSUI;

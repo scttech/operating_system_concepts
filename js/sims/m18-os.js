@@ -1,4 +1,4 @@
-/* Module 12: operating-system family tree and compare tool */
+/* Module 18: operating-system family tree and compare tool */
 (function () {
   "use strict";
   const { h, panel, select, button, svg } = OSUI;

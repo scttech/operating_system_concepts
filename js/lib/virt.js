@@ -1,4 +1,4 @@
-/* Virtualization and containers: pure models behind the Module 14 simulations.
+/* Virtualization and containers: pure models behind the Module 19 simulations.
  *   virtStacks / virtKernelCount : which layers each way of running software needs, and how many kernels that means;
  *   isolationMatrix              : what each technology isolates;
  *   nsView / nsNames             : what a process can see, depending on the namespaces it was given;

@@ -26,7 +26,7 @@
   <p class="eyebrow">Lab 4</p>
   <h1>Semaphores and deadlock prevention</h1>
   <p class="lead">Coordinate producers and consumers with semaphores so a bounded buffer never overflows or underflows. Then build the classic dining-philosophers deadlock, detect it, and prevent it by breaking one of the four deadlock conditions.</p>
-  <div class="lab-meta"><span>About 50 minutes</span><span>Any system</span><span>Related: <a href="../modules/06-synchronization.html">Module 6 Synchronization</a>, <a href="../modules/07-deadlocks.html">Module 7 Deadlocks</a></span></div>
+  <div class="lab-meta"><span>About 50 minutes</span><span>Any system</span><span>Related: <a href="../modules/09-synchronization.html">Module 9 Synchronization</a>, <a href="../modules/11-deadlocks.html">Module 11 Deadlocks</a></span></div>
 
   <h2>What you will practice</h2>
   <ul>
@@ -287,21 +287,21 @@ ordered (lower-numbered fork first): all 5 philosophers finished, 15 meals eaten
     <li><b>(1) <code>empty</code></b> counts free slots and starts at the buffer size. A producer must <code>acquire</code> (wait on) it before adding an item, so it blocks when the buffer is full.</li>
     <li><b>(2) <code>full</code></b> counts filled slots and starts at 0. A consumer must <code>acquire</code> it before removing an item, so it blocks when the buffer is empty.</li>
     <li><b>(3) <code>mutex</code></b> is a separate lock that protects the deque itself. The semaphores decide <em>when</em> a thread may proceed; the mutex makes the actual insert or remove safe.</li>
-    <li>These are exactly the <code>empty = N</code>, <code>full = 0</code>, <code>mutex = 1</code> initial values from the <a href="../modules/06-synchronization.html">lesson</a>. <code>acquire()</code> is <code>wait()</code> (P) and <code>release()</code> is <code>signal()</code> (V).</li>
+    <li>These are exactly the <code>empty = N</code>, <code>full = 0</code>, <code>mutex = 1</code> initial values from the <a href="../modules/09-synchronization.html">lesson</a>. <code>acquire()</code> is <code>wait()</code> (P) and <code>release()</code> is <code>signal()</code> (V).</li>
     <li>The “largest buffer size seen” can never exceed the limit. That is the guarantee the <code>empty</code> semaphore provides.</li>
   </ol>
 
   <h2>Part B: what to notice (dining philosophers)</h2>
   <ol>
     <li><b>(4) Holding one fork while waiting for the second</b> (<dfn data-term="Hold and wait">hold and wait</dfn>) is what makes deadlock possible. The short <code>sleep</code> makes sure every philosopher is holding a fork before anyone tries for the second one, so the deadlock happens every time.</li>
-    <li><b>All four deadlock conditions are present in the naive version:</b> forks are exclusive (mutual exclusion), each philosopher holds one and waits for another (hold and wait), forks cannot be taken away (no preemption), and philosopher 0 waits for 1 waits for 2 … waits for 4 waits for 0 (circular wait). See the <a href="../modules/07-deadlocks.html">four conditions</a>.</li>
+    <li><b>All four deadlock conditions are present in the naive version:</b> forks are exclusive (mutual exclusion), each philosopher holds one and waits for another (hold and wait), forks cannot be taken away (no preemption), and philosopher 0 waits for 1 waits for 2 … waits for 4 waits for 0 (circular wait). See the <a href="../modules/11-deadlocks.html">four conditions</a>.</li>
     <li><b>(5) Detecting the deadlock.</b> The program cannot know a deadlock exists. It only sees that nobody has finished after two seconds. Real systems use timeouts and watchdogs the same way, then recover (here by sounding an alarm so the threads give up).</li>
-    <li><b>The fix:</b> if every philosopher picks up the lower-numbered fork first, philosopher 4 reaches for fork 0 before fork 4. A cycle of waiting can no longer form (circular wait is impossible), so at least one philosopher can always eat. Try the <a href="../modules/07-deadlocks.html#philosophers">dining-philosophers simulator</a> to see the same two strategies.</li>
+    <li><b>The fix:</b> if every philosopher picks up the lower-numbered fork first, philosopher 4 reaches for fork 0 before fork 4. A cycle of waiting can no longer form (circular wait is impossible), so at least one philosopher can always eat. Try the <a href="../modules/11-deadlocks.html#philosophers">dining-philosophers simulator</a> to see the same two strategies.</li>
   </ol>
 
   <h2>Try it</h2>
   <ol>
-    <li><b>Make the bounded buffer deadlock.</b> In <code>producer</code>, swap the order so it takes <code>mutex</code> <em>before</em> <code>empty.acquire()</code>. Run it with a small buffer. What happens, and why? (The <a href="../modules/06-synchronization.html">lesson</a> warns about exactly this.)</li>
+    <li><b>Make the bounded buffer deadlock.</b> In <code>producer</code>, swap the order so it takes <code>mutex</code> <em>before</em> <code>empty.acquire()</code>. Run it with a small buffer. What happens, and why? (The <a href="../modules/09-synchronization.html">lesson</a> warns about exactly this.)</li>
     <li><b>Try a different fix.</b> Add a third strategy: a <code>Semaphore(N - 1)</code> “waiter” that only lets four philosophers sit at once. Which deadlock condition does that break?</li>
     <li>Change <code>PATIENCE</code> to 0.5. Does the naive version still report a deadlock? What if it is too short for the ordered version to finish?</li>
     <li>Change <code>BUFFER_SIZE</code> to 1 and then 10. Does the “largest size seen” follow it?</li>
@@ -320,7 +320,7 @@ ordered (lower-numbered fork first): all 5 philosophers finished, 15 meals eaten
   <ol>
     <li>Why are two kinds of synchronization (semaphores <em>and</em> a mutex) needed in the bounded buffer? What could go wrong with only the semaphores?</li>
     <li>The deadlock was easy to cause here and might be rare in a real program. Why do intermittent deadlocks make better evidence of a design flaw than a one-off hang?</li>
-    <li>Compare prevention (ordering the forks) with avoidance (the <a href="../modules/07-deadlocks.html">Banker's algorithm</a>). Which would you choose for this problem and why?</li>
+    <li>Compare prevention (ordering the forks) with avoidance (the <a href="../modules/11-deadlocks.html">Banker's algorithm</a>). Which would you choose for this problem and why?</li>
   </ol>
 
   <h2>Extension</h2>

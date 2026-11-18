@@ -11,7 +11,7 @@ A working list of improvements to build together. Tick items off (`[x]`) as they
   studying, and it is free to grow beyond any syllabus (see the MIT license).
 * **From newcomer to advanced.** The reader is assumed to meet operating-system ideas for the first time, but every topic should
   carry them toward intermediate and advanced understanding. Pattern: a plain explanation first, then an opt-in
-  **"Going deeper"** block (`<details class="deeper">`) for the advanced material (first used in Module 8, page tables).
+  **"Going deeper"** block (`<details class="deeper">`) for the advanced material (first used in Module 13, page tables).
 * **Code in more than one language.** Samples use **C | Python tabs** (`<div class="code-tabs">`). Use C when it shows the real thing
   more honestly (pointers, bit fields, fixed-size structures) and say so in the C tab. The Python tab should say when Python hides the
   hardware reality or is a little contrived. Numbered comments `(1)`, `(2)` line up across both tabs, both versions must print
@@ -22,7 +22,7 @@ A working list of improvements to build together. Tick items off (`[x]`) as they
 
 * 19 modules with 49+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
   fork tree, Banker's, race lab, process states).
-* Module 12: family tree and a compare tool for 14 operating systems (share a comparison via `#compare=windows,zos`).
+* Module 18: family tree and a compare tool for 14 operating systems (share a comparison via `#compare=windows,zos`).
 * About 100 glossary terms, each linked back to the lesson where it is discussed (`npm run build:glossary`).
 * 25 FAQ entries, a mixed practice quiz, a cheat sheet.
 * **Calculation practice:** 10 kinds of randomized problems (two levels) with worked solutions and shareable problem codes.
@@ -68,9 +68,9 @@ Goal: find and fix what we have not verified. Nothing here adds features, but it
   * Make sure live updates (`aria-live`) are not too chatty during animations.
   *Done when:* no serious/critical automated findings; a manual screen-reader pass of one module goes smoothly.
   *Result:* axe-core (WCAG 2.0–2.2 A/AA plus best practices) is clean on every page, in light and dark. Fixed: palette text contrast (new `--on-cN` and `--cNt` variables), glossary list markup, empty table headers, heading order, button names, nested interactive SVG, keyboard access to scrollable regions. **Still manual:** a real screen-reader pass, and written descriptions of what each chart shows (charts have short labels only).
-- [~] **QA-4 Content accuracy review** (M). A subject-matter pass over lesson text, quiz explanations and especially Module 12's profiles.
+- [~] **QA-4 Content accuracy review** (M). A subject-matter pass over lesson text, quiz explanations and especially Module 18's profiles.
   Mainframe and midrange entries (z/OS, z/VSE, IBM i) deserve a read by someone who works with them. Log corrections here.
-  *Status:* I re-read the riskiest numeric and historical claims (rotational latency, address-bit arithmetic, EAT figures, scheduler history, OS dates, version-specific statements) and found no errors, but **a human subject-matter review is still needed**, especially for Module 12.
+  *Status:* I re-read the riskiest numeric and historical claims (rotational latency, address-bit arithmetic, EAT figures, scheduler history, OS dates, version-specific statements) and found no errors, but **a human subject-matter review is still needed**, especially for Module 18.
 - [x] **QA-5 Performance check** (S). Page weight and load time on a slow connection. The home hero is now a 126 KB JPEG; `d3.min.js` is 280 KB.
   Consider loading d3 only on pages that use it (home and glossary currently load it unnecessarily).
   *Result:* the home page no longer loads d3 (280 KB); hero image is 126 KB; every page that loads d3 uses it.
@@ -146,34 +146,34 @@ Goal: hands-on practice that matches the syllabus activities (system utility pro
 
 Each new module follows the existing pattern: lesson, one or more simulations (pure logic in `js/lib/` with tests, UI in `js/sims/`), quiz questions, glossary terms with `<dfn>` markers, and FAQ entries.
 
-- [x] **C-1 Virtualization and containers** (L). Hypervisors (type 1 and 2), VMs vs. containers, namespaces, cgroups, a "what is isolated?" comparison. **Done:** Module 14, with five simulations and two tested C and Python examples.
-- [x] **C-2 Boot process** (M). Firmware (BIOS/UEFI), bootloader, kernel start, init. A step-through animation. **Done:** Module 16, with four simulations and two tested C and Python examples.
-- [x] **C-3 Multi-level page tables and TLB simulator** (L). Module 8 describes these but has no simulation.
+- [x] **C-1 Virtualization and containers** (L). Hypervisors (type 1 and 2), VMs vs. containers, namespaces, cgroups, a "what is isolated?" comparison. **Done:** Module 19, with five simulations and two tested C and Python examples.
+- [x] **C-2 Boot process** (M). Firmware (BIOS/UEFI), bootloader, kernel start, init. A step-through animation. **Done:** Module 4, with four simulations and two tested C and Python examples.
+- [x] **C-3 Multi-level page tables and TLB simulator** (L). Module 13 describes these but has no simulation.
   *Result:* a general N-level page-table and TLB library (`js/lib/pagetable.js`, tested against independent BigInt calculations and
   brute-force prefix counts), a step-through walk simulator (three real layouts: a 16-bit teaching machine, 32-bit x86 and x86-64),
   table-memory comparison, TLB reach and EAT, a tested C and Python translation example in language tabs, an opt-in "Going deeper"
   section (page-walk caches, ASIDs, huge pages, nested paging, KPTI), 8 quiz questions, 6 glossary terms and 2 FAQ entries.
   *Follow-ups:* a page-fault service step (demand paging) in the same simulator; copy-on-write demonstrated through the PTE flags.
-- [x] **C-4 Advanced scheduling** (L). Multilevel feedback queue; real-time (rate-monotonic, earliest-deadline-first) with a schedulability check; multicore load balancing. **Done:** Module 17, with three simulations and two tested C and Python examples.
-- [x] **C-5 Readers–writers, monitors and condition variables** (M). Simulator plus a starvation demonstration. **Done:** Module 15, with two simulations and two tested C and Python examples.
-- [x] **C-6 Security depth** (L). Buffer-overflow stack diagram, authentication and password hashing, a threat-model exercise. **Done:** Module 18: stack-smashing simulator (canary, NX, ASLR, leaks), password guessing and salted hashing, and STRIDE exercises, with two tested C and Python examples.
-- [x] **C-7 Storage reliability** (M). RAID levels, SSD wear leveling and write amplification, journaling crash recovery. **Done:** Module 19: RAID and parity, rebuild risk, SSD write amplification and wear, and journaling at every crash point, with two tested C and Python examples.
-- [x] **C-8 More operating systems for the compare tool** (S each). HarmonyOS, Fuchsia, Solaris/illumos, OpenBSD, z/VM, z/TPF, watchOS/tvOS, Plan 9, Minix. **Done:** Eight more profiles in the compare tool (HarmonyOS, Fuchsia, Solaris and illumos, OpenBSD, z/VM, z/TPF, Plan 9, MINIX 3), placed in the family tree, with new quick comparisons and a section in Module 12.
+- [x] **C-4 Advanced scheduling** (L). Multilevel feedback queue; real-time (rate-monotonic, earliest-deadline-first) with a schedulability check; multicore load balancing. **Done:** Module 8, with three simulations and two tested C and Python examples.
+- [x] **C-5 Readers–writers, monitors and condition variables** (M). Simulator plus a starvation demonstration. **Done:** Module 10, with two simulations and two tested C and Python examples.
+- [x] **C-6 Security depth** (L). Buffer-overflow stack diagram, authentication and password hashing, a threat-model exercise. **Done:** Module 3: stack-smashing simulator (canary, NX, ASLR, leaks), password guessing and salted hashing, and STRIDE exercises, with two tested C and Python examples.
+- [x] **C-7 Storage reliability** (M). RAID levels, SSD wear leveling and write amplification, journaling crash recovery. **Done:** Module 17: RAID and parity, rebuild risk, SSD write amplification and wear, and journaling at every crash point, with two tested C and Python examples.
+- [x] **C-8 More operating systems for the compare tool** (S each). HarmonyOS, Fuchsia, Solaris/illumos, OpenBSD, z/VM, z/TPF, watchOS/tvOS, Plan 9, Minix. **Done:** Eight more profiles in the compare tool (HarmonyOS, Fuchsia, Solaris and illumos, OpenBSD, z/VM, z/TPF, Plan 9, MINIX 3), placed in the family tree, with new quick comparisons and a section in Module 18.
   Each needs all 15 profile rows and a place in the family tree (the data tests enforce this).
-- [x] **C-9 Inter-process communication** (M). Pipes, shared memory, message passing, sockets with a visual. **Done:** Module 13, with a pipe and message-queue explorer, a cost comparison, and three tested C and Python examples (pipe, socket pair, shared memory).
+- [x] **C-9 Inter-process communication** (M). Pipes, shared memory, message passing, sockets with a visual. **Done:** Module 12, with a pipe and message-queue explorer, a cost comparison, and three tested C and Python examples (pipe, socket pair, shared memory).
 
 ## Phase 6: More learning features
 
-- [x] **L-8 "Going deeper" tiers for every module** (L). Add an opt-in advanced block to each lesson (the pattern from Module 8) so readers can move from beginner to advanced inside one site. **Done:** every module 1–12 has one, and a page test requires it.
-- [x] **L-9 C | Python tabs in the labs and older lessons** (M). Where C shows the real thing better (`fork`/`exec`, threads with pthreads, semaphores, signals), add a tested C version next to the Python one, with a note on how the two differ. **Done:** Labs 1, 2 and 4 and seven lesson examples (modules 1, 2, 5, 6, 8, 9, 11) have tested C and Python tabs.
+- [x] **L-8 "Going deeper" tiers for every module** (L). Add an opt-in advanced block to each lesson (the pattern from Module 13) so readers can move from beginner to advanced inside one site. **Done:** every module has one, and a page test requires it.
+- [x] **L-9 C | Python tabs in the labs and older lessons** (M). Where C shows the real thing better (`fork`/`exec`, threads with pthreads, semaphores, signals), add a tested C version next to the Python one, with a note on how the two differ. **Done:** Labs 1, 2 and 4 and seven lesson examples (modules 1, 2, 7, 9, 13, 14, 16) have tested C and Python tabs.
 - [x] **L-10 Group modules into parts** (M). Foundations, Systems in practice, Security, Modern infrastructure, so the list stays coherent as it grows past 12 modules. **Done:** five parts with a reading order; the home page, jump menu and Previous/Next links follow it, and each lesson names its part.
 - [x] **L-1 Learning objectives, key takeaways and further reading** per module (M). Map objectives to the course competencies. Include free references (for example OSTEP) next to the course text. **Done:** Every module has objectives, takeaways and free reading (OSTEP chapters, Linux manual pages and kernel documentation), rendered from `js/data/study.js`, searchable, with link shapes checked by tests.
 - [x] **L-2 Flashcards** (S). Built from the glossary, with "I knew it / still learning" piles. **Done:** `flashcards.html`: weighted by box, term-to-definition or the reverse, with keyboard shortcuts.
 - [x] **L-3 Progress tracking** (M). Modules visited and quiz scores kept in the student's own browser. Private by default; the instructor cannot see it, and students can export or clear it. **Done:** `progress.html`: modules visited, per-question mastery, flashcard boxes and exam scores, kept only in the browser, with validated export, import and clear.
 - [x] **L-4 Scenario questions** (M). "Which scheduler, page-replacement policy or OS fits this situation, and why?" with a model answer. **Done:** `scenarios.html`: 17 scenarios, each with a note on why every option does or does not fit.
-- [x] **L-5 Side-by-side algorithm comparison** (M). Two schedulers (or page-replacement algorithms) on the same workload, stacked. **Done:** Compare two schedulers (Module 4) or two page-replacement policies (Module 9) on one workload, with a plain-language verdict.
+- [x] **L-5 Side-by-side algorithm comparison** (M). Two schedulers (or page-replacement algorithms) on the same workload, stacked. **Done:** Compare two schedulers (Module 6) or two page-replacement policies (Module 14) on one workload, with a plain-language verdict.
 - [x] **L-6 Exam mode** (M). Timed, shuffled, scored quiz with a review of misses. **Done:** `exam.html`: shuffled, timed, no feedback until submission, per-module score and review of misses.
-- [x] **L-7 Export results** (S). Copy or download a simulation's results table (CSV) for journals and reports. **Done:** Copy or download any results table as CSV (formula-safe), in Modules 4, 10 and 17.
+- [x] **L-7 Export results** (S). Copy or download a simulation's results table (CSV) for journals and reports. **Done:** Copy or download any results table as CSV (formula-safe), in Modules 6, 15 and 8.
 
 ## Phase 7: Site polish
 
@@ -205,7 +205,7 @@ For every item:
 - Should student progress and scores be tracked at all, and if so is "private to the student" acceptable?
 - Are the Python labs meant to replace or supplement the course's Codio activities?
 - Is there a deadline (term start, a specific assignment) that sets the order?
-- Who can review the Module 12 profiles, especially the mainframe and midrange entries?
+- Who can review the Module 18 profiles, especially the mainframe and midrange entries?
 - (Optional) What copyright holder name should replace "The Operating System Concepts contributors" in LICENSE.txt?
 
 ## Notes and decisions

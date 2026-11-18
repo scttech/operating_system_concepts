@@ -26,7 +26,7 @@
   <p class="eyebrow">Lab 2</p>
   <h1>Threads, race conditions and the GIL</h1>
   <p class="lead">Create threads, make them share a counter, watch updates disappear, and fix the problem with a lock. Then measure when threads actually make Python faster, and when you need separate processes instead.</p>
-  <div class="lab-meta"><span>About 45 minutes</span><span>Any system</span><span>Related: <a href="../modules/05-threads.html">Module 5 Threads</a>, <a href="../modules/06-synchronization.html">Module 6 Synchronization</a></span></div>
+  <div class="lab-meta"><span>About 45 minutes</span><span>Any system</span><span>Related: <a href="../modules/07-threads.html">Module 7 Threads</a>, <a href="../modules/09-synchronization.html">Module 9 Synchronization</a></span></div>
 
   <h2>What you will practice</h2>
   <ul>
@@ -146,7 +146,7 @@ for label, worker in (("without a lock", unsafe_worker), ("with a lock", safe_wo
 
   <h3>What to notice</h3>
   <ol>
-    <li><b>(1)–(3)</b> <code>counter += 1</code> is really three steps: read, add, write (the same load, add, store you stepped through in the <a href="../modules/06-synchronization.html">race-condition lab</a>). Here they are spelled out as separate lines.</li>
+    <li><b>(1)–(3)</b> <code>counter += 1</code> is really three steps: read, add, write (the same load, add, store you stepped through in the <a href="../modules/09-synchronization.html">race-condition lab</a>). Here they are spelled out as separate lines.</li>
     <li><b>(2)</b> <code>time.sleep(0)</code> makes the thread give up the CPU between the read and the write. That makes the race easy to see. Without it, Python's interpreter lock hides many races on small programs, which is dangerous because the bug is still there and shows up later under load.</li>
     <li><b>(3)</b> Two threads that read the same old value both write back the same new value, so one increment is lost. Many updates are lost because each thread usually reads a value that another thread has already made stale.</li>
     <li><b>(4)</b> The <code>with lock:</code> block makes read, add and write behave as one indivisible step. Only one thread can be inside at a time.</li>
@@ -194,8 +194,8 @@ all three methods give the same answers: True</code></pre>
   <ul>
     <li><b>(1) and (2)</b> The task is pure calculation, and (2) is the baseline of running it four times in a row.</li>
     <li><b>(3) Threads gave almost no speedup</b> for CPU-bound work, because the interpreter lock lets only one thread compute at a time.</li>
-    <li><b>(4) Processes were faster</b> (about 2.6× here). Each has its own interpreter and its own lock, so they truly run on different cores. They did not reach 4× because starting processes costs time and the work is split across only four tasks: compare this with <a href="../modules/05-threads.html">Amdahl's law</a>, where the serial part (here, starting up) limits the speedup.</li>
-    <li><b>Processes do not share memory.</b> Arguments and results are copied between them, which costs time and means they cannot simply update a shared variable. That is the trade-off for their isolation (see <a href="../modules/05-threads.html">Module 5</a>).</li>
+    <li><b>(4) Processes were faster</b> (about 2.6× here). Each has its own interpreter and its own lock, so they truly run on different cores. They did not reach 4× because starting processes costs time and the work is split across only four tasks: compare this with <a href="../modules/07-threads.html">Amdahl's law</a>, where the serial part (here, starting up) limits the speedup.</li>
+    <li><b>Processes do not share memory.</b> Arguments and results are copied between them, which costs time and means they cannot simply update a shared variable. That is the trade-off for their isolation (see <a href="../modules/07-threads.html">Module 7</a>).</li>
     <li>The <code>if __name__ == "__main__":</code> guard is required on Windows and macOS because new processes re-import the file.</li>
   </ul>
   <div class="callout warn"><p><b>Newer Python:</b> Python 3.13 and later offer an experimental “free-threaded” build without the interpreter lock, and the results of Part B can differ there. The ideas, though (shared memory needs locks; processes isolate), apply to every language.</p></div>
@@ -221,7 +221,7 @@ all three methods give the same answers: True</code></pre>
   <h2>Reflection questions (good journal entries)</h2>
   <ol>
     <li>Explain the unsafe result in your own words, using the three steps read, add and write. Why was the result so much smaller than 8000, not just a little smaller?</li>
-    <li>A locked counter is correct but each increment now waits for the lock. Using ideas from <a href="../modules/05-threads.html">Amdahl's law</a>, explain how heavy locking can erase the benefit of adding more threads.</li>
+    <li>A locked counter is correct but each increment now waits for the lock. Using ideas from <a href="../modules/07-threads.html">Amdahl's law</a>, explain how heavy locking can erase the benefit of adding more threads.</li>
     <li>When would you choose threads, and when processes, for a real program? Give one example of each.</li>
   </ol>
 

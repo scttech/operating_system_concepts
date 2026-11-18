@@ -1,4 +1,4 @@
-/* The boot process: pure models behind the Module 16 simulations.
+/* The boot process: pure models behind the Module 4 simulations.
  *   bootStages / bootRun : the sequence from power-on to a login prompt for BIOS, UEFI and UEFI with Secure Boot, and where an injected failure stops it;
  *   mbrBuild / mbrParse  : the classic 512-byte master boot record (boot code, four partition entries, signature 0x55AA);
  *   bootOrder            : starting services in dependency order, as init systems do, with the parallel schedule and critical path;

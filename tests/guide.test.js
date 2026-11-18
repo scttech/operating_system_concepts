@@ -27,7 +27,7 @@
     }
     return idCache[rel];
   }
-  /** Check a path such as "modules/04-scheduling.html#simulator" against the files; returns a problem description or "". */
+  /** Check a path such as "modules/06-scheduling.html#simulator" against the files; returns a problem description or "". */
   function problemWith(href) {
     if (!href) return "does not resolve";
     const [file, frag] = href.split("#");
@@ -40,10 +40,10 @@
   QUnit.module("study paths, prompts and teaching notes");
 
   QUnit.test("targetPath resolves modules, headings, labs and pages, and rejects anything else", (assert) => {
-    assert.equal(L.targetPath({ mod: 4 }, undefined, D), "modules/04-scheduling.html");
-    assert.equal(L.targetPath({ mod: 4, id: "simulator" }, undefined, D), "modules/04-scheduling.html#simulator");
-    assert.equal(L.targetPath({ id: "paging" }, 8, D), "modules/08-memory.html#paging", "a prompt's own module is the default");
-    assert.equal(L.targetPath({ mod: 12, id: "compare-the-systems" }, 4, D), "modules/12-os-landscape.html#compare-the-systems", "another module overrides it");
+    assert.equal(L.targetPath({ mod: 6 }, undefined, D), "modules/06-scheduling.html");
+    assert.equal(L.targetPath({ mod: 6, id: "simulator" }, undefined, D), "modules/06-scheduling.html#simulator");
+    assert.equal(L.targetPath({ id: "paging" }, 13, D), "modules/13-memory.html#paging", "a prompt's own module is the default");
+    assert.equal(L.targetPath({ mod: 18, id: "compare-the-systems" }, 6, D), "modules/18-os-landscape.html#compare-the-systems", "another module overrides it");
     assert.equal(L.targetPath({ lab: 2 }, undefined, D), "labs/02-threads.html");
     assert.equal(L.targetPath({ page: "problems.html", hash: "topic=paging" }, undefined, D), "pages/problems.html#topic=paging");
     ["", null, undefined, {}, { mod: 99 }, { lab: 99 }, { page: "../etc/passwd" }, { page: "a.html?x" }, { page: "javascript:alert(1)" }, "modules/04.html"].forEach((bad) => assert.equal(L.targetPath(bad, undefined, D), null, JSON.stringify(bad)));
@@ -71,8 +71,8 @@
     assert.deepEqual([...mods].sort((a, b) => a - b), D.modules.map((m) => m.n), "every module is on some path");
     assert.deepEqual([...labs].sort(), D.labs.map((l) => l.n).sort(), "every lab is on some path");
     const newcomer = L.pathSummary(D.paths.find((p) => p.id === "newcomer"), D).modules;
-    const early = newcomer.filter((n) => n <= 11);
-    assert.deepEqual(early, [...early].sort((a, b) => a - b), "modules 1 to 11 come in order on the newcomer path");
+    const early = newcomer.slice(0, 10);
+    assert.deepEqual(early, [...early].sort((a, b) => a - b), "the first ten modules on the newcomer path come in course order");
     const sum = L.pathSummary({ steps: [{ to: { lab: 1 } }, { to: { lab: 3 } }, { to: { lab: 1 } }, { to: { lab: 99 } }] }, D);
     assert.deepEqual(sum.labs, [1, 3, 99]);
     assert.equal(sum.labMinutes, D.labs[0].minutes + D.labs[2].minutes, "unknown labs count for nothing, repeats once");
@@ -109,11 +109,11 @@
   });
 
   QUnit.test("promptsFor joins prompts, links and teaching notes; promptSheet follows reading order", (assert) => {
-    const p = L.promptsFor(4, D);
-    assert.equal(p.length, D.prompts[4].length);
+    const p = L.promptsFor(6, D);
+    assert.equal(p.length, D.prompts[6].length);
     assert.equal(p[0].kind, "Try it");
-    assert.equal(p[0].href, "modules/04-scheduling.html#simulator");
-    assert.equal(p[0].listen, D.teaching[4].listen[0]);
+    assert.equal(p[0].href, "modules/06-scheduling.html#simulator");
+    assert.equal(p[0].listen, D.teaching[6].listen[0]);
     assert.equal(p[1].href, null, "a prompt with no target has no link");
     assert.deepEqual(L.promptsFor(99, D), []);
     const sheet = L.promptSheet(D, [19, 3, 1, 99], [1, 3, 19, 4]);

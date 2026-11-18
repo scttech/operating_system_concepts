@@ -1,4 +1,4 @@
-/* Operating-system profiles for the Module 12 compare tool, plus a family-tree timeline.
+/* Operating-system profiles for the Module 18 compare tool, plus a family-tree timeline.
    Details change between versions: statements are deliberately general. Add a system by appending to OSData.osList. */
 window.OSData = window.OSData || {};
 
@@ -373,7 +373,7 @@ window.OSData.osList = [
     updates: "Proprietary, with a long history of backward compatibility.",
     strengths: "Mature, very efficient virtualization with strong isolation. Can host many guests and clusters of z/VM systems.",
     tradeoffs: "Specialized skills and IBM hardware. Few people outside the mainframe world know it.",
-    fact: "Virtualization (Module 14) is not new: this family ran virtual machines half a century ago, and the word “hypervisor” has IBM roots."
+    fact: "Virtualization (Module 19) is not new: this family ran virtual machines half a century ago, and the word “hypervisor” has IBM roots."
   },
   {
     id: "ztpf", name: "z/TPF", group: "Mainframe & enterprise",
