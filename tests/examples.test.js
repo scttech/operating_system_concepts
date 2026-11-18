@@ -50,6 +50,33 @@
     const line = (name, r) => (r.misses.length ? `${name}: first missed deadline: T${r.misses[0].task + 1} job released at ${r.misses[0].release} (deadline ${r.misses[0].deadline})` : `${name}: no deadline missed in ${H} ticks`);
     return [`utilization = ${a.U.toFixed(3)} (rate-monotonic is guaranteed below ${a.rmBound.toFixed(3)}, EDF up to 1.000)`, line("rate-monotonic", A.rtSimulate(tasks, "rm")), line("earliest-deadline-first", A.rtSimulate(tasks, "edf"))];
   }
+  const Sx = require("../js/lib/security.js");
+  function passwordExpected() {
+    const pw = "correct horse", sa = "a1b2c3d4", sb = "9f8e7d6c", row = (l, hx) => l.padEnd(24) + hx.slice(0, 16) + "...";
+    return [row('sha256 of "password":', Sx.sha256Hex("password")), row("alice, no salt:", Sx.plainHash(pw)), row("bob, no salt:", Sx.plainHash(pw)), "same password, same stored hash: True",
+      row("alice, salted:", Sx.saltedHash(sa, pw)), row("bob, salted:", Sx.saltedHash(sb, pw)), "same password, same stored hash: False",
+      row("alice, salted, x10000:", Sx.stretchedHash(sa, pw, 10000)), 'check "correct horse": True', 'check "correct horsf": False'];
+  }
+  function stackExpected() {
+    const hex8 = (n) => "0x" + n.toString(16).padStart(8, "0");
+    const line = (label, can, fp, ret, verdict) => label.padEnd(36) + " canary " + (can ? "intact" : "SMASHED").padEnd(6) + ", saved fp " + (fp ? "intact" : "SMASHED").padEnd(6) + ", return address " + hex8(ret) + " -> " + verdict;
+    const R = 0x08048456;
+    return [line("copy of 8 bytes (unchecked):", true, true, R, "returns normally"), line("copy of 16 bytes (unchecked):", true, true, R, "returns normally"),
+      line("copy of 20 bytes (unchecked):", false, true, R, "aborted by the canary check"), line("copy of 28 bytes (unchecked):", false, false, 0x41414141, "aborted by the canary check"),
+      line("crafted 28 bytes, canary known:", true, false, 0x0804dead, "returns to a changed address"), line("copy of 28 bytes (checked, cut to 16):", true, true, R, "returns normally")];
+  }
+  const St = require("../js/lib/storage.js");
+  function raidExpected() {
+    const b = (t) => Uint8Array.from(t, (c) => c.charCodeAt(0)), txt = (u) => String.fromCharCode(...u), hexs = (u) => Array.from(u, (x) => x.toString(16).padStart(2, "0")).join("");
+    const data = ["alpha-01", "bravo-02", "charlie3", "delta-04"].map(b), parity = St.xorBlocks(data), fresh = b("BRAVO-99");
+    const rebuilt = St.rebuildBlock(data.filter((_, i) => i !== 2), parity), recomputed = St.xorBlocks([data[0], fresh, data[2], data[3]]);
+    const wrong = St.rebuildBlock(data.filter((_, i) => i !== 2 && i !== 3), parity);
+    return ["data disks:  " + data.map(txt).join(" "), "parity disk: " + hexs(parity),
+      `disk 2 fails; rebuilt from parity and the other disks: ${txt(rebuilt)} (matches original: ${txt(rebuilt) === txt(data[2]) ? "True" : "False"})`,
+      `small write to disk 1: new parity from old parity, old data and new data matches a full recompute: ${txt(St.updateParity(parity, data[1], fresh)) === txt(recomputed) ? "True" : "False"}`,
+      "that small write costs 2 reads + 2 writes = " + St.raidInfo("5", 4, 1).smallWriteIOs + " disk operations",
+      `a second failure (disks 2 and 3 both lost) cannot be rebuilt: wrong data produced: ${txt(wrong) !== txt(data[2]) ? "True" : "False"}`];
+  }
   const mode = (what, octal, sym) => `${what.padEnd(36)} ${octal} (${sym})`;
   const EXPECT = {
     pagetable_translate: { unix: false, lines: pagetableExpected },
@@ -69,6 +96,10 @@
     init_order: { unix: false, lines: initExpected },
     rt_schedule: { unix: false, lines: rtExpected },
     cpu_affinity: { unix: true, lines: () => ["nice(5) raised the niceness by 5 (capped at 19): True", "this process may run on at least one CPU: True", "after pinning, the allowed set is exactly that one CPU: True"] },
+    password_hash: { unix: false, lines: passwordExpected },
+    stack_frame_sim: { unix: false, lines: stackExpected },
+    raid_parity: { unix: false, lines: raidExpected },
+    write_ahead_log: { unix: false, lines: () => ["wrote 3 records (A=1, B=2, A=5) to the log", "full log replays to: A=5, B=2 (3 records)", "log cut in the middle of the last record: replays to A=1, B=2 (2 records)", "a flipped bit in the second record is caught by its checksum: replays to A=1, B=0 (1 record)"] },
     inode_links: { unix: true, lines: () => ["created original.txt: link count 1", "after link(): link count 2, same inode: yes", "the symbolic link has its own inode: yes", "after removing the original name: link count 1, data still readable: yes", "the symbolic link now dangles (opening it fails): yes"] }
   };
 
@@ -104,7 +135,7 @@
   });
 
   QUnit.test("each example pair has the same numbered comments in both languages and is plain ASCII", (assert) => {
-    assert.ok(STEMS.length >= 18);
+    assert.ok(STEMS.length >= 22);
     STEMS.forEach((stem) => {
       const markers = (ext) => fs.readFileSync(path.join(EX, `${stem}.${ext}`), "utf8").split("\n").flatMap((line) => { const i = line.search(/\/\*|\/\/|#/); return i < 0 ? [] : [...line.slice(i).matchAll(/\((\d+)\)/g)].map((m) => m[1]); });
       assert.ok(fs.existsSync(path.join(EX, `${stem}.c`)) && fs.existsSync(path.join(EX, `${stem}.py`)), `${stem} exists in both languages`);

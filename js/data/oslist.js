@@ -11,7 +11,7 @@ window.OSData.osSections = [
   { id: "verdict", label: "Assessment", rows: [["strengths", "Strengths"], ["tradeoffs", "Trade-offs"], ["fact", "Worth knowing"]] }
 ];
 
-window.OSData.osGroups = ["Desktop & server", "Mobile", "Security-focused", "Single-board & education", "Embedded & real-time", "Mainframe & enterprise"];
+window.OSData.osGroups = ["Desktop & server", "Mobile", "Security-focused", "Single-board & education", "Embedded & real-time", "Mainframe & enterprise", "Research & new designs"];
 
 window.OSData.osList = [
   {
@@ -279,20 +279,172 @@ window.OSData.osList = [
     strengths: "Database, security and networking integrated into the OS. Low administration effort and high reliability.",
     tradeoffs: "A niche skill set and ecosystem. Largely IBM-specific.",
     fact: "Its name changed many times (AS/400, iSeries, System i, IBM i), but applications carried forward."
+  },
+  {
+    id: "harmonyos", name: "HarmonyOS", group: "Mobile",
+    tagline: "Huawei's operating system for phones, tablets, wearables and home devices, built around connecting devices to one another.",
+    category: "Mobile and multi-device operating system",
+    maker: "Huawei, with an open-source base (OpenHarmony) managed by the OpenAtom Foundation",
+    first: "Announced in 2019. Early versions could run Android apps; HarmonyOS NEXT, introduced in 2024, is a separate system that no longer does.",
+    hardware: "Phones, tablets, watches, TVs, car systems and many small connected devices",
+    uses: "Consumer devices that share data and tasks with each other, mainly in China",
+    kernel: "Designed around a microkernel and a distributed architecture. The open-source OpenHarmony base can use different kernels depending on the device: a small real-time kernel for tiny devices, or Linux for larger ones.",
+    scheduling: "Priority-based, preemptive scheduling with a focus on responsiveness for the foreground app. Several devices can also share the work.",
+    memory: "Virtual memory on larger devices; small devices use simple memory models. Apps run in separate processes.",
+    files: "A flash-oriented file system on the device, with a distributed file service that lets one device open files stored on another.",
+    security: "Apps are sandboxed and request permissions. Devices authenticate one another before sharing data, and the design aims to keep each app's data separate from the others.",
+    apps: "Apps are written for its own framework, mainly in ArkTS (a TypeScript dialect) with the ArkUI toolkit. One app can be built to run across device types.",
+    updates: "OpenHarmony is open source. HarmonyOS itself is controlled by Huawei and updated by it.",
+    strengths: "Treats several devices as one system. One app can adapt to a watch, a phone or a TV.",
+    tradeoffs: "A smaller app ecosystem than Android or iOS, and less use outside its home market.",
+    fact: "Moving from Android compatibility to its own app platform is an example of how hard it is to build a new operating system: the kernel is the easy part, the apps are the hard part."
+  },
+  {
+    id: "fuchsia", name: "Fuchsia", group: "Research & new designs",
+    tagline: "Google's capability-based operating system built on its own microkernel, not on Linux.",
+    category: "Experimental and embedded general-purpose OS",
+    maker: "Google",
+    first: "Development became public in 2016. It has shipped on some smart displays since 2021.",
+    hardware: "Arm64 and x86-64, from small devices to PCs. Mostly used on smart-home devices so far.",
+    uses: "Smart displays and other consumer devices, and a testbed for new operating-system ideas",
+    kernel: "Zircon, a microkernel. Drivers, file systems and the network stack run as ordinary user-space components, not inside the kernel.",
+    scheduling: "Priority-based, with fair scheduling for ordinary work and support for deadline-style profiles for time-sensitive tasks.",
+    memory: "Virtual memory managed through objects called VMOs (virtual memory objects) that can be mapped into several processes.",
+    files: "Several file systems designed for flash storage, with a component per file system. Software is delivered in verifiable packages.",
+    security: "Capability-based: a program can use only the handles it was explicitly given, and there is no ambient authority. Every component runs in a sandbox with a declared list of what it may use.",
+    apps: "Components written in C++, Rust, Go or Dart (with the Flutter toolkit), talking to each other through a message protocol called FIDL.",
+    updates: "Open source under permissive licenses (BSD, MIT and Apache), developed in the open and updated by Google on its devices.",
+    strengths: "A clean modern design with strong isolation, built for updates that do not break apps.",
+    tradeoffs: "Little software or hardware support outside Google's own products, and no compatibility with Linux or Android apps.",
+    fact: "It shows the capability idea from Module 2 as a whole operating system: there is no root user and no global file system for a program to wander through."
+  },
+  {
+    id: "solaris", name: "Solaris and illumos", group: "Desktop & server",
+    tagline: "A Unix for large servers that pioneered ZFS, DTrace and zones.",
+    category: "Server Unix",
+    maker: "Sun Microsystems, later Oracle (Solaris). The illumos community (OmniOS, SmartOS, OpenIndiana) continues the open-source code.",
+    first: "SunOS in the 1980s. Solaris 2 (1992) was based on Unix System V Release 4. illumos began in 2010 as a fork of the open-sourced code.",
+    hardware: "SPARC and x86-64 servers",
+    uses: "Large database and enterprise servers, cloud platforms built on illumos, and storage appliances",
+    kernel: "Monolithic kernel with loadable modules and a highly scalable design for many processors, including kernel threads and interrupts handled as threads.",
+    scheduling: "Pluggable scheduling classes: time-sharing, interactive, fixed-priority, fair-share and real-time, so several policies can coexist.",
+    memory: "Demand-paged virtual memory with a unified page cache, and large-page support.",
+    files: "ZFS (checksummed, copy-on-write, snapshots, built-in volume management), and UFS.",
+    security: "Zones (lightweight OS-level virtualization), fine-grained privileges instead of an all-powerful root, role-based access control and optional labeled security.",
+    apps: "System V Unix interfaces with standard Unix tools. DTrace lets an administrator trace a running system safely.",
+    updates: "Oracle Solaris is proprietary. illumos distributions are open source under the CDDL and other licenses.",
+    strengths: "ZFS, DTrace and zones arrived here years before they were common elsewhere. Very scalable and stable.",
+    tradeoffs: "A small community compared with Linux, and limited hardware and software support.",
+    fact: "Linux containers, copy-on-write file systems and dynamic tracing all have clear precedents in Solaris zones, ZFS and DTrace."
+  },
+  {
+    id: "openbsd", name: "OpenBSD", group: "Security-focused",
+    tagline: "A BSD Unix where correctness and security come before features.",
+    category: "Security-focused Unix",
+    maker: "The OpenBSD Project, led by Theo de Raadt",
+    first: "1995, forked from NetBSD (itself from 386BSD and the BSD line).",
+    hardware: "x86-64, Arm64, RISC-V, and several older architectures. Popular for firewalls and routers.",
+    uses: "Firewalls, routers, secure servers, and as the source of widely used security software",
+    kernel: "Monolithic kernel developed together with the base system, with an unusual willingness to remove features and rewrite code that is hard to audit.",
+    scheduling: "A priority-based scheduler with round-robin among equals.",
+    memory: "Demand-paged virtual memory with strong defenses: no page is both writable and executable (W^X), address-space randomization, and hardened memory allocation.",
+    files: "FFS (the Unix file system) with soft updates, and a focus on simplicity. ZFS is not included.",
+    security: "Privilege separation in its programs, pledge and unveil (a program promises which system calls and files it will use, and the kernel enforces it), the pf firewall, and code audits.",
+    apps: "A small, integrated base system and a ports and packages collection. Source is usually shipped with the system.",
+    updates: "BSD-style (ISC) license. A new release about every six months, with security patches for the two latest releases.",
+    strengths: "Clear documentation, secure defaults and a very consistent system.",
+    tradeoffs: "Fewer features and less hardware support than Linux, and performance is not the priority.",
+    fact: "OpenSSH, used on nearly every server, began as part of OpenBSD."
+  },
+  {
+    id: "zvm", name: "z/VM", group: "Mainframe & enterprise",
+    tagline: "IBM's hypervisor for mainframes, descended from the first widely used virtual-machine system.",
+    category: "Mainframe hypervisor and operating system",
+    maker: "IBM",
+    first: "CP-67 (1967) and VM/370 (1972), then VM/ESA, and z/VM from 2000.",
+    hardware: "IBM Z mainframes",
+    uses: "Running thousands of virtual servers on one mainframe, often Linux, alongside z/OS and z/VSE guests",
+    kernel: "A type 1 hypervisor called CP (Control Program) that creates the virtual machines, and CMS (Conversational Monitor System), a small single-user system that runs inside a virtual machine for administration and development.",
+    scheduling: "CP shares the processors among virtual machines according to configured shares, which can be relative or absolute.",
+    memory: "Guest memory is itself paged by CP, so more virtual memory can be promised to the guests than the machine has real memory.",
+    files: "Guests have virtual disks called minidisks, or use their own file systems. CMS also has a shared file system.",
+    security: "Each guest is isolated from the others by the hypervisor, with access controlled by an external security manager. Virtual networks keep guests separate or connected as configured.",
+    apps: "Guests run their own operating systems. CMS has its own tools and languages such as REXX.",
+    updates: "Proprietary, with a long history of backward compatibility.",
+    strengths: "Mature, very efficient virtualization with strong isolation. Can host many guests and clusters of z/VM systems.",
+    tradeoffs: "Specialized skills and IBM hardware. Few people outside the mainframe world know it.",
+    fact: "Virtualization (Module 14) is not new: this family ran virtual machines half a century ago, and the word “hypervisor” has IBM roots."
+  },
+  {
+    id: "ztpf", name: "z/TPF", group: "Mainframe & enterprise",
+    tagline: "A mainframe operating system tuned for enormous numbers of short transactions, born in airline reservations.",
+    category: "Mainframe transaction-processing OS",
+    maker: "IBM",
+    first: "Grew out of the Airline Control Program of the 1960s. Named TPF in 1979, and z/TPF with 64-bit support from 2005.",
+    hardware: "IBM Z mainframes, often several linked together",
+    uses: "Airline reservations, payment and credit-card authorization, hotel and travel booking, systems with thousands of transactions a second",
+    kernel: "A deliberately lean system built around very short transactions. Each transaction runs as a small program with its own control block, and the system avoids anything that could make response time unpredictable.",
+    scheduling: "Transactions are dispatched very quickly. Each runs briefly and gives up the processor while it waits for input or output, so thousands can be in progress at once.",
+    memory: "Designed so that response time stays predictable: work areas are allocated in fixed-size blocks rather than in open-ended amounts. z/TPF added 64-bit addressing.",
+    files: "Data is spread over many disks and accessed in fixed-size records by a very fast, specialized database, not a general-purpose file system.",
+    security: "Access controls, plus the isolation of short transactions from one another. Systems usually sit behind other security layers.",
+    apps: "Written mainly in C and C++ (assembler for the oldest code). Development tools run on Linux.",
+    updates: "Proprietary, upgraded slowly with a strong emphasis on compatibility.",
+    strengths: "Extremely high transaction rates with predictable, fast response and near-continuous availability.",
+    tradeoffs: "Narrow in purpose, with unusual programming conventions and very few developers who know it.",
+    fact: "It shows how an operating system can be designed around one workload instead of general use, giving up flexibility for speed and predictability."
+  },
+  {
+    id: "plan9", name: "Plan 9", group: "Research & new designs",
+    tagline: "Bell Labs' successor to Unix, where every resource is a file and every process has its own view of the file tree.",
+    category: "Research operating system",
+    maker: "Bell Labs, by several of the people who created Unix",
+    first: "1992 (first released to universities), with a public release in 1995. Open source since 2000, and under the GPL since 2014.",
+    hardware: "x86, Arm and others. Used in research, and by a small community through forks such as 9front.",
+    uses: "Research, teaching and experimentation, and a source of ideas adopted elsewhere",
+    kernel: "A small kernel in which almost everything, including the network, graphics and processes, is presented to programs as files in a hierarchy.",
+    scheduling: "A simple priority-based scheduler with time slices.",
+    memory: "Virtual memory with per-process address spaces, designed for simplicity and for a network of machines acting as one.",
+    files: "All resources are accessed through one protocol, 9P, so a file can be on another machine and programs cannot tell. Fossil and Venti provided archival storage with permanent snapshots.",
+    security: "Per-process namespaces: each process builds its own view of what exists, so a program can only reach what it was given. Authentication is built into the protocol.",
+    apps: "Written in C (using its own simple compiler), with a distinctive toolset and window system. The Go language and the UTF-8 text encoding both came from the same group.",
+    updates: "Community maintained. Not intended for mainstream use.",
+    strengths: "A remarkably clean design that takes the “everything is a file” idea of Unix much further.",
+    tradeoffs: "Little modern software and hardware support, and few users.",
+    fact: "Linux namespaces (the basis of containers) and the 9P protocol used between virtual machines and their hosts both descend from Plan 9."
+  },
+  {
+    id: "minix3", name: "MINIX 3", group: "Research & new designs",
+    tagline: "A small microkernel system built to be reliable and to teach how operating systems work.",
+    category: "Teaching and research microkernel OS",
+    maker: "Andrew Tanenbaum and colleagues at the Vrije Universiteit Amsterdam",
+    first: "MINIX in 1987, written for a textbook. MINIX 3 in 2005, redesigned for reliability.",
+    hardware: "x86 and Arm. Used for teaching and research, and reportedly as the basis of a management processor in many Intel computers.",
+    uses: "Teaching, research on reliable systems, and embedded management firmware",
+    kernel: "A tiny microkernel that handles only interrupts, message passing and scheduling. Device drivers, file systems and memory management run as separate user-space servers.",
+    scheduling: "Priority queues with round robin inside each queue, run by the kernel, with scheduling policy delegated to a user-space server.",
+    memory: "Processes are isolated by the memory-management hardware. A user-space virtual-memory server handles paging policy.",
+    files: "A user-space file server, with support for a small set of standard file systems.",
+    security: "Isolation is the main defense: a failing driver cannot corrupt the kernel, and a “reincarnation server” detects a crashed driver and restarts it.",
+    apps: "A POSIX-style interface, with many programs from the NetBSD collection.",
+    updates: "Open source under a BSD-style license, maintained by a small community.",
+    strengths: "Very small and easy to understand, and a working demonstration of how a microkernel design contains faults.",
+    tradeoffs: "Slower and with far less hardware support than mainstream systems.",
+    fact: "The original MINIX inspired Linus Torvalds to write Linux, and the famous 1992 Tanenbaum and Torvalds debate about microkernels and monolithic kernels followed."
   }
 ];
 
 /** Family tree: nodes have a year and a lane; edges say what flowed from one system to another. */
 window.OSData.osLanes = [
-  "Unix & BSD", "Linux family", "Virtualization", "Microsoft", "IBM mainframe (OS)", "IBM mainframe (DOS)", "IBM midrange", "Real-time"
+  "Unix & BSD", "Linux family", "Virtualization", "Microsoft", "IBM mainframe (OS)", "IBM mainframe (DOS)", "IBM midrange", "Real-time", "Research & new designs", "IBM VM & TPF"
 ];
 window.OSData.osTree = {
   nodes: [
     { id: "multics", label: "Multics", year: 1969, lane: 0, info: "A pioneering time-sharing system whose ideas (hierarchical file system, rings of protection) influenced Unix." },
     { id: "unix", label: "Unix", year: 1971, lane: 0, info: "Created at Bell Labs. Introduced small tools, pipes and “everything is a file”." },
     { id: "bsd", label: "BSD", year: 1977, lane: 0, info: "Berkeley's Unix variant: virtual memory, the TCP/IP stack and many tools came from here." },
-    { id: "nextstep", label: "NeXTSTEP", year: 1989, lane: 0, info: "Combined the Mach kernel with BSD code. Became the foundation of macOS." },
-    { id: "freebsd", label: "FreeBSD", year: 1993, lane: 0, osId: "freebsd" },
+    { id: "nextstep", label: "NeXTSTEP", year: 1989, lane: 0, pos: "b", info: "Combined the Mach kernel with BSD code. Became the foundation of macOS." },
+    { id: "freebsd", label: "FreeBSD", year: 1993, lane: 0, osId: "freebsd", pos: "c" },
     { id: "macos", label: "macOS", year: 2001, lane: 0, osId: "macos" },
     { id: "ios", label: "iOS", year: 2007, lane: 0, osId: "ios" },
     { id: "linux", label: "Linux", year: 1991, lane: 1, osId: "linux" },
@@ -318,7 +470,22 @@ window.OSData.osTree = {
     { id: "os400", label: "OS/400", year: 1988, lane: 6, info: "The AS/400's operating system. Built on the System/38 ideas." },
     { id: "ibmi", label: "IBM i", year: 2008, lane: 6, osId: "ibmi" },
     { id: "qnx", label: "QNX", year: 1982, lane: 7, osId: "qnx" },
-    { id: "freertos", label: "FreeRTOS", year: 2003, lane: 7, osId: "freertos" }
+    { id: "freertos", label: "FreeRTOS", year: 2003, lane: 7, osId: "freertos" },
+    { id: "minix", label: "MINIX", year: 1987, lane: 8, info: "Written by Andrew Tanenbaum for a textbook, so students could read a whole Unix-like system. It inspired the first version of Linux." },
+    { id: "minix3", label: "MINIX 3", year: 2005, lane: 8, osId: "minix3" },
+    { id: "plan9", label: "Plan 9", year: 1992, lane: 8, osId: "plan9" },
+    { id: "fuchsia", label: "Fuchsia", year: 2016, lane: 8, osId: "fuchsia" },
+    { id: "harmonyos", label: "HarmonyOS", year: 2019, lane: 8, osId: "harmonyos" },
+    { id: "sunos", label: "SunOS", year: 1983, lane: 0, info: "Sun Microsystems' Unix, at first based on BSD. Introduced the Network File System (NFS)." },
+    { id: "solaris", label: "Solaris", year: 1992, lane: 0, osId: "solaris", pos: "a" },
+    { id: "illumos", label: "illumos", year: 2010, lane: 0, osId: "solaris" },
+    { id: "openbsd", label: "OpenBSD", year: 1995, lane: 0, osId: "openbsd", pos: "b" },
+    { id: "cp67", label: "CP-67", year: 1967, lane: 9, info: "IBM's control program for the System/360 Model 67: one of the first systems to run several complete virtual machines." },
+    { id: "vm370", label: "VM/370", year: 1972, lane: 9, info: "Made virtual machines a standard product for IBM mainframes." },
+    { id: "zvm", label: "z/VM", year: 2000, lane: 9, osId: "zvm" },
+    { id: "acp", label: "ACP", year: 1969, lane: 9, info: "The Airline Control Program, developed from the airline reservation work of the early 1960s." },
+    { id: "tpf", label: "TPF", year: 1979, lane: 9, info: "Renamed Transaction Processing Facility when it grew beyond airlines." },
+    { id: "ztpf", label: "z/TPF", year: 2005, lane: 9, osId: "ztpf" }
   ],
   edges: [
     ["multics", "unix", "influenced"], ["unix", "bsd", "derived"], ["bsd", "freebsd", "derived"], ["bsd", "nextstep", "BSD code"],
@@ -327,6 +494,10 @@ window.OSData.osTree = {
     ["xen", "qubes", "built on"], ["msdos", "xp", "consumer line merged", true], ["nt", "xp", "derived"], ["xp", "win11", "derived"],
     ["os360", "mvs", "derived"], ["mvs", "os390", "derived"], ["os390", "zos", "derived"],
     ["dos360", "dosvse", "derived"], ["dosvse", "vseesa", "derived"], ["vseesa", "zvse", "derived"],
-    ["s38", "os400", "ideas carried"], ["os400", "ibmi", "renamed"]
+    ["s38", "os400", "ideas carried"], ["os400", "ibmi", "renamed"],
+    ["bsd", "sunos", "BSD code"], ["sunos", "solaris", "merged with System V"], ["solaris", "illumos", "open-source fork"], ["bsd", "openbsd", "forked via NetBSD"],
+    ["unix", "plan9", "ideas carried", true], ["unix", "minix", "inspired", true], ["minix", "minix3", "redesigned"], ["minix", "linux", "inspired", true],
+    ["android", "harmonyos", "app compatibility before 2024", true],
+    ["cp67", "vm370", "derived"], ["vm370", "zvm", "derived"], ["acp", "tpf", "renamed"], ["tpf", "ztpf", "derived"]
   ]
 };

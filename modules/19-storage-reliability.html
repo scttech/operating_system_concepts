@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 19: Storage Reliability — OS Concepts</title>
+<meta name="description" content="RAID levels and parity, why SSDs write more than you ask, and how journaling survives a crash in the middle of an update.">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-module="19">
+<main>
+  <p class="eyebrow">Module 19</p>
+  <h1>Storage Reliability</h1>
+  <p class="lead">Everything an operating system remembers lives on storage that eventually fails, and fails in several different ways. <a href="10-disk-io.html">Module 10</a> covered how fast storage is and <a href="11-file-systems.html">Module 11</a> how it is organized. This module covers what keeps data <em>safe</em>: redundancy across disks, the odd ways flash wears out, and updates that survive a crash.</p>
+
+  <div class="toc"><strong>On this page</strong>
+    <ul><li><a href="#fail">How storage fails</a></li><li><a href="#raid">RAID</a></li><li><a href="#ssd">Flash and wear</a></li><li><a href="#crash">Surviving a crash</a></li><li><a href="#beyond">Checksums and backups</a></li><li><a href="#quiz">Check your understanding</a></li></ul></div>
+
+  <h2 id="fail">How storage fails</h2>
+  <p>Different failures need different defenses, and no single tool covers them all:</p>
+  <table>
+    <thead><tr><th>What goes wrong</th><th>Example</th><th>The usual defense</th></tr></thead>
+    <tbody>
+      <tr><td>A whole disk dies</td><td>Motor, controller or flash chip fails</td><td>Redundancy across disks: <b>RAID</b></td></tr>
+      <tr><td>A sector cannot be read</td><td>An unrecoverable read error</td><td>Redundancy, plus error-correcting codes in the drive</td></tr>
+      <tr><td>Data silently changes</td><td>“Bit rot”, a misdirected write, a firmware bug</td><td><b>Checksums</b> stored with the data, and periodic scrubbing</td></tr>
+      <tr><td>The machine stops in the middle of an update</td><td>Power loss during a file write</td><td><b>Journaling</b> or copy-on-write: updates that are atomic</td></tr>
+      <tr><td>Wear</td><td>Flash blocks allow a limited number of erases</td><td>Wear leveling and spare space in the drive</td></tr>
+      <tr><td>People and disasters</td><td>A deleted file, ransomware, fire</td><td><b>Backups</b>: separate, versioned, off-site copies</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="raid">RAID</h2>
+  <p><dfn data-term="RAID">RAID</dfn> combines several disks so they behave like one. The levels differ in how they spread data and what redundancy they add. Two ideas are involved: <dfn data-term="Striping">striping</dfn> (spreading data across disks so reads and writes run in parallel) and redundancy, either <dfn data-term="Mirroring">mirroring</dfn> (complete copies) or <dfn data-term="Parity">parity</dfn> (computed information from which a lost piece can be rebuilt).</p>
+  <table>
+    <thead><tr><th>Level</th><th>How it works</th><th>Capacity (n disks)</th><th>Failures survived</th></tr></thead>
+    <tbody>
+      <tr><td>RAID 0</td><td>Striping only</td><td>n</td><td>0: any failure loses everything</td></tr>
+      <tr><td>RAID 1</td><td>Every disk is a full copy</td><td>1</td><td>n − 1</td></tr>
+      <tr><td>RAID 5</td><td>Striping with one parity block per stripe, rotated across the disks</td><td>n − 1</td><td>1</td></tr>
+      <tr><td>RAID 6</td><td>Striping with two different parity blocks per stripe</td><td>n − 2</td><td>2</td></tr>
+      <tr><td>RAID 10</td><td>Mirrored pairs, striped together</td><td>n / 2</td><td>1 for sure; more if each lands in a different pair</td></tr>
+    </tbody>
+  </table>
+  <div data-sim="raid"></div>
+  <div class="callout"><p><b>Try it:</b> with RAID 5 on five disks, fail one disk (still safe, but now <em>degraded</em>), then a second (data lost). Switch to RAID 10 and fail one disk from each pair: it survives. Fail both disks of one pair: it does not. RAID 6 needs three failures to lose data.</p></div>
+
+  <h3>How parity works</h3>
+  <p>The parity block is the <b>XOR</b> of the data blocks. XOR has a convenient property: anything XOR-ed with itself is zero. So XOR-ing <em>all</em> the blocks, including the parity block, gives zero, and a missing block is therefore the XOR of everything that survived.</p>
+  <div data-sim="raidparity"></div>
+  <p>One cost deserves attention. A <b>small write</b> to a RAID 5 array must also update parity. Rather than read every other disk, the controller reads the old data and old parity, computes <code>new parity = old parity XOR old data XOR new data</code>, and writes both: four disk operations for one logical write. This is the “small-write penalty”, and it is why databases often prefer RAID 10.</p>
+
+  <h3>Try it: rebuild a disk from parity</h3>
+  <div class="code-tabs" aria-label="Parity example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> parity is a loop of XOR over bytes, and C shows that it is nothing more: no special hardware, one operator. Comment (3) is the small-write shortcut, and comment (4) shows that a second failure leaves one equation with two unknowns.</p></div>
+    <pre class="code" data-src="examples/raid_parity.c"><code>/* XOR parity, the idea behind RAID 5: rebuild a lost disk from the others. Runs anywhere. */
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+#define DISKS 4
+#define BLOCK 8
+
+static void xor_into(unsigned char *dst, const unsigned char *src) { for (int i = 0; i &lt; BLOCK; i++) dst[i] ^= src[i]; }
+
+int main(void) {
+    unsigned char data[DISKS][BLOCK + 1] = { "alpha-01", "bravo-02", "charlie3", "delta-04" };
+    unsigned char parity[BLOCK] = { 0 };
+    for (int d = 0; d &lt; DISKS; d++) xor_into(parity, data[d]);          /* (1) the parity block is the XOR of all the data blocks */
+    printf("data disks:  %s %s %s %s\n", data[0], data[1], data[2], data[3]);
+    printf("parity disk: ");
+    for (int i = 0; i &lt; BLOCK; i++) printf("%02x", parity[i]);
+    printf("\n");
+
+    unsigned char rebuilt[BLOCK];
+    memcpy(rebuilt, parity, BLOCK);                                    /* (2) disk 2 fails: XOR the parity with every disk that survived... */
+    for (int d = 0; d &lt; DISKS; d++) if (d != 2) xor_into(rebuilt, data[d]);
+    printf("disk 2 fails; rebuilt from parity and the other disks: %.8s (matches original: %s)\n", (char *)rebuilt, memcmp(rebuilt, data[2], BLOCK) == 0 ? "True" : "False");
+
+    const unsigned char fresh[BLOCK] = { 'B', 'R', 'A', 'V', 'O', '-', '9', '9' };
+    unsigned char updated[BLOCK], recomputed[BLOCK] = { 0 };
+    memcpy(updated, parity, BLOCK);                                    /* (3) a small write: new parity = old parity XOR old data XOR new data */
+    xor_into(updated, data[1]); xor_into(updated, fresh);
+    for (int d = 0; d &lt; DISKS; d++) xor_into(recomputed, d == 1 ? fresh : data[d]);
+    printf("small write to disk 1: new parity from old parity, old data and new data matches a full recompute: %s\n", memcmp(updated, recomputed, BLOCK) == 0 ? "True" : "False");
+    printf("that small write costs 2 reads + 2 writes = 4 disk operations\n");
+
+    unsigned char wrong[BLOCK];
+    memcpy(wrong, parity, BLOCK);                                      /* (4) with a second disk lost there are two unknowns and one equation: the result is wrong */
+    for (int d = 0; d &lt; DISKS; d++) if (d != 2 &amp;&amp; d != 3) xor_into(wrong, data[d]);
+    printf("a second failure (disks 2 and 3 both lost) cannot be rebuilt: wrong data produced: %s\n", memcmp(wrong, data[2], BLOCK) != 0 ? "True" : "False");
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python needs a few extra lines</b> because <code>bytes</code> objects do not support <code>^</code> directly, so a small <code>xor</code> helper combines them column by column with <code>zip</code> and <code>reduce</code>. The idea is identical to the C version, and the output is the same. Real arrays do this in the kernel or in hardware, on whole stripes at a time.</p></div>
+    <pre class="code" data-src="examples/raid_parity.py"><code>"""XOR parity, the idea behind RAID 5: rebuild a lost disk from the others."""
+from functools import reduce
+
+data = [b"alpha-01", b"bravo-02", b"charlie3", b"delta-04"]
+
+
+def xor(*blocks):
+    return bytes(reduce(lambda a, b: a ^ b, column) for column in zip(*blocks))
+
+
+parity = xor(*data)                                                    # (1) the parity block is the XOR of all the data blocks
+print("data disks:  " + " ".join(d.decode() for d in data))
+print("parity disk: " + parity.hex())
+
+rebuilt = xor(parity, *[d for i, d in enumerate(data) if i != 2])      # (2) disk 2 fails: XOR the parity with every disk that survived...
+print(f"disk 2 fails; rebuilt from parity and the other disks: {rebuilt.decode()} (matches original: {rebuilt == data[2]})")
+
+fresh = b"BRAVO-99"
+updated = xor(parity, data[1], fresh)                                  # (3) a small write: new parity = old parity XOR old data XOR new data
+recomputed = xor(data[0], fresh, data[2], data[3])
+print(f"small write to disk 1: new parity from old parity, old data and new data matches a full recompute: {updated == recomputed}")
+print("that small write costs 2 reads + 2 writes = 4 disk operations")
+
+wrong = xor(parity, *[d for i, d in enumerate(data) if i not in (2, 3)])   # (4) with a second disk lost there are two unknowns and one equation: the result is wrong
+print(f"a second failure (disks 2 and 3 both lost) cannot be rebuilt: wrong data produced: {wrong != data[2]}")</code></pre>
+  </div>
+
+  <h3>The danger of the rebuild</h3>
+  <p>After a failure, the array is running with no redundancy until the replacement disk is rebuilt, and rebuilding means reading <em>every</em> surviving disk from start to finish. Drives specify an <dfn data-term="Unrecoverable read error (URE)">unrecoverable read error</dfn> rate, perhaps one per 10<sup>14</sup> bits. Read tens of terabytes and meeting one is likely. In RAID 5 an error then loses data, because there is no parity left to correct it.</p>
+  <div data-sim="raidrisk"></div>
+  <div class="callout"><p><b>Try it:</b> raise the disk size and watch RAID 5’s risk climb while RAID 6 stays covered. Then switch to the enterprise error rate. This is why big arrays use RAID 6 or mirrors, and why the figure that matters is the <em>rebuild</em>, not the failure.</p></div>
+
+  <h2 id="ssd">Flash and wear</h2>
+  <p>An SSD stores bits in flash cells grouped into <b>pages</b> (a few kilobytes) and <b>blocks</b> (hundreds of pages). Two rules shape everything: a page can be written only after its whole block has been <em>erased</em>, and each block survives only a limited number of erases. So a drive cannot overwrite data in place. A firmware layer, the <dfn data-term="Flash translation layer (FTL)">flash translation layer</dfn>, writes the new version into a fresh page, remembers the new location, and leaves the old page stale.</p>
+  <p>When free blocks run low, <dfn data-term="Garbage collection (SSD)">garbage collection</dfn> picks a block, copies its still-valid pages elsewhere, and erases it. Those copies are extra writes: the <dfn data-term="Write amplification">write amplification</dfn> is flash writes divided by the writes the computer asked for. The firmware also practises <dfn data-term="Wear leveling">wear leveling</dfn>, steering new writes to the least-erased blocks so that none dies early.</p>
+  <div data-sim="ssdwear"></div>
+  <div class="callout"><p><b>Try it:</b> start with random overwrites on a 90%-full drive: the amplification is high. Lower the fill, or raise the hidden spare space, and it falls. Switch to sequential writes and it drops to about 1.0, because whole blocks go stale together and nothing needs copying. The operating system can help with <dfn data-term="TRIM">TRIM</dfn>, which tells the drive which blocks hold deleted data, so that space counts as spare rather than valid.</p></div>
+
+  <h2 id="crash">Surviving a crash</h2>
+  <p>Many updates need several separate writes. Appending to a file changes the free-space bitmap, the inode and the data block (<a href="11-file-systems.html">Module 11</a>). The disk can write only one at a time, and the power can fail between any two. Without protection the file system can be left inconsistent: a block marked used but belonging to no file, or a file pointing at a block that was never written, or two files sharing one block.</p>
+  <p>The old remedy was <code>fsck</code>, a scan of the whole disk at the next boot, slow on large disks and unable to repair everything. The modern remedy is to make the update <b>atomic</b>. In <dfn data-term="Write-ahead logging">write-ahead logging</dfn>, the file system first writes what it intends to do into a log (the journal), then writes a single <dfn data-term="Commit record">commit record</dfn>, and only then changes the data in place. After a crash, a transaction with a commit record is replayed; one without is ignored.</p>
+  <div data-sim="journal"></div>
+  <div class="callout"><p><b>Try it:</b> with no journal and the order “bitmap, inode, data”, crash after two steps: the file includes a block with no data. Change the order to data first: the worst case becomes a leaked block, which is harmless. Then switch to a journal and slide through every crash point: it always ends up all-old or all-new, with the commit record as the dividing line.</p></div>
+
+  <h3>Try it: a write-ahead log that survives a torn write</h3>
+  <div class="code-tabs" aria-label="Write-ahead log example language">
+    <div class="lang-note" data-lang="c"><p><b>Why C is the clearer version here:</b> <code>write</code>, <code>fsync</code>, <code>ftruncate</code> and <code>pread</code> are the actual system calls. Comment (1) is the essential rule: the change is not done until <code>fsync</code> says the bytes are on stable storage. The program then simulates a crash by cutting the file short, and recovery replays only records whose length and checksum are right. Needs Linux or macOS (the example uses POSIX calls).</p></div>
+    <pre class="code" data-src="examples/write_ahead_log.c"><code>/* A write-ahead log: make each change durable first, and recover after a crash by replaying only the complete records. Linux or macOS. */
+#define _POSIX_C_SOURCE 200809L
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+
+/* A record is: one byte of length, the text "key=value", then a one-byte checksum (the sum of the text, modulo 256). */
+
+static void append(int fd, const char *text) {
+    unsigned char buf[64];
+    size_t n = strlen(text);
+    unsigned sum = 0;
+    for (size_t i = 0; i &lt; n; i++) sum += (unsigned char)text[i];
+    buf[0] = (unsigned char)n;
+    memcpy(buf + 1, text, n);
+    buf[n + 1] = (unsigned char)(sum &amp; 255);
+    if (write(fd, buf, n + 2) != (ssize_t)(n + 2)) exit(1);
+    if (fsync(fd) != 0) exit(1);                         /* (1) the change counts as done only once it is on stable storage */
+}
+
+/* Replay the log: apply each complete, correct record in order and stop at the first one that is not. */
+static int replay(const char *path, char *out, size_t outsize) {
+    FILE *f = fopen(path, "rb");
+    if (!f) exit(1);
+    int a = 0, b = 0, records = 0, c;
+    while ((c = fgetc(f)) != EOF) {
+        unsigned char text[64];
+        size_t n = (size_t)c;
+        if (n == 0 || n &gt;= sizeof text || fread(text, 1, n, f) != n) break;          /* (2) a record that is cut short is a torn write: ignore it */
+        int sum = fgetc(f);
+        unsigned want = 0;
+        for (size_t i = 0; i &lt; n; i++) want += text[i];
+        if (sum == EOF || (unsigned)sum != (want &amp; 255)) break;                      /* (3) a record whose checksum is wrong was damaged: stop here */
+        if (text[0] == 'A') a = text[2] - '0'; else b = text[2] - '0';
+        records++;
+    }
+    fclose(f);
+    snprintf(out, outsize, "A=%d, B=%d (%d record%s)", a, b, records, records == 1 ? "" : "s");
+    return records;
+}
+
+int main(void) {
+    char path[] = "/tmp/osc_wal_XXXXXX", result[64];
+    int fd = mkstemp(path);
+    if (fd &lt; 0) return 1;
+    append(fd, "A=1"); append(fd, "B=2"); append(fd, "A=5");
+    printf("wrote 3 records (A=1, B=2, A=5) to the log\n");
+    replay(path, result, sizeof result);
+    printf("full log replays to: %s\n", result);
+
+    off_t size = lseek(fd, 0, SEEK_END);
+    if (ftruncate(fd, size - 3) != 0) return 1;                                      /* (4) simulate a crash in the middle of the last write by cutting it short */
+    replay(path, result, sizeof result);
+    printf("log cut in the middle of the last record: replays to %s\n", result);
+
+    unsigned char flipped;
+    if (pread(fd, &amp;flipped, 1, 6) != 1) return 1;                                    /* flip one bit in the second record's text */
+    flipped ^= 1;
+    if (pwrite(fd, &amp;flipped, 1, 6) != 1) return 1;
+    replay(path, result, sizeof result);
+    printf("a flipped bit in the second record is caught by its checksum: replays to %s\n", result);
+    close(fd);
+    unlink(path);
+    return 0;
+}</code></pre>
+    <div class="lang-note" data-lang="python"><p><b>Python’s <code>os</code> module exposes the same calls</b> (<code>os.write</code>, <code>os.fsync</code>, <code>os.ftruncate</code>), so this is no more contrived than the C version, and the record format is identical. Parsing is shorter because slices of a <code>bytes</code> object replace the manual reading. Python’s ordinary <code>open()</code> adds its own buffering, which is why a durable log uses the lower-level calls.</p></div>
+    <pre class="code" data-src="examples/write_ahead_log.py"><code>"""A write-ahead log: make each change durable first, and recover after a crash by replaying only the complete records."""
+import os
+import tempfile
+
+# A record is: one byte of length, the text "key=value", then a one-byte checksum (the sum of the text, modulo 256).
+
+
+def append(fd, text):
+    data = text.encode()
+    os.write(fd, bytes([len(data)]) + data + bytes([sum(data) &amp; 255]))
+    os.fsync(fd)                                         # (1) the change counts as done only once it is on stable storage
+
+
+def replay(path):
+    """Apply each complete, correct record in order and stop at the first one that is not."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    state, records, i = {"A": 0, "B": 0}, 0, 0
+    while i &lt; len(raw):
+        n = raw[i]
+        if n == 0 or i + n + 2 &gt; len(raw):               # (2) a record that is cut short is a torn write: ignore it
+            break
+        text = raw[i + 1:i + 1 + n]
+        if raw[i + 1 + n] != sum(text) &amp; 255:            # (3) a record whose checksum is wrong was damaged: stop here
+            break
+        key, value = text.decode().split("=")
+        state[key] = int(value)
+        records += 1
+        i += n + 2
+    return f"A={state['A']}, B={state['B']} ({records} record{'' if records == 1 else 's'})"
+
+
+fd, path = tempfile.mkstemp(prefix="osc_wal_")
+for entry in ("A=1", "B=2", "A=5"):
+    append(fd, entry)
+print("wrote 3 records (A=1, B=2, A=5) to the log")
+print(f"full log replays to: {replay(path)}")
+
+os.ftruncate(fd, os.fstat(fd).st_size - 3)               # (4) simulate a crash in the middle of the last write by cutting it short
+print(f"log cut in the middle of the last record: replays to {replay(path)}")
+
+os.lseek(fd, 6, os.SEEK_SET)                             # flip one bit in the second record's text
+byte = os.read(fd, 1)
+os.lseek(fd, 6, os.SEEK_SET)
+os.write(fd, bytes([byte[0] ^ 1]))
+print(f"a flipped bit in the second record is caught by its checksum: replays to {replay(path)}")
+os.close(fd)
+os.remove(path)</code></pre>
+  </div>
+  <p>Databases use exactly this idea (the “write-ahead log”), and so do journaling file systems such as ext4, XFS and NTFS. <em>Copy-on-write</em> file systems (ZFS, Btrfs, APFS) reach the same goal differently: they never overwrite live data, and switch to the new version with one atomic pointer update.</p>
+
+  <h2 id="beyond">Checksums and backups</h2>
+  <p>Redundancy repairs data only if you know <em>which</em> copy is wrong. Disks usually report a failure, but sometimes they return the wrong data without any error. A <dfn data-term="Checksum">checksum</dfn> stored with each block lets the system notice, and if a mirror or parity exists, repair it from the good copy. Some file systems (ZFS, Btrfs) checksum every block and <em>scrub</em> the whole pool regularly to find damage while a good copy still exists.</p>
+  <p>Finally, none of this is a <b>backup</b>. RAID, mirrors and journals protect against hardware faults and crashes. A deleted file, a bug that scribbles on data, or ransomware is deleted, scribbled on or encrypted on every disk at once, instantly. A backup is a separate, older, preferably off-site copy. A common rule of thumb is <b>3-2-1</b>: three copies, on two kinds of media, with one kept elsewhere. And a backup you have never restored is only a hope.</p>
+
+  <details class="deeper">
+    <summary><span class="badge">Advanced</span>Going deeper: what real systems add</summary>
+    <ul>
+      <li><b>The write hole.</b> In RAID 5, a crash between writing the data and writing the parity leaves a stripe whose parity no longer matches. After a disk failure that stripe rebuilds to garbage. Fixes include a battery-backed write cache, a small journal of in-flight stripes, or file systems (ZFS RAID-Z) whose stripes are written atomically.</li>
+      <li><b>Erasure coding.</b> RAID 6 is a case of a more general idea: split data into <i>k</i> pieces and compute <i>m</i> extra, so that any <i>k</i> of the <i>k</i> + <i>m</i> pieces rebuild everything. Large storage systems spread such pieces across machines and data centers.</li>
+      <li><b>Failures are correlated.</b> Disks from the same batch, in the same chassis, with the same firmware and the same workload tend to fail together. That makes a second failure during a rebuild more likely than independent odds suggest, and it is one reason to mix batches and to keep spares.</li>
+      <li><b>Hot spares and degraded mode.</b> A hot spare starts rebuilding automatically. While the array is degraded, reads of the missing disk’s data need extra work: every read becomes XOR of the others, which slows the system just when it is most at risk.</li>
+      <li><b>Lying drives and write barriers.</b> A drive may acknowledge a write while the data is still in its volatile cache. File systems issue <em>flush</em> commands as barriers so that the journal reaches stable storage before the commit record. Skipping them is a classic cause of corruption after power loss.</li>
+      <li><b>SSD details.</b> Drives keep a small <em>write buffer</em> and often a capacitor to finish writes after power loss. Cells that store several bits (TLC, QLC) are denser and cheaper but wear faster. <em>Zoned</em> and <em>multi-stream</em> interfaces let the operating system tell the drive which writes belong together, which is the “separate blocks” option in the simulator.</li>
+      <li><b>Journal modes in practice.</b> Most file systems journal only <em>metadata</em> by default and write data first (the “ordered” mode in the simulator), so the structure is always consistent but the contents of a file after a crash can be old. Full data journaling writes everything twice and is correspondingly slower.</li>
+      <li><b>Measured failure rates.</b> Large studies of data-center disks found annual failure rates of a few percent, with failures concentrated early in life and in older age, and with only weak links to temperature or to the manufacturer’s quoted “mean time between failures”. Treat such figures as estimates, not guarantees.</li>
+    </ul>
+  </details>
+
+  <h2 id="quiz">Check your understanding</h2>
+  <div data-quiz="19"></div>
+</main>
+<script src="../js/vendor/d3.min.js"></script>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/study.js"></script>
+<script src="../js/data/quizzes.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/lib/progress.js"></script>
+<script src="../js/progress.js"></script>
+<script src="../js/quiz.js"></script>
+<script src="../js/lib/storage.js"></script>
+<script src="../js/sims/m19-storage.js"></script>
+</body>
+</html>

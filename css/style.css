@@ -318,3 +318,13 @@ kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 
 .pagegrid td.differs, .pagegrid th.differs { outline: 3px solid var(--fg); outline-offset: -3px; }
 .pagegrid caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
 input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
+/* stack-frame diagram (Module 18) */
+.stack-frame { display: flex; flex-direction: column; gap: 4px; max-width: 34rem; margin: .75rem 0; }
+.stack-seg { border: 1px solid var(--border); border-radius: 6px; padding: .3rem .5rem; background: var(--card); }
+.stack-name { font-size: .9rem; }
+.stack-cells { display: flex; flex-wrap: wrap; gap: 2px; margin-top: .2rem; }
+.stack-cells .cell { display: inline-flex; width: 1.6rem; height: 1.6rem; align-items: center; justify-content: center; font: .8rem ui-monospace, Consolas, monospace; border: 1px solid var(--border); border-radius: 3px; background: var(--code-bg); }
+.stack-cells .cell.written { background: var(--c6); color: var(--on-c6); border-color: var(--c6); font-weight: 700; }
+.stack-cells .cell.canary.intact { background: var(--c2); color: var(--on-c2); border-color: var(--c2); }
+.stack-cells .cell.ret.intact { background: var(--c5); color: var(--on-c5); border-color: var(--c5); }
+.status-ok code, .status-bad code { color: var(--fg); }

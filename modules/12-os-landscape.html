@@ -74,8 +74,25 @@
     <li><b>z/OS</b> descends from OS/360 and MVS. It is the large-scale flagship.</li>
     <li><b>z/VSE</b> descends from the separate DOS/360 line: smaller, simpler and cheaper to operate, often used by smaller organizations.</li>
     <li><b>IBM i</b> (formerly AS/400, iSeries, System i) is a midrange system with a database built into the OS, an <em>object-based</em> design, and <dfn data-term="Single-level storage">single-level storage</dfn>: memory and disk form one address space, so applications never manage paging or files the way they do on a PC.</li>
+    <li><b>z/VM</b> is IBM's mainframe hypervisor: it runs many virtual machines, often Linux, alongside z/OS and z/VSE guests. <b>z/TPF</b> is a very lean system for enormous volumes of short transactions, such as airline bookings and payments.</li>
   </ul>
   <div class="callout"><p><b>Connect it back:</b> single-level storage is <a href="09-virtual-memory.html">virtual memory</a> taken to its logical extreme, and the channel subsystem is a more powerful version of the <a href="10-disk-io.html">DMA</a> idea.</p></div>
+
+  <h2 id="more">More designs worth a look</h2>
+  <p>Beyond the systems above, a handful of others are worth knowing because each shows one idea more clearly than the mainstream ones do. Select a link to put it into the comparison tool.</p>
+  <table>
+    <thead><tr><th>System</th><th>The idea it shows best</th><th>Compare</th></tr></thead>
+    <tbody>
+      <tr><td><b>Fuchsia</b></td><td>The <dfn data-term="Capability">capability</dfn> idea from <a href="02-security.html">Module 2</a> as a whole operating system: no root user, and a program can use only the handles it was given. Built on the Zircon <dfn data-term="Microkernel">microkernel</dfn>.</td><td><a href="#compare=fuchsia,qnx,minix3">vs. other microkernels</a></td></tr>
+      <tr><td><b>MINIX 3</b></td><td>Why a microkernel is reliable: drivers run outside the kernel, and a “reincarnation server” restarts a driver that crashes.</td><td><a href="#compare=minix3,qnx,linux">vs. QNX and Linux</a></td></tr>
+      <tr><td><b>Plan 9</b></td><td>“Everything is a file” taken to its end, with a private namespace for every process. Linux <a href="14-virtualization.html">namespaces</a> (the basis of containers) descend from it.</td><td><a href="#compare=plan9,solaris,openbsd">vs. other Unix heirs</a></td></tr>
+      <tr><td><b>Solaris and illumos</b></td><td>ZFS, DTrace and zones all appeared here first: copy-on-write storage, safe live tracing, and OS-level containers.</td><td><a href="#compare=solaris,freebsd,linux">vs. FreeBSD and Linux</a></td></tr>
+      <tr><td><b>OpenBSD</b></td><td>Security by default and least privilege: a program promises which system calls it will use (<code>pledge</code>) and the kernel holds it to the promise.</td><td><a href="#compare=openbsd,freebsd,qubes">vs. other security designs</a></td></tr>
+      <tr><td><b>HarmonyOS</b></td><td>A third mobile ecosystem, designed to treat a phone, watch and TV as one distributed system. It also shows how hard it is to leave an app ecosystem behind.</td><td><a href="#compare=harmonyos,android,ios">vs. Android and iOS</a></td></tr>
+      <tr><td><b>z/VM</b></td><td>The origin of <a href="14-virtualization.html">virtualization</a>: a hypervisor from the 1960s and 70s that still runs thousands of guests on one mainframe.</td><td><a href="#compare=zvm,zos,zvse">vs. z/OS and z/VSE</a></td></tr>
+      <tr><td><b>z/TPF</b></td><td>An operating system designed around one workload, millions of short transactions such as airline bookings and card payments, trading flexibility for speed and predictability.</td><td><a href="#compare=ztpf,zos,freertos">vs. z/OS and an RTOS</a></td></tr>
+    </tbody>
+  </table>
 
   <h2 id="checklist">Questions to ask about any new OS</h2>
   <ol>

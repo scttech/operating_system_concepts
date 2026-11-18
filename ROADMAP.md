@@ -20,7 +20,7 @@ A working list of improvements to build together. Tick items off (`[x]`) as they
 
 ## Where we are today (baseline)
 
-* 17 modules with 41+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
+* 19 modules with 49+ d3 simulations, many with playback controls (scheduler, page replacement, disk arm, Amdahl timeline,
   fork tree, Banker's, race lab, process states).
 * Module 12: family tree and a compare tool for 14 operating systems (share a comparison via `#compare=windows,zos`).
 * About 100 glossary terms, each linked back to the lesson where it is discussed (`npm run build:glossary`).
@@ -155,9 +155,9 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
   *Follow-ups:* a page-fault service step (demand paging) in the same simulator; copy-on-write demonstrated through the PTE flags.
 - [x] **C-4 Advanced scheduling** (L). Multilevel feedback queue; real-time (rate-monotonic, earliest-deadline-first) with a schedulability check; multicore load balancing. **Done:** Module 17, with three simulations and two tested C and Python examples.
 - [x] **C-5 Readers–writers, monitors and condition variables** (M). Simulator plus a starvation demonstration. **Done:** Module 15, with two simulations and two tested C and Python examples.
-- [ ] **C-6 Security depth** (L). Buffer-overflow stack diagram, authentication and password hashing, a threat-model exercise.
-- [ ] **C-7 Storage reliability** (M). RAID levels, SSD wear leveling and write amplification, journaling crash recovery.
-- [ ] **C-8 More operating systems for the compare tool** (S each). HarmonyOS, Fuchsia, Solaris/illumos, OpenBSD, z/VM, z/TPF, watchOS/tvOS, Plan 9, Minix.
+- [x] **C-6 Security depth** (L). Buffer-overflow stack diagram, authentication and password hashing, a threat-model exercise. **Done:** Module 18: stack-smashing simulator (canary, NX, ASLR, leaks), password guessing and salted hashing, and STRIDE exercises, with two tested C and Python examples.
+- [x] **C-7 Storage reliability** (M). RAID levels, SSD wear leveling and write amplification, journaling crash recovery. **Done:** Module 19: RAID and parity, rebuild risk, SSD write amplification and wear, and journaling at every crash point, with two tested C and Python examples.
+- [x] **C-8 More operating systems for the compare tool** (S each). HarmonyOS, Fuchsia, Solaris/illumos, OpenBSD, z/VM, z/TPF, watchOS/tvOS, Plan 9, Minix. **Done:** Eight more profiles in the compare tool (HarmonyOS, Fuchsia, Solaris and illumos, OpenBSD, z/VM, z/TPF, Plan 9, MINIX 3), placed in the family tree, with new quick comparisons and a section in Module 12.
   Each needs all 15 profile rows and a place in the family tree (the data tests enforce this).
 - [x] **C-9 Inter-process communication** (M). Pipes, shared memory, message passing, sockets with a visual. **Done:** Module 13, with a pipe and message-queue explorer, a cost comparison, and three tested C and Python examples (pipe, socket pair, shared memory).
 
@@ -179,9 +179,9 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 - [x] **P-1 Site-wide search** (M). Client-side index of lessons, glossary and FAQ. **Done:** `search.html`, covering lessons, glossary, FAQ, labs, cheat sheet and OS profiles, with a generated page-text index and highlighted results.
 - [ ] **P-2 Print stylesheet** (S).
 - [ ] **P-3 404 page and social preview** (S). Open Graph/Twitter card meta with the logo (needs the final site URL).
-- [ ] **P-4 Feedback and contribution** (S). "Report an issue" link, `CONTRIBUTING.md`, issue templates.
+- [x] **P-4 Feedback and contribution** (S). "Report an issue" link, `CONTRIBUTING.md`, issue templates. **Done:** `CONTRIBUTING.md`, three issue forms, a pull-request checklist, and a footer link on every page (set by `OSData.site.repo`, so a fork can change it).
 - [ ] **P-5 Offline use** (M). A service worker so the site works without a connection and can be installed. (Careful with cache invalidation.)
-- [ ] **P-6 Changelog** (S). A short `CHANGELOG.md`, so instructors know what changed between terms.
+- [x] **P-6 Changelog** (S). A short `CHANGELOG.md`, so instructors know what changed between terms. **Done:** `CHANGELOG.md` with notes for instructors about stable module numbers, saved progress and shared links; tests keep it consistent with `package.json`.
 - [x] **P-7 License** (S). MIT, chosen so that people can copy and adapt the material. The file is `LICENSE.txt` (linked from every page's footer and shipped with the deployed site), and the README explains reuse in plain language.
   *Still optional:* the copyright line reads "The Operating System Concepts contributors". Replace it with a name or organization if you prefer.
 

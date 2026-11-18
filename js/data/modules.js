@@ -53,16 +53,22 @@ window.OSData.modules = [
     tags: ["BIOS", "UEFI", "init"] },
   { n: 17, slug: "17-advanced-scheduling", title: "Advanced Scheduling",
     summary: "Multilevel feedback queues, real-time scheduling with deadline guarantees (rate-monotonic and EDF), and balancing work across cores.",
-    tags: ["MLFQ", "real-time", "multicore"] }
+    tags: ["MLFQ", "real-time", "multicore"] },
+  { n: 18, slug: "18-security-depth",   title: "Security in Depth",
+    summary: "Buffer overflows and the defenses against them, how passwords should be stored and why, and how to find threats before attackers do.",
+    tags: ["buffer overflow", "passwords", "STRIDE"] },
+  { n: 19, slug: "19-storage-reliability", title: "Storage Reliability",
+    summary: "RAID levels and parity, why SSDs write more than you ask, and how journaling survives a crash in the middle of an update.",
+    tags: ["RAID", "SSD", "journaling"] }
 ];
 
 /* Parts: the modules grouped by theme, in the order to read them. Module numbers are stable ids (links and quizzes use them),
  * so a part may list numbers out of numeric order. Every module belongs to exactly one part. */
 window.OSData.parts = [
-  { id: "foundations", title: "Foundations", blurb: "What an operating system is, how it protects itself, and how a machine starts.", modules: [1, 2, 16] },
+  { id: "foundations", title: "Foundations", blurb: "What an operating system is, how it protects itself, and how a machine starts.", modules: [1, 2, 18, 16] },
   { id: "processes", title: "Processes and the CPU", blurb: "Programs in execution, how the CPU is shared among them, and how to use several cores.", modules: [3, 4, 5, 17] },
   { id: "concurrency", title: "Concurrency", blurb: "What goes wrong when activities share data, and the tools that make it safe: locks, monitors, messages and deadlock handling.", modules: [6, 15, 7, 13] },
-  { id: "memory", title: "Memory and storage", blurb: "From addresses to pages, to disks and file systems.", modules: [8, 9, 10, 11] },
+  { id: "memory", title: "Memory and storage", blurb: "From addresses to pages, to disks and file systems.", modules: [8, 9, 10, 11, 19] },
   { id: "modern", title: "Modern systems", blurb: "Operating systems beyond the desktop, and virtualization and containers.", modules: [12, 14] }
 ];
 /** Module numbers in reading order (part by part). */

@@ -3,7 +3,7 @@
   "use strict";
   if (typeof require !== "undefined") {
     globalThis.window = globalThis;
-    ["modules", "glossary", "quizzes", "faq", "oslist", "study", "scenarios"].forEach((f) => require(`../js/data/${f}.js`));
+    ["modules", "glossary", "quizzes", "faq", "oslist", "study", "scenarios", "threats"].forEach((f) => require(`../js/data/${f}.js`));
   }
   const D = window.OSData;
 
@@ -38,7 +38,7 @@
       assert.ok(st.takeaways.length >= 3 && st.takeaways.length <= 5, `module ${m.n} has 3 to 5 takeaways`);
       assert.ok(st.reading.length >= 2, `module ${m.n} has further reading`);
       [...st.objectives, ...st.takeaways].forEach((t) => assert.ok(/^[A-Za-z]/.test(t) && /[.]$/.test(t) && t.length > 30 && t.length < 260, `module ${m.n}: a full sentence: ${t.slice(0, 40)}`));
-      st.objectives.forEach((t) => assert.ok(/^(Name|Explain|Tell|Trace|State|Read|Match|List|Draw|Describe|Compare|Simulate|Define|Say|Show|Use|Find|Run|Break|Translate|Walk|Compute|Test|Apply|Place|Order|Predict|Choose|Build) /.test(t), `module ${m.n}: starts with a skill verb: ${t.slice(0, 30)}`));
+      st.objectives.forEach((t) => assert.ok(/^(Name|Explain|Tell|Trace|State|Read|Match|List|Draw|Describe|Compare|Simulate|Define|Say|Show|Use|Find|Run|Break|Translate|Walk|Compute|Test|Apply|Place|Order|Predict|Choose|Build|Classify|Rebuild) /.test(t), `module ${m.n}: starts with a skill verb: ${t.slice(0, 30)}`));
       const urls = st.reading.map((r) => r[1]);
       assert.equal(new Set(urls).size, urls.length, `module ${m.n}: no duplicate links`);
       st.reading.forEach(([title, url, note]) => assert.ok(title && note && /^https:\/\/[a-z0-9.~-]+\/[^\s"'<>]*$/i.test(url) && !/[()]/.test(url), `module ${m.n}: ${url}`));
@@ -64,6 +64,19 @@
     const pos = [0, 1, 2, 3].map((i) => sc.filter((x) => x.answer === i).length);
     assert.ok(pos.every((c) => c >= 2), "the best answer is not always in the same position: " + pos.join(","));
     assert.ok(new Set(sc.map((x) => x.mod)).size >= 8, "scenarios span many modules");
+  });
+
+  QUnit.test("Threat-modeling exercises cover all six STRIDE categories and explain each answer", (assert) => {
+    const systems = D.threatSystems;
+    assert.ok(systems.length >= 3);
+    assert.equal(new Set(systems.map((x) => x.id)).size, systems.length, "ids unique");
+    systems.forEach((x) => {
+      assert.ok(x.name && x.description.length > 60 && x.components.length >= 3, `${x.id}: described`);
+      assert.deepEqual([...new Set(x.threats.map((t) => t.cat))].sort(), ["D", "E", "I", "R", "S", "T"], `${x.id}: every STRIDE category appears`);
+      assert.ok(x.threats.length >= 6 && x.threats.length <= 8, `${x.id}: six to eight threats`);
+      x.threats.forEach((t) => assert.ok(t.text.length > 40 && t.why.length > 25 && t.fix.length > 25 && /[.]$/.test(t.text), `${x.id}: ${t.text.slice(0, 30)} is complete`));
+      assert.equal(new Set(x.threats.map((t) => t.text)).size, x.threats.length, `${x.id}: threats differ`);
+    });
   });
 
   QUnit.test("Every quiz question is well formed", (assert) => {
@@ -106,6 +119,18 @@
       assert.ok(o.name && o.tagline && D.osGroups.includes(o.group), `${o.id}: name, tagline and a known group`);
       keys.forEach((k) => assert.ok(typeof o[k] === "string" && o[k].trim().length >= 3, `${o.id}.${k} is filled in`));
     });
+  });
+
+  QUnit.test("The newer and older designs are profiled, grouped and placed in the family tree", (assert) => {
+    const ids = D.osList.map((o) => o.id);
+    ["harmonyos", "fuchsia", "solaris", "openbsd", "zvm", "ztpf", "plan9", "minix3"].forEach((id) => assert.ok(ids.includes(id), `${id} has a profile`));
+    assert.ok(D.osList.filter((o) => o.group === "Research & new designs").length >= 3, "the research group has members");
+    assert.ok(D.osList.some((o) => o.id === "fuchsia" && /capabilit/i.test(o.security)), "Fuchsia's profile explains capabilities");
+    assert.ok(D.osList.some((o) => o.id === "plan9" && /namespace/i.test(o.security)), "Plan 9's profile explains namespaces");
+    assert.ok(D.osList.some((o) => o.id === "openbsd" && /pledge/i.test(o.security)));
+    const labels = D.osTree.nodes.map((n) => n.label);
+    ["Solaris", "illumos", "OpenBSD", "Plan 9", "MINIX", "MINIX 3", "Fuchsia", "HarmonyOS", "CP-67", "VM/370", "z/VM", "ACP", "TPF", "z/TPF", "SunOS"].forEach((l) => assert.ok(labels.includes(l), `${l} is in the family tree`));
+    assert.true(D.osLanes.every((l) => l.length <= 24), "lane names fit in the margin of the tree");
   });
 
   QUnit.test("The profiles cover the families the course asks for", (assert) => {

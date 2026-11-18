@@ -250,6 +250,42 @@ window.OSData = window.OSData || {};
         "Balancing load is always traded against cache warmth."
       ],
       reading: [OSTEP("cpu-sched-mlfq", "Multi-Level Feedback Queue"), OSTEP("cpu-sched-lottery", "Proportional Share (lottery and stride)"), OSTEP("cpu-sched-multi", "Multiprocessor Scheduling"), MAN(7, "sched"), DOCS("scheduler/sched-deadline.html", "Linux deadline scheduler (EDF)"), MAN(2, "sched_setaffinity")]
+    },
+    18: {
+      objectives: [
+        "Explain how an unchecked copy into a stack buffer can overwrite a function's return address, and what an attacker gains.",
+        "Describe what a stack canary, non-executable memory and address-space layout randomization each stop, and how each can be bypassed.",
+        "Show why defenses are layered, and why an information leak is so valuable to an attacker.",
+        "Compute the number of possible passwords for a length and alphabet, and estimate guessing time for different attackers.",
+        "Explain why passwords are stored as salted, slow hashes and never as plain text or a plain hash.",
+        "Classify the threats to a small system with STRIDE and name a usual defense for each."
+      ],
+      takeaways: [
+        "A memory-safety bug is dangerous because the program trusts data it should have checked. Checking the length is the real fix; the defenses only make exploitation harder.",
+        "No single defense is enough. Each of canary, NX and ASLR can be bypassed in a way another covers, so they are used together.",
+        "A password's strength is how many guesses an attacker needs, which depends on how it was chosen as much as how long it is.",
+        "Store a salted, slow hash of a password: the salt makes every record unique, and the slowness makes every guess expensive.",
+        "Think of threats before attackers do. A short list such as STRIDE finds problems that no amount of testing the normal case will."
+      ],
+      reading: [OSTEP("security-intro", "Security: introduction"), OSTEP("security-authentication", "Authentication (passwords and their storage)"), ["Smashing the stack for fun and profit (Aleph One, Phrack 49)", "https://phrack.org/issues/49/14.html", "the classic 1996 explanation of stack buffer overflows"], ["OWASP: Password Storage Cheat Sheet", "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html", "current practical advice on salting and slow hashes"], ["OWASP: Threat modeling", "https://owasp.org/www-community/Threat_Modeling", "an introduction to the process"], DOCS("admin-guide/sysctl/kernel.html", "Linux kernel settings (including randomize_va_space for ASLR)")]
+    },
+    19: {
+      objectives: [
+        "Compute the usable capacity of a RAID 0, 1, 5, 6 or 10 array, and say how many disk failures it always survives.",
+        "Rebuild a lost block from the surviving blocks and the XOR parity, and explain why two lost disks cannot be recovered.",
+        "Explain why large RAID 5 rebuilds are risky and why RAID is not a backup.",
+        "Explain why a flash drive needs garbage collection, what write amplification is, and what lowers it.",
+        "Say why a crash in the middle of a multi-step update can corrupt a file system, and how a journal prevents it.",
+        "Trace what is left on disk after a crash at each step, with and without a journal."
+      ],
+      takeaways: [
+        "Redundancy has a price in capacity, and it protects only against what it was designed for: a failed disk is not a deleted file.",
+        "Parity works because XOR is its own inverse: any one missing block is the XOR of all the others.",
+        "The risky moment for an array is the rebuild, when the redundancy is already used up.",
+        "Flash cannot overwrite in place, so an SSD writes more than you ask; spare space, TRIM and sequential writes keep it low.",
+        "A journal turns a multi-step update into one that either happens completely or not at all, with a single commit write."
+      ],
+      reading: [OSTEP("file-raid", "Redundant Arrays of Inexpensive Disks (RAIDs)"), OSTEP("file-ssd", "Flash-based SSDs"), OSTEP("file-journaling", "Crash Consistency: FSCK and Journaling"), OSTEP("file-integrity", "Data Integrity and Protection"), ["Linux md (software RAID) documentation", "https://docs.kernel.org/admin-guide/md.html", "how Linux builds RAID arrays"], DOCS("filesystems/ext4/journal.html", "The ext4 journal (jbd2)")]
     }
   };
 })();

@@ -66,7 +66,12 @@
       "Mainframe and midrange": ["zos", "zvse", "ibmi"],
       "Mainframe vs. PC": ["zos", "windows", "linux"],
       "Real-time vs. general-purpose": ["freertos", "qnx", "linux"],
-      "Three security philosophies": ["qubes", "ios", "freebsd"]
+      "Three security philosophies": ["qubes", "ios", "freebsd"],
+      "Microkernels in practice": ["qnx", "minix3", "fuchsia"],
+      "Security first": ["openbsd", "freebsd", "qubes"],
+      "Mainframe virtualization and transactions": ["zvm", "ztpf", "zos"],
+      "Unix and its heirs": ["solaris", "plan9", "openbsd"],
+      "Phones beyond Android and iOS": ["harmonyos", "android", "ios"]
     };
     const presetSel = select({ label: "Quick comparisons", options: [{ value: "", label: "Choose…" }, ...Object.keys(presets).map((k) => ({ value: k, label: k }))], value: "", onChange: (v) => { if (v) { sel = presets[v].slice(); presetSel.set(""); refresh(true); } } });
     p.controls.append(presetSel.el, button("Clear all", () => { sel = []; refresh(); }, true));
@@ -141,6 +146,11 @@
     // Shareable links: #compare=windows,zos
     const m = /compare=([\w,-]+)/.exec(location.hash || "");
     if (m) sel = m[1].split(",").filter((id) => byId[id]).slice(0, MAX);
+    // A link such as #compare=a,b on this same page changes only the hash, so listen for it.
+    window.addEventListener("hashchange", () => {
+      const h2 = /compare=([a-z0-9,-]+)/.exec(location.hash || "");
+      if (h2) { sel = h2[1].split(",").filter((id) => byId[id]).slice(0, MAX); refresh(true); }
+    });
     refresh();
   });
 })();

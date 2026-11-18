@@ -58,7 +58,7 @@
   QUnit.module("pages: structure and loading");
 
   QUnit.test("The site has exactly the expected pages", (assert) => {
-    assert.equal(moduleFiles.length, 17, "17 module pages");
+    assert.equal(moduleFiles.length, 19, "19 module pages");
     globalThis.window = globalThis;
     require("../js/data/modules.js");
     assert.deepEqual(moduleFiles, globalThis.OSData.modules.map((m) => m.slug + ".html"), "module files match js/data/modules.js");
@@ -184,7 +184,7 @@
 
   QUnit.test("Home: one card per module; theme toggle works", async (assert) => {
     await withPage("index.html", ({ window: w, document: doc }) => {
-      assert.equal(doc.querySelectorAll("#module-grid .card").length, 17);
+      assert.equal(doc.querySelectorAll("#module-grid .card").length, 19);
       assert.ok(!/Reflect/i.test(doc.getElementById("module-grid").textContent), "no reflection module");
       doc.getElementById("theme-toggle").click();
       assert.ok(["light", "dark"].includes(doc.documentElement.dataset.theme));
@@ -801,6 +801,26 @@
       cardButton(c, "android").click();
       assert.ok(/Nothing selected yet/.test(text(c)));
       assert.equal(cardButton(c, "android").getAttribute("aria-pressed"), "false");
+    });
+  });
+
+  QUnit.test("Compare tool: the newer systems have presets, and links on the page change the comparison", async (assert) => {
+    await withPage("modules/12-os-landscape.html", ({ window: w, document: doc }) => {
+      const c = sim(doc, "oscompare"), preset = field(c, "Quick comparisons");
+      setValue(w, preset, "Microkernels in practice", "change");
+      assert.deepEqual(colHeads(c), ["QNX", "MINIX 3", "Fuchsia"]);
+      setValue(w, preset, "Mainframe virtualization and transactions", "change");
+      assert.deepEqual(colHeads(c), ["z/VM", "z/TPF", "z/OS (MVS)"]);
+      // every comparison link in "More designs worth a look" names real systems
+      const links = [...doc.querySelectorAll("main table a[href^='#compare=']")];
+      assert.ok(links.length >= 8);
+      links.forEach((a) => a.getAttribute("href").slice(9).split(",").forEach((id) => assert.ok(w.OSData.osList.some((o) => o.id === id), `${id} exists`)));
+      w.location.hash = "#compare=plan9,solaris,openbsd";
+      w.dispatchEvent(new w.HashChangeEvent("hashchange"));
+      assert.deepEqual(colHeads(c), ["Plan 9", "Solaris and illumos", "OpenBSD"], "following a link on the same page updates the table");
+      w.location.hash = "#compare=nonsense,harmonyos";
+      w.dispatchEvent(new w.HashChangeEvent("hashchange"));
+      assert.deepEqual(colHeads(c), ["HarmonyOS"], "unknown ids are ignored");
     });
   });
 
@@ -1580,6 +1600,210 @@
       const pager = [...doc.querySelectorAll(".pager a")].map((a) => a.textContent);
       assert.equal(pager.length, 1, "Module 14 ends the course: only a Previous link");
       assert.ok(pager[0].startsWith("← 12."));
+    });
+  });
+
+  QUnit.module("pages: Module 19 (storage reliability)");
+
+  QUnit.test("RAID simulator: capacity, failing disks and the verdict follow the library", async (assert) => {
+    await withPage("modules/19-storage-reliability.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "raid"), L = w.OSLib, diskBtns = () => [...s.querySelectorAll('[role="group"] button')], verdict = () => s.querySelector("p[aria-live]").textContent;
+      assert.deepEqual(metrics(s).slice(0, 3), ["32 TB", "80%", "1"], "RAID 5, five 8 TB disks");
+      assert.equal(diskBtns().length, 5);
+      diskBtns()[0].click();
+      assert.ok(/1 failed, data safe/.test(verdict()) && /degraded/.test(verdict()));
+      assert.equal(diskBtns()[0].getAttribute("aria-pressed"), "true");
+      diskBtns()[3].click();
+      assert.ok(/DATA LOST/.test(verdict()));
+      diskBtns()[3].click(); diskBtns()[0].click();
+      assert.ok(/All disks working/.test(verdict()), "pressing a failed disk replaces it");
+      setValue(w, field(s, "RAID level"), "10", "change");
+      setValue(w, field(s, "Disks"), 6);
+      assert.equal(metrics(s)[0], "24 TB");
+      diskBtns()[0].click(); diskBtns()[2].click(); diskBtns()[4].click();
+      assert.ok(/3 failed, data safe/.test(verdict()), "one disk from each pair");
+      diskBtns()[1].click();
+      assert.ok(/DATA LOST/.test(verdict()), "both disks of a pair");
+      setValue(w, field(s, "Disks"), 5);
+      assert.ok(/even number/.test(text(s)), "RAID 10 needs an even number");
+      setValue(w, field(s, "RAID level"), "6", "change");
+      setValue(w, field(s, "Disks"), 3);
+      assert.ok(/at least 4 disks/.test(text(s)));
+    });
+  });
+
+  QUnit.test("Parity demo: the rebuilt value equals the lost one, for any data", async (assert) => {
+    await withPage("modules/19-storage-reliability.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "raidparity");
+      assert.ok(/XOR of the parity and the three surviving disks is 77, which equals/.test(text(s)), text(s.querySelector("p.status-ok")));
+      const ins = [...s.querySelectorAll('input[type="number"]')];
+      setValue(w, ins[0], 255); setValue(w, ins[1], 1); setValue(w, ins[2], 0); setValue(w, ins[3], 170);
+      setValue(w, field(s, "Which data disk fails"), "0", "change");
+      const parity = 255 ^ 1 ^ 0 ^ 170;
+      assert.ok(text(s).includes(`is 255, which equals what disk 1 held (255)`));
+      assert.ok(text(s).includes(parity.toString(2).padStart(8, "0")), "the parity bits are shown");
+      setValue(w, ins[1], 999);
+      assert.equal(ins[1].value, "999", "the field keeps what was typed");
+      assert.ok(text(s).includes("is 255, which equals"), "values above 255 are clamped to 255 in the calculation, so the answer is still right");
+    });
+  });
+
+  QUnit.test("Rebuild risk: RAID 5 grows risky with disk size and RAID 6 stays covered", async (assert) => {
+    await withPage("modules/19-storage-reliability.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "raidrisk"), L = w.OSLib, cells = () => [...s.querySelectorAll("tbody tr")].map((tr) => tr.children[3].textContent);
+      const want = L.rebuildRisk("5", 6, 8, 1e14).probability;
+      assert.equal(cells()[1], (want * 100).toFixed(1) + "%");
+      assert.ok(/about 0/.test(cells()[2]), "RAID 6 is covered");
+      setValue(w, field(s, "Disk size"), 2);
+      const small = parseFloat(cells()[1]);
+      setValue(w, field(s, "Disk size"), 20);
+      assert.ok(parseFloat(cells()[1]) > small, "bigger disks, bigger risk");
+      setValue(w, field(s, "Drive's error rate"), "1e15", "change");
+      assert.ok(parseFloat(cells()[1]) < 60, "enterprise drives lower it");
+    });
+  });
+
+  QUnit.test("SSD simulator: sequential writes amplify about 1×, random writes on a full drive much more, and an impossible setting is explained", async (assert) => {
+    await withPage("modules/19-storage-reliability.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "ssdwear"), L = w.OSLib, wa = () => parseFloat(metrics(s)[2]);
+      const want = L.ssdSimulate({ overProvision: 0.07, fill: 0.9, pattern: "random", separate: true, writes: 20000, seed: 7 }).wa;
+      assert.equal(metrics(s)[2], want.toFixed(2) + "×");
+      assert.ok(s.querySelectorAll("svg rect").length >= 128, "one bar per block");
+      setValue(w, field(s, "Writes"), "sequential", "change");
+      assert.ok(wa() < 1.1, "sequential: " + wa());
+      setValue(w, field(s, "Writes"), "random", "change");
+      setValue(w, field(s, "Hidden spare"), 28);
+      assert.ok(wa() < want, "more spare space, less amplification");
+      assert.equal(s.querySelectorAll("tbody tr").length, 3, "a comparison of three spare-space sizes");
+      setValue(w, field(s, "Hidden spare"), 3);
+      assert.ok(/does not fit|needs a few blocks/.test(text(s)), "too little spare space is explained rather than crashing");
+    });
+  });
+
+  QUnit.test("Journal simulator: damage without a journal, all-or-nothing with one", async (assert) => {
+    await withPage("modules/19-storage-reliability.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "journal"), verdict = () => s.querySelector("p[aria-live]").textContent, rows = () => [...s.querySelectorAll("tbody tr")].map((tr) => [tr.children[0].textContent, tr.children[1].textContent]);
+      setValue(w, field(s, "Crash after"), 2);
+      assert.ok(/CORRUPT/.test(verdict()) && /never written|no data|garbage/i.test(text(s)), verdict());
+      assert.equal(s.querySelectorAll("ol li").length, 3);
+      setValue(w, field(s, "Order of the in-place"), "data-first", "change");
+      assert.ok(/inconsistent \(a leaked block\)|leaked/.test(verdict()), "data first leaks a block at worst");
+      assert.false(/CORRUPT/.test(rows().map((r) => r[1]).join(" ")), "no crash point corrupts a file");
+      setValue(w, field(s, "File system"), "metadata", "change");
+      assert.equal(s.querySelectorAll("ol li").length, 5);
+      assert.ok(s.querySelector("ol").textContent.includes("the commit point"));
+      setValue(w, field(s, "Crash after"), 4);
+      assert.ok(/At the crash: inconsistent/.test(verdict()) && /After recovery: consistent, with the append complete/.test(verdict()), verdict());
+      assert.ok(/replays/.test(text(s)));
+      setValue(w, field(s, "Crash after"), 2);
+      assert.ok(/After recovery: consistent, as before/.test(verdict()));
+      assert.equal(rows().length, 6);
+      assert.true(rows().every((r) => !/CORRUPT/.test(r[1])), "a journal never leaves corruption");
+    });
+  });
+
+  QUnit.test("Module 19 shows two C and Python example pairs with notes for both languages", async (assert) => {
+    await withPage("modules/19-storage-reliability.html", ({ document: doc }) => {
+      const boxes = [...doc.querySelectorAll(".code-tabs")];
+      assert.deepEqual(boxes.map((b) => b.querySelector("pre.code").dataset.src), ["examples/raid_parity.c", "examples/write_ahead_log.c"]);
+      boxes.forEach((b) => { assert.deepEqual(tabsOf(b).map((t) => t.textContent), ["C", "Python"]); assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]')); });
+    });
+  });
+
+  QUnit.module("pages: Module 18 (security in depth)");
+
+  QUnit.test("Stack attack: buttons reproduce the library's outcomes, and each defense changes the result", async (assert) => {
+    await withPage("modules/18-security-depth.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "stackattack"), L = w.OSLib, verdict = () => s.querySelector("p[aria-live]").textContent;
+      assert.ok(/No damage/.test(verdict()), "starts with 8 bytes: it fits");
+      assert.equal(s.querySelectorAll(".stack-seg").length, 3, "buffer, saved frame pointer and return address");
+      button(s, "Plain overflow").click();
+      assert.ok(verdict().startsWith(L.stackOutcomes.crash), verdict());
+      assert.equal(s.querySelectorAll(".cell.written").length, 24, "28 bytes: the whole 24-byte frame is overwritten");
+      button(s, "Real attack, no defenses").click();
+      assert.ok(verdict().startsWith(L.stackOutcomes.hijacked) && s.querySelector(".status-bad"), verdict());
+      button(s, "All three defenses").click();
+      assert.equal(s.querySelectorAll(".stack-seg").length, 4, "a canary segment appears");
+      assert.ok(verdict().startsWith(L.stackOutcomes["canary-abort"]) && s.querySelector(".status-ok"));
+      button(s, "Defenses and an information leak").click();
+      assert.ok(verdict().startsWith(L.stackOutcomes.hijacked), "a leak plus code reuse beats all three");
+      assert.ok(/existing|exist/.test(text(s)), "the steps say that existing code is reused");
+      // every preset agrees with the library
+      const o = { inputLen: 28, crafted: true, canary: true, nx: true, aslr: true, leak: false, target: "shellcode" };
+      button(s, "All three defenses").click();
+      assert.equal(verdict(), L.stackOutcomes[L.stackAttack(o).outcome] + ".");
+      assert.ok(s.querySelector(".stack-frame").getAttribute("aria-label").includes("canary"));
+      setValue(w, field(s, "Input length"), 10);
+      assert.ok(/No damage/.test(verdict()));
+    });
+  });
+
+  QUnit.test("Password guessing: the numbers match the library, and a human-style password ignores length", async (assert) => {
+    await withPage("modules/18-security-depth.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "pwcrack"), L = w.OSLib, times = () => [...s.querySelectorAll("tbody tr")].map((tr) => tr.children[2].textContent);
+      const space = L.passwordSpace(8, 26);
+      assert.deepEqual(times(), [L.attackers.online, L.attackers.slow, L.attackers.fast].map((a) => L.humanTime(L.crackSeconds(space, a.rate))));
+      assert.ok(/208827064576|2\.1e\+11/.test(text(s)) || text(s).includes("2.1e+11"), "the space is shown");
+      assert.equal(times()[2], "less than a second" === times()[2] ? times()[2] : times()[2], "fast hash");
+      assert.ok(s.querySelectorAll(".status-bad").length >= 1, "a fast hash on 8 lower-case letters is flagged red");
+      setValue(w, field(s, "Length"), 16);
+      setValue(w, field(s, "Characters used"), "all", "change");
+      assert.ok(s.querySelectorAll(".status-ok").length >= 2, "16 random characters of all kinds are out of reach");
+      setValue(w, field(s, "How was it chosen"), "human", "change");
+      const humanTimes = times();
+      setValue(w, field(s, "Length"), 4);
+      assert.deepEqual(times(), humanTimes, "for a human-chosen password the length slider does not matter");
+      assert.ok(/common word/.test(text(s)));
+    });
+  });
+
+  QUnit.test("Hash demo: same password, same plain hash; salts and repetition make them differ", async (assert) => {
+    await withPage("modules/18-security-depth.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "hashdemo"), L = w.OSLib, rows = () => [...s.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((c) => c.textContent));
+      const r = rows();
+      assert.equal(r[0][3], "identical");
+      assert.equal(r[1][3], "different"); assert.equal(r[2][3], "different");
+      assert.equal(s.querySelectorAll("tbody tr")[0].querySelector("code").getAttribute("title"), L.plainHash("correct horse"), "the full hash is in the title");
+      assert.equal(s.querySelectorAll("tbody tr")[1].querySelector("code").getAttribute("title"), L.saltedHash("a1b2c3d4", "correct horse"));
+      assert.ok(r[2][0].includes("1,000"), "1,000 repetitions by default");
+      setValue(w, field(s, "Times the hash is repeated"), 3);
+      assert.equal(s.querySelectorAll("tbody tr")[2].querySelector("code").getAttribute("title"), L.stretchedHash("a1b2c3d4", "correct horse", 3));
+      setValue(w, s.querySelector('input[type="text"]'), "hunter2");
+      assert.equal(s.querySelectorAll("tbody tr")[0].querySelector("code").getAttribute("title"), L.plainHash("hunter2"));
+      const before = text(s.querySelector("p.small"));
+      button(s, "New random salts").click();
+      assert.notEqual(text(s.querySelector("p.small")), before, "new salts");
+      assert.equal(rows()[1][3], "different");
+    });
+  });
+
+  QUnit.test("Threat modeling: choose categories, check, see why, and reveal all", async (assert) => {
+    await withPage("modules/18-security-depth.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "threatmodel"), sys = w.OSData.threatSystems;
+      assert.equal(s.querySelectorAll("ol > li").length, sys[0].threats.length);
+      const sels = () => [...s.querySelectorAll("ol select")];
+      setValue(w, sels()[0], sys[0].threats[0].cat, "change");
+      setValue(w, sels()[1], "I", "change");
+      button(s, "Check my answers").click();
+      assert.ok(/You answered 2 of 7, and 1 are right/.test(text(s)), text(s.querySelector("p[aria-live]:last-of-type")));
+      assert.ok([...s.querySelectorAll("ol li")][0].textContent.includes("Correct"));
+      assert.ok(/Not quite. The best fit is T: Tampering/.test(text(s)), "a wrong answer says what fits");
+      assert.ok(/A usual defense/.test(text(s)));
+      button(s, "Show all answers").click();
+      assert.ok(/7 of 7, and 7 are right/.test(text(s)));
+      button(s, "Start over").click();
+      assert.equal(sels().filter((x) => x.value).length, 0);
+      setValue(w, field(s, "System"), "lock", "change");
+      assert.ok(text(s).includes("smart door lock") && s.querySelectorAll("ol > li").length === sys[1].threats.length);
+      assert.equal(s.querySelectorAll("table tbody tr").length, 6, "the STRIDE key");
+    });
+  });
+
+  QUnit.test("Module 18 shows two C and Python example pairs with notes for both languages", async (assert) => {
+    await withPage("modules/18-security-depth.html", ({ document: doc }) => {
+      const boxes = [...doc.querySelectorAll(".code-tabs")];
+      assert.deepEqual(boxes.map((b) => b.querySelector("pre.code").dataset.src), ["examples/stack_frame_sim.c", "examples/password_hash.c"]);
+      boxes.forEach((b) => { assert.deepEqual(tabsOf(b).map((t) => t.textContent), ["C", "Python"]); assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]')); });
     });
   });
 

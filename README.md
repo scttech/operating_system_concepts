@@ -51,6 +51,8 @@ python -m http.server 8000      # or: npm run serve
 | 15 | Monitors & readers–writers | Mesa-semantics stepper (if vs while, with random-schedule trials), readers–writers timeline with reader, writer and fair policies and a starvation flag, C and Python examples for condition variables and read-write locks |
 | 16 | The boot process | Boot stepper (BIOS, UEFI, Secure Boot, with injected failures), editable 512-byte MBR viewer, service start-order scheduler with critical path, chain of trust, C and Python examples for the MBR and for dependency ordering |
 | 17 | Advanced scheduling | Multilevel feedback queue with priority boost, rate-monotonic vs EDF with exact schedulability analysis, multicore work stealing with migration cost, C and Python examples for real-time scheduling and CPU affinity |
+| 18 | Security in depth | Stack-smashing simulator with canary, NX, ASLR and information leaks, password-guessing time estimates, salted and stretched hashing demo, STRIDE threat-modeling exercises, C and Python examples for a stack frame and for password hashing |
+| 19 | Storage reliability | RAID levels with failing disks, XOR parity and rebuild, rebuild-risk estimates, SSD write amplification and wear, journaling crash points, C and Python examples for parity and for a write-ahead log |
 
 ### Animations
 
