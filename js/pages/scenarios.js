@@ -1,6 +1,7 @@
 /* Scenario questions: pick a situation, choose an approach, read why each option is or is not right. */
 (function () {
   "use strict";
+  const base = document.body.dataset.root || "";
   const { h } = OSUI;
   const host = document.getElementById("scenario"), topic = document.getElementById("topic");
   const topics = [...new Set(OSData.scenarios.map((s) => s.topic))].sort();
@@ -26,7 +27,7 @@
       explain.replaceChildren(h("p", {}, h("strong", { text: chosen === null ? "Best fit: " : chosen === s.answer ? "Right. " : "Not the best fit. " }), s.notes[s.answer]),
         h("h3", { text: "Why each option does or does not fit" }),
         h("ul", {}, shuffleOrder.map((i) => h("li", {}, h("b", { text: s.options[i] + (i === s.answer ? " (best fit)" : "") + ": " }), s.notes[i]))),
-        h("p", { class: "small" }, "Learn more: ", h("a", { href: `modules/${m.slug}.html`, text: `Module ${m.n}: ${m.title}` }), "."));
+        h("p", { class: "small" }, "Learn more: ", h("a", { href: base + `modules/${m.slug}.html`, text: `Module ${m.n}: ${m.title}` }), "."));
       explain.focus && explain.setAttribute("tabindex", "-1");
     }
     const reveal = h("button", { type: "button", class: "btn secondary", text: "Just show the answer", onclick: () => { answer(null); reveal.hidden = true; } });

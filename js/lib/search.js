@@ -30,8 +30,8 @@
       add("Lesson", "Further reading", where, `${url}#further-reading`, st.reading.map((r) => `${r[0]} ${r[2]}`).join(" "));
     });
     (d.searchIndex || []).forEach(([url, page, heading, text, kind]) => add(kind, heading, page, url, text));
-    (d.glossary || []).forEach((g) => add("Glossary", g.term, g.cat, `glossary.html#${slug(g.term)}`, g.def));
-    (d.faq || []).forEach((f) => add("FAQ", f.q, f.group, "faq.html", stripTags(f.a)));
+    (d.glossary || []).forEach((g) => add("Glossary", g.term, g.cat, `pages/glossary.html#${slug(g.term)}`, g.def));
+    (d.faq || []).forEach((f) => add("FAQ", f.q, f.group, "pages/faq.html", stripTags(f.a)));
     (d.labs || []).forEach((l) => add("Lab", `Lab ${l.n}: ${l.title}`, "Lab overview", `labs/${l.slug}.html`, `${l.summary} ${l.platform || ""}`));
     (d.osList || []).forEach((o) => add("Operating system", o.name, o.group, `modules/12-os-landscape.html#compare=${o.id}`,
       [o.tagline, o.category, o.maker, o.uses, o.kernel, o.scheduling, o.memory, o.files, o.security, o.strengths, o.tradeoffs, o.fact].filter(Boolean).join(" ")));

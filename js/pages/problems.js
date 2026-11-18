@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  const base = document.body.dataset.root || "";
   const { h, fill } = OSUI;
   const L = OSLib;
   const kinds = L.problemKinds, byId = Object.fromEntries(kinds.map((k) => [k.id, k]));
@@ -70,7 +71,7 @@
       h("button", { type: "button", class: "btn secondary", text: "Hint", onclick: () => { hint.hidden = false; } }),
       h("button", { type: "button", class: "btn secondary", text: "Show solution steps", onclick: () => { if (!solved) revealed = true; steps.hidden = false; result.hidden = false; result.innerHTML = `<b>Answer:</b> ${esc(p.answerText)}${p.unit ? " " + esc(p.unit) : ""}`; stats.streak = 0; updateScore(); } }),
       h("button", { type: "button", class: "btn secondary", id: "copy-link", text: "Copy link to this problem", onclick: copyLink }));
-    const info = h("p", { class: "small", style: "margin-top:.75rem" }, `Problem code: `, h("code", { text: p.code }), " · ", h("a", { href: `modules/${m.slug}.html` }, `Review Module ${m.n}: ${m.title}`));
+    const info = h("p", { class: "small", style: "margin-top:.75rem" }, `Problem code: `, h("code", { text: p.code }), " · ", h("a", { href: base + `modules/${m.slug}.html` }, `Review Module ${m.n}: ${m.title}`));
     function copyLink(e) {
       const url = `${location.href.split("#")[0]}#p=${p.code}`, btn = e.currentTarget;
       (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(() => { btn.textContent = "Link copied"; }, () => { btn.textContent = "Copy the address bar"; });

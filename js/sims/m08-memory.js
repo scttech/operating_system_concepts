@@ -15,14 +15,15 @@
       return b; // holes of 60, 80, 90 and 100 KB: 330 KB free, largest hole 100 KB
     };
     let blocks = START(), strategy = "first", counter = 0, lastPlaced = null; // lastPlaced: block that "pops" when drawn
-    const stratSel = select({ label: "Placement strategy", options: [{ value: "first", label: "First-fit" }, { value: "best", label: "Best-fit" }, { value: "worst", label: "Worst-fit" }], value: strategy, onChange: (v) => { strategy = v; } });
+    let ops = []; // what the learner did, as short commands (a100 = allocate 100 KB, f3 = free P3, c = compact, x = fragmented example, Sb = best-fit): this is what a shared link replays
+    const stratSel = select({ label: "Placement strategy", options: [{ value: "first", label: "First-fit" }, { value: "best", label: "Best-fit" }, { value: "worst", label: "Worst-fit" }], value: strategy, onChange: (v) => { strategy = v; ops.push("S" + v[0]); } });
     const sizeIn = number({ label: "Request size (KB)", min: 1, max: 900, value: 100 });
     const msg = h("p", { "aria-live": "polite" });
     p.controls.append(stratSel.el, sizeIn.el,
       button("Allocate", () => alloc(sizeIn.get())),
-      button("Compact memory", () => { blocks = L.compact(blocks); lastPlaced = null; msg.textContent = "Compaction moved all processes to the bottom of memory."; draw(); }, true),
-      button("Load fragmented example", () => { blocks = FRAG(); counter = 7; msg.textContent = "P2, P4 and P6 were freed, leaving several small holes."; draw(); }, true),
-      button("Reset", () => { blocks = START(); counter = 0; msg.textContent = ""; draw(); }, true));
+      button("Compact memory", () => { blocks = L.compact(blocks); ops.push("c"); lastPlaced = null; msg.textContent = "Compaction moved all processes to the bottom of memory."; draw(); }, true),
+      button("Load fragmented example", () => { blocks = FRAG(); counter = 7; ops.push("x"); msg.textContent = "P2, P4 and P6 were freed, leaving several small holes."; draw(); }, true),
+      button("Reset", () => { blocks = START(); counter = 0; ops = []; msg.textContent = ""; draw(); }, true));
     const chart = h("div", { class: "chart" }), freeBtns = h("div", { class: "row" }), meter = h("div", { class: "metrics", "aria-live": "polite" });
     p.body.append(chart, meter, h("div", {}, h("strong", { text: "Free a process: " }), freeBtns), msg);
 
@@ -30,7 +31,7 @@
       if (!(sz > 0)) return;
       const name = "P" + ++counter;
       const r = L.allocate(blocks, name, sz, strategy);
-      if (r.ok) { blocks = r.blocks; lastPlaced = name; msg.innerHTML = `<span class="status-ok">${name} (${sz} KB) placed.</span>`; }
+      if (r.ok) { blocks = r.blocks; lastPlaced = name; ops.push(Number.isInteger(sz) && sz <= 999 ? "a" + sz : "?"); msg.innerHTML = `<span class="status-ok">${name} (${sz} KB) placed.</span>`; }
       else {
         counter--; const f = L.fragmentation(blocks);
         msg.innerHTML = `<span class="status-bad">No single hole can hold ${sz} KB.</span> ${f.free >= sz ? `There are ${f.free} KB free in total, but the largest hole is only ${f.largest} KB. <b>This is external fragmentation.</b> Try compaction.` : "Not enough free memory in total."}`;
@@ -54,9 +55,34 @@
       const f = L.fragmentation(blocks);
       meter.replaceChildren(...[[f.free + " KB", "total free"], [f.largest + " KB", "largest hole"], [f.holes, "holes"], [`${(f.external * 100).toFixed(0)}%`, "external fragmentation = 1 − largest/free"]]
         .map(([v, k]) => h("div", { class: "metric" }, h("b", { text: v }), h("span", { text: k }))));
-      freeBtns.replaceChildren(...(names.length ? names.map((n) => button(`${n} (${blocks.find((b) => b.pid === n).size}K)`, () => { blocks = L.release(blocks, n); lastPlaced = null; msg.textContent = `${n} freed.`; draw(); }, true)) : [h("span", { class: "small", text: "(none allocated)" })]));
+      freeBtns.replaceChildren(...(names.length ? names.map((n) => button(`${n} (${blocks.find((b) => b.pid === n).size}K)`, () => { blocks = L.release(blocks, n); ops.push("f" + n.slice(1)); lastPlaced = null; msg.textContent = `${n} freed.`; draw(); }, true)) : [h("span", { class: "small", text: "(none allocated)" })]));
     }
     draw();
+
+    /** Starts from an empty memory and repeats a list of commands (see ops). Commands that cannot apply (a failed allocation) are skipped. */
+    function replay(tokens) {
+      blocks = START(); counter = 0; lastPlaced = null; ops = []; strategy = "first";
+      tokens.forEach((t) => {
+        if (t[0] === "a") { const name = "P" + (counter + 1), r = L.allocate(blocks, name, +t.slice(1), strategy); if (r.ok) { counter++; blocks = r.blocks; lastPlaced = name; ops.push(t); } }
+        else if (t[0] === "f") { if (blocks.some((b) => b.pid === "P" + t.slice(1))) { blocks = L.release(blocks, "P" + t.slice(1)); lastPlaced = null; ops.push(t); } }
+        else if (t === "c") { blocks = L.compact(blocks); lastPlaced = null; ops.push(t); }
+        else if (t === "x") { blocks = FRAG(); counter = 7; lastPlaced = null; ops.push(t); }
+        else if (t[0] === "S") { strategy = { f: "first", b: "best", w: "worst" }[t[1]]; ops.push(t); }
+      });
+      stratSel.set(strategy);
+      msg.textContent = `Replayed ${ops.length} step${ops.length === 1 ? "" : "s"} from the link.`;
+      draw();
+    }
+
+    // Shareable link: everything done so far, replayed from an empty memory.
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareable(p, "memalloc", {
+        spec: { ops: S.tokens("a[0-9]{1,3}|f[0-9]{1,2}|c|x|S[fbw]", 60) },
+        get: () => ({ ops }),
+        set: (s) => { if (s.ops) replay(s.ops); }
+      });
+    }
   });
 
   OSUI.register("paging", (el) => {
@@ -97,5 +123,22 @@
         : `<span class="status-bad">Page fault / invalid reference:</span> page ${t.page} has no frame in the page table.`;
     }
     build(); update();
+
+    // Shareable link: the page size, the whole page table and the address being translated.
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareable(p, "paging", {
+        spec: { ps: S.oneOf([128, 256, 512, 1024]), table: S.ints(-1, 63, 4, 32), addr: S.int(0, 4095) },
+        get: () => ({ ps: pageSize, table: Array.from({ length: 4096 / pageSize }, (_, i) => (table[i] === null || table[i] === undefined ? -1 : table[i])), addr }),
+        set: (s) => {
+          if (s.ps) { pageSize = +s.ps; psSel.set(String(pageSize)); defaultTable(); }
+          const pages = 4096 / pageSize, frames = 8192 / pageSize;
+          if (s.table && s.table.length === pages && s.table.every((v) => v < frames)) { table = {}; s.table.forEach((v, i) => { table[i] = v < 0 ? null : v; }); }
+          if (s.addr !== undefined) addr = s.addr;
+          addr = Math.min(addr, 4095); aSl.set(addr);
+          build(); update();
+        }
+      });
+    }
   });
 })();

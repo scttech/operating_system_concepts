@@ -46,7 +46,7 @@ function pages() {
   const out = [];
   const mods = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => /^\d\d-.*\.html$/.test(f)).sort();
   mods.forEach((f) => out.push({ file: `modules/${f}`, kind: "Lesson" }));
-  out.push({ file: "cheatsheet.html", kind: "Cheat sheet" });
+  out.push({ file: "pages/cheatsheet.html", kind: "Cheat sheet" });
   fs.readdirSync(path.join(ROOT, "labs")).filter((f) => /^\d\d-.*\.html$/.test(f)).sort().forEach((f) => out.push({ file: `labs/${f}`, kind: "Lab" }));
   return out;
 }

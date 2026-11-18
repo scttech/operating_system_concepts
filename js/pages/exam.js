@@ -1,6 +1,7 @@
 /* Exam mode page. Selection and scoring are in js/lib/exam.js; results are recorded through OSProgress. */
 (function () {
   "use strict";
+  const base = document.body.dataset.root || "";
   const { h } = OSUI;
   const L = OSLib, P = window.OSProgress, $ = (id) => document.getElementById(id);
   const now = () => (typeof window.OSExamNow === "function" ? window.OSExamNow() : Date.now());
@@ -80,13 +81,13 @@
       h("h2", { id: "score", text: `Score: ${s.correct} of ${s.total} (${s.percent}%)` }),
       h("p", {}, `${s.wrong} wrong, ${s.unanswered} left blank. Time used: ${L.formatClock(seconds)}.${timedOut ? " The time limit ended the exam." : ""}`),
       h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Module", "Right", "Of"].map((t) => h("th", { text: t })))),
-        h("tbody", {}, mods.map((n) => h("tr", {}, h("td", {}, h("a", { href: `modules/${OSData.modules.find((m) => m.n === n).slug}.html`, text: `${n}. ${OSData.modules.find((m) => m.n === n).title}` })), h("td", { text: s.byModule[n].correct }), h("td", { text: s.byModule[n].total }))))),
+        h("tbody", {}, mods.map((n) => h("tr", {}, h("td", {}, h("a", { href: base + `modules/${OSData.modules.find((m) => m.n === n).slug}.html`, text: `${n}. ${OSData.modules.find((m) => m.n === n).title}` })), h("td", { text: s.byModule[n].correct }), h("td", { text: s.byModule[n].total }))))),
       s.misses.length ? h("h3", { text: `Review: ${s.misses.length} to look at again` }) : h("p", { class: "status-ok", text: "Every question was right." }),
       ...s.misses.map(({ item, chosen }) => h("div", { class: "q review" },
         h("p", { class: "stem", text: item.q.q }),
         h("p", {}, chosen === null ? h("em", { text: "You left this blank. " }) : h("span", {}, "You chose: ", h("span", { class: "status-bad", text: item.q.choices[chosen] }), ". "), "Correct answer: ", h("strong", { class: "status-ok", text: item.q.choices[item.q.answer] }), "."),
         h("p", { class: "small", text: item.q.explain }),
-        h("p", { class: "small" }, "Module: ", h("a", { href: `modules/${OSData.modules.find((m) => m.n === item.q.mod).slug}.html`, text: `${item.q.mod}. ${OSData.modules.find((m) => m.n === item.q.mod).title}` })))),
+        h("p", { class: "small" }, "Module: ", h("a", { href: base + `modules/${OSData.modules.find((m) => m.n === item.q.mod).slug}.html`, text: `${item.q.mod}. ${OSData.modules.find((m) => m.n === item.q.mod).title}` })))),
       h("div", { class: "row" }, h("button", { class: "btn", id: "again", type: "button", text: "New exam" }), h("a", { class: "btn secondary", href: "progress.html", text: "My progress" })));
     $("again").addEventListener("click", () => { $("results").hidden = true; $("setup").hidden = false; exam = null; window.scrollTo && window.scrollTo(0, 0); });
     $("score").setAttribute("tabindex", "-1"); $("score").focus();

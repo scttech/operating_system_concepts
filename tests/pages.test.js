@@ -7,7 +7,7 @@
   const { JSDOM, VirtualConsole } = require("jsdom");
   const ROOT = path.resolve(__dirname, "..");
 
-  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html", "study.html", "progress.html", "flashcards.html", "exam.html", "scenarios.html", "handouts.html", "paths.html", "teaching.html"];
+  const rootPages = ["index.html", "pages/labs.html", "pages/problems.html", "pages/glossary.html", "pages/faq.html", "pages/practice.html", "pages/cheatsheet.html", "pages/search.html", "pages/study.html", "pages/progress.html", "pages/flashcards.html", "pages/exam.html", "pages/scenarios.html", "pages/handouts.html", "pages/paths.html", "pages/teaching.html"];
   const moduleFiles = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => f.endsWith(".html")).sort();
   const labFiles = fs.readdirSync(path.join(ROOT, "labs")).filter((f) => f.endsWith(".html")).sort();
   const allPages = [...rootPages, ...moduleFiles.map((f) => "modules/" + f), ...labFiles.map((f) => "labs/" + f)];
@@ -254,7 +254,7 @@
   });
 
   QUnit.test("Every page's footer links to the license", async (assert) => {
-    for (const [rel, href] of [["index.html", "LICENSE.txt"], ["modules/04-scheduling.html", "../LICENSE.txt"], ["labs/01-processes.html", "../LICENSE.txt"], ["problems.html", "LICENSE.txt"]]) {
+    for (const [rel, href] of [["index.html", "LICENSE.txt"], ["modules/04-scheduling.html", "../LICENSE.txt"], ["labs/01-processes.html", "../LICENSE.txt"], ["pages/problems.html", "../LICENSE.txt"]]) {
       await withPage(rel, ({ document: doc }) => {
         const a = doc.querySelector("footer.site a");
         assert.ok(a && a.textContent === "MIT License" && a.getAttribute("href") === href, `${rel}: footer links to ${href}`);
@@ -265,7 +265,7 @@
   });
 
   QUnit.test("Glossary: search and topic filter", async (assert) => {
-    await withPage("glossary.html", ({ window: w, document: doc }) => {
+    await withPage("pages/glossary.html", ({ window: w, document: doc }) => {
       const all = doc.querySelectorAll("dt").length;
       assert.ok(all >= 80);
       setValue(w, doc.getElementById("q"), "paging");
@@ -281,14 +281,14 @@
   });
 
   QUnit.test("Glossary: each term links back to the lesson where it is discussed", async (assert) => {
-    await withPage("glossary.html", ({ window: w, document: doc }) => {
+    await withPage("pages/glossary.html", ({ window: w, document: doc }) => {
       const dd = (id) => doc.getElementById(id).nextElementSibling;
       const aging = dd("aging").querySelector(".seealso");
       assert.ok(/First discussed in Module 4 \(The algorithms\)/.test(aging.textContent), aging.textContent);
-      assert.equal(aging.querySelector("a").getAttribute("href"), "modules/04-scheduling.html#term-aging", "deep link to the term in the lesson");
+      assert.equal(aging.querySelector("a").getAttribute("href"), "../modules/04-scheduling.html#term-aging", "deep link to the term in the lesson");
       const kernel = dd("kernel").querySelector(".seealso");
       assert.ok(/First discussed in Module 1/.test(kernel.textContent) && /also in Module 12/.test(kernel.textContent), "terms used in several modules list them all");
-      assert.deepEqual([...kernel.querySelectorAll("a")].map((a) => a.getAttribute("href")).slice(0, 1), ["modules/01-fundamentals.html#term-kernel"]);
+      assert.deepEqual([...kernel.querySelectorAll("a")].map((a) => a.getAttribute("href")).slice(0, 1), ["../modules/01-fundamentals.html#term-kernel"]);
       assert.equal(doc.querySelectorAll("dd .seealso").length, doc.querySelectorAll("dt").length, "every listed term has a link to a lesson");
       // "Discussed in" filter
       const all = doc.querySelectorAll("dt").length;
@@ -313,13 +313,13 @@
   QUnit.test("Glossary: terms linked from module pages resolve to an anchor", async (assert) => {
     await withPage("modules/07-deadlocks.html", ({ document: doc }) => {
       const link = doc.querySelector('dfn[data-term="Deadlock"] a');
-      assert.equal(link.getAttribute("href"), "../glossary.html#deadlock");
+      assert.equal(link.getAttribute("href"), "../pages/glossary.html#deadlock");
     });
-    await withPage("glossary.html", ({ document: doc }) => assert.ok(doc.getElementById("deadlock")));
+    await withPage("pages/glossary.html", ({ document: doc }) => assert.ok(doc.getElementById("deadlock")));
   });
 
   QUnit.test("FAQ: filter", async (assert) => {
-    await withPage("faq.html", ({ window: w, document: doc }) => {
+    await withPage("pages/faq.html", ({ window: w, document: doc }) => {
       const all = doc.querySelectorAll("details.faq").length;
       assert.ok(all >= 20);
       setValue(w, doc.getElementById("q"), "belady");
@@ -330,7 +330,7 @@
   });
 
   QUnit.test("Practice: module filter and question count", async (assert) => {
-    await withPage("practice.html", ({ window: w, document: doc }) => {
+    await withPage("pages/practice.html", ({ window: w, document: doc }) => {
       assert.equal(doc.querySelectorAll(".q").length, 10);
       setValue(w, doc.getElementById("mod"), "4", "change");
       setValue(w, doc.getElementById("num"), "all", "change");
@@ -896,7 +896,7 @@
   QUnit.module("pages: Python labs and calculation practice");
 
   QUnit.test("Source viewer: highlighted blocks in lessons, the cheat sheet and the labs index keep their text and get the right language", async (assert) => {
-    const cases = [["cheatsheet.html", ["bash", "python", "python"]], ["modules/03-processes.html", ["c"]], ["modules/05-threads.html", ["python"]], ["modules/02-security.html", ["bash"]], ["modules/01-fundamentals.html", ["c"]], ["labs.html", ["bash"]]];
+    const cases = [["pages/cheatsheet.html", ["bash", "python", "python"]], ["modules/03-processes.html", ["c"]], ["modules/05-threads.html", ["python"]], ["modules/02-security.html", ["bash"]], ["modules/01-fundamentals.html", ["c"]], ["pages/labs.html", ["bash"]]];
     for (const [rel, langs] of cases) {
       await withPage(rel, ({ window: w, document: doc }) => {
         const blocks = [...doc.querySelectorAll("pre[data-lang]:not(.code)")];
@@ -916,10 +916,10 @@
   });
 
   QUnit.test("Labs index lists every lab with its related lessons", async (assert) => {
-    await withPage("labs.html", ({ window: w, document: doc }) => {
+    await withPage("pages/labs.html", ({ window: w, document: doc }) => {
       const cards = [...doc.querySelectorAll("#lab-grid .card")];
       assert.equal(cards.length, w.OSData.labs.length);
-      assert.deepEqual(cards.map((c) => c.getAttribute("href")), w.OSData.labs.map((l) => `labs/${l.slug}.html`));
+      assert.deepEqual(cards.map((c) => c.getAttribute("href")), w.OSData.labs.map((l) => `../labs/${l.slug}.html`));
       assert.ok(cards.every((c) => c.querySelectorAll(".tag").length >= 2), "each card shows its related modules");
       assert.ok(/os\.fork/.test(doc.body.textContent), "explains the Windows limitation");
     });
@@ -928,11 +928,11 @@
   QUnit.test("Navigation includes Labs and Study tools on every page", async (assert) => {
     await withPage("index.html", ({ document: doc }) => {
       const links = [...doc.querySelectorAll("header.site nav a")].map((a) => [a.textContent, a.getAttribute("href")]);
-      assert.deepEqual(links.filter(([t]) => ["Labs", "Study tools"].includes(t)), [["Labs", "labs.html"], ["Study tools", "study.html"]]);
-      assert.ok([...doc.querySelectorAll("main a.btn")].some((a) => a.getAttribute("href") === "problems.html"), "home page promotes the problems");
+      assert.deepEqual(links.filter(([t]) => ["Labs", "Study tools"].includes(t)), [["Labs", "pages/labs.html"], ["Study tools", "pages/study.html"]]);
+      assert.ok([...doc.querySelectorAll("main a.btn")].some((a) => a.getAttribute("href") === "pages/problems.html"), "home page promotes the problems");
     });
     await withPage("labs/02-threads.html", ({ document: doc }) => {
-      assert.deepEqual([...doc.querySelectorAll("header.site nav a")].filter((a) => ["Labs", "Study tools"].includes(a.textContent)).map((a) => a.getAttribute("href")), ["../labs.html", "../study.html"]);
+      assert.deepEqual([...doc.querySelectorAll("header.site nav a")].filter((a) => ["Labs", "Study tools"].includes(a.textContent)).map((a) => a.getAttribute("href")), ["../pages/labs.html", "../pages/study.html"]);
     });
   });
 
@@ -942,19 +942,19 @@
   const status = (doc) => doc.getElementById("result");
 
   QUnit.test("Problems: a problem link shows exactly the problem the generator produces", async (assert) => {
-    await withPage("problems.html", ({ window: w, document: doc }) => {
+    await withPage("pages/problems.html", ({ window: w, document: doc }) => {
       const expected = lib.generateProblem("scheduling", 123, 2);
       const host = doc.getElementById("problem");
       assert.equal(host.querySelector(".prompt").innerHTML, expected.prompt, "same prompt as the library");
       assert.ok(host.textContent.includes("scheduling:123:2"), "problem code shown");
       assert.equal(doc.getElementById("topic").value, "scheduling"); assert.equal(doc.getElementById("level").value, "2");
       assert.equal(doc.getElementById("topic").options.length, 11, "any topic + 10 kinds");
-      assert.ok(host.querySelector('a[href="modules/04-scheduling.html"]'), "links back to the lesson");
+      assert.ok(host.querySelector('a[href="../modules/04-scheduling.html"]'), "links back to the lesson");
     }, "#p=scheduling:123:2");
   });
 
   QUnit.test("Problems: correct answer, wrong answer, hint, solution steps and score", async (assert) => {
-    await withPage("problems.html", ({ window: w, document: doc }) => {
+    await withPage("pages/problems.html", ({ window: w, document: doc }) => {
       const p = lib.generateProblem("disk", 4242, 1), host = doc.getElementById("problem");
       assert.equal(status(doc).hidden, true, "no result before checking");
       checkBtn(doc).click();
@@ -982,7 +982,7 @@
   });
 
   QUnit.test("Problems: showing the steps gives up the first-try credit; Enter submits", async (assert) => {
-    await withPage("problems.html", ({ window: w, document: doc }) => {
+    await withPage("pages/problems.html", ({ window: w, document: doc }) => {
       const p = lib.generateProblem("amdahl", 9, 1), host = doc.getElementById("problem");
       button(host, "Show solution steps").click();
       assert.ok(host.textContent.includes(p.answerText), "answer revealed");
@@ -995,7 +995,7 @@
   });
 
   QUnit.test("Problems: multiple-choice problems use radio buttons", async (assert) => {
-    await withPage("problems.html", ({ window: w, document: doc }) => {
+    await withPage("pages/problems.html", ({ window: w, document: doc }) => {
       const p = lib.generateProblem("banker", 5, 1);
       assert.equal(p.answerType, "choice");
       const radios = [...doc.querySelectorAll('#problem input[type="radio"]')];
@@ -1008,7 +1008,7 @@
   });
 
   QUnit.test("Problems: topic and difficulty pickers, lesson topic links, and untrusted hashes", async (assert) => {
-    await withPage("problems.html", ({ window: w, document: doc }) => {
+    await withPage("pages/problems.html", ({ window: w, document: doc }) => {
       const topic = doc.getElementById("topic"), code = () => /problem code: (\S+)/i.exec(doc.getElementById("problem").textContent.replace(/\s+/g, " "))[1];
       setValue(w, topic, "pagerepl", "change");
       assert.ok(code().startsWith("pagerepl:"), code());
@@ -1022,9 +1022,9 @@
       assert.ok(seen.size >= 5, `“any topic” varies: ${[...seen].join(", ")}`);
       for (const k of lib.problemKinds) { setValue(w, topic, k.id, "change"); assert.ok(inputOf(doc) || doc.querySelector('#problem input[type="radio"]'), `${k.id} shows an answer control`); }
     });
-    await withPage("problems.html", ({ document: doc }) => assert.equal(doc.getElementById("topic").value, "paging"), "#topic=paging");
+    await withPage("pages/problems.html", ({ document: doc }) => assert.equal(doc.getElementById("topic").value, "paging"), "#topic=paging");
     for (const bad of ["#p=constructor:1:1", "#p=<img src=x onerror=alert(1)>:1:1", "#p=scheduling:1:9", "#topic=__proto__", "#p=%E0%A4%A"]) {
-      await withPage("problems.html", ({ document: doc, errors }) => {
+      await withPage("pages/problems.html", ({ document: doc, errors }) => {
         assert.deepEqual(errors, [], `${bad}: no script errors`);
         assert.ok(doc.querySelector("#problem .prompt"), `${bad}: falls back to a normal problem`);
         assert.false(/onerror/.test(doc.getElementById("problem").innerHTML), "nothing from the hash is injected into the page");
@@ -1033,7 +1033,7 @@
   });
 
   QUnit.test("A malformed link hash never breaks a page", async (assert) => {
-    for (const rel of ["index.html", "glossary.html", "modules/04-scheduling.html", "modules/12-os-landscape.html", "labs/01-processes.html", "problems.html"]) {
+    for (const rel of ["index.html", "pages/glossary.html", "modules/04-scheduling.html", "modules/12-os-landscape.html", "labs/01-processes.html", "pages/problems.html"]) {
       for (const bad of ["#%E0%A4%A", "#term-%zz", "#compare=%ff%ff", "#" + "x".repeat(5000)]) {
         await withPage(rel, ({ errors, document: doc }) => assert.deepEqual(errors, [], `${rel}${bad.slice(0, 14)}: no script errors`), bad);
       }
@@ -1054,7 +1054,7 @@
   QUnit.test("Lessons link to matching practice problems", async (assert) => {
     for (const [file, kinds] of [["modules/04-scheduling.html", ["scheduling"]], ["modules/08-memory.html", ["paging", "memalloc"]], ["modules/09-virtual-memory.html", ["pagerepl", "eat"]], ["modules/10-disk-io.html", ["disk"]], ["modules/07-deadlocks.html", ["banker"]], ["modules/11-file-systems.html", ["inode"]], ["modules/05-threads.html", ["amdahl"]], ["modules/02-security.html", ["perms"]]]) {
       await withPage(file, ({ document: doc }) => {
-        const hrefs = [...doc.querySelectorAll('a[href^="../problems.html#topic="]')].map((a) => a.getAttribute("href").split("=")[1]);
+        const hrefs = [...doc.querySelectorAll('a[href^="../pages/problems.html#topic="]')].map((a) => a.getAttribute("href").split("=")[1]);
         assert.deepEqual(hrefs, kinds, `${file} links to ${kinds.join(", ")}`);
         hrefs.forEach((k) => assert.ok(lib.problemKinds.some((x) => x.id === k), `${k} is a real problem kind`));
       });
@@ -1289,10 +1289,10 @@
   QUnit.module("pages: study tools");
 
   QUnit.test("Study hub links to every tool, and the nav marks it current on each tool's page", async (assert) => {
-    await withPage("study.html", ({ document: doc }) => {
+    await withPage("pages/study.html", ({ document: doc }) => {
       assert.deepEqual([...doc.querySelectorAll("main a.card")].map((a) => a.getAttribute("href")), ["practice.html", "flashcards.html", "scenarios.html", "problems.html", "exam.html", "progress.html", "paths.html", "handouts.html", "teaching.html"]);
     });
-    for (const rel of ["practice.html", "problems.html", "flashcards.html", "exam.html", "scenarios.html", "progress.html", "handouts.html", "paths.html", "teaching.html", "study.html"]) {
+    for (const rel of ["pages/practice.html", "pages/problems.html", "pages/flashcards.html", "pages/exam.html", "pages/scenarios.html", "pages/progress.html", "pages/handouts.html", "pages/paths.html", "pages/teaching.html", "pages/study.html"]) {
       await withPage(rel, ({ document: doc }) => {
         const cur = [...doc.querySelectorAll('header.site nav a[aria-current="page"]')].map((a) => a.textContent);
         assert.deepEqual(cur, ["Study tools"], `${rel}: the Study tools link is current`);
@@ -1303,7 +1303,7 @@
   QUnit.module("pages: handouts");
 
   QUnit.test("Handouts: each sheet is drawn from the chosen modules, and the worksheet never shows an answer", async (assert) => {
-    await withPage("handouts.html", ({ window: w, document: doc }) => {
+    await withPage("pages/handouts.html", ({ window: w, document: doc }) => {
       const D = w.OSData, sheet = doc.getElementById("sheet"), form = doc.getElementById("setup");
       const pick = (k) => { const r = form.querySelector(`input[name=kind][value=${k}]`); r.checked = true; r.dispatchEvent(new w.Event("change", { bubbles: true })); };
       const boxes = [...doc.querySelectorAll("#modules input[type=checkbox]")];
@@ -1340,12 +1340,12 @@
   });
 
   QUnit.test("Handouts: Print opens the print dialog, and the cheat sheet has its own Print button", async (assert) => {
-    await withPage("handouts.html", ({ window: w, document: doc }) => {
+    await withPage("pages/handouts.html", ({ window: w, document: doc }) => {
       let n = 0; w.print = () => { n++; };
       doc.getElementById("print").click();
       assert.equal(n, 1);
     });
-    await withPage("cheatsheet.html", ({ window: w, document: doc }) => {
+    await withPage("pages/cheatsheet.html", ({ window: w, document: doc }) => {
       let n = 0; w.print = () => { n++; };
       const b = doc.querySelector("button[data-print]");
       assert.ok(b && b.closest(".no-print"), "a button that is hidden on paper");
@@ -1358,19 +1358,19 @@
   QUnit.module("pages: paths, prompts and teaching notes");
 
   QUnit.test("Study paths: every path can be chosen, every step is a link that exists, and the address can choose the path", async (assert) => {
-    await withPage("paths.html", ({ window: w, document: doc }) => {
+    await withPage("pages/paths.html", ({ window: w, document: doc }) => {
       const D = w.OSData, sel = doc.getElementById("path");
       assert.equal(sel.options.length, D.paths.length);
       D.paths.forEach((p) => {
         sel.value = p.id; sel.dispatchEvent(new w.Event("change", { bubbles: true }));
         const links = [...doc.querySelectorAll("#path-view ol.path-steps li a")];
         assert.equal(links.length, p.steps.length, `${p.id}: a link per step`);
-        links.forEach((a) => { const href = a.getAttribute("href"); assert.ok(fs.existsSync(path.join(ROOT, href.split("#")[0])), `${p.id}: ${href} exists`); });
+        links.forEach((a) => { const href = a.getAttribute("href"); assert.ok(fs.existsSync(path.resolve(ROOT, "pages", href.split("#")[0])), `${p.id}: ${href} exists`); });
         assert.equal(doc.querySelector("#path-view h2").textContent, p.title, `${p.id}: shown`);
       });
     });
-    await withPage("paths.html", ({ document: doc }) => { assert.equal(doc.getElementById("path").value, "security"); assert.ok(/Security/.test(doc.querySelector("#path-view h2").textContent)); }, "#security");
-    await withPage("paths.html", ({ document: doc }) => { assert.equal(doc.getElementById("path").value, "newcomer", "an unknown path falls back to the first"); }, "#nonsense");
+    await withPage("pages/paths.html", ({ document: doc }) => { assert.equal(doc.getElementById("path").value, "security"); assert.ok(/Security/.test(doc.querySelector("#path-view h2").textContent)); }, "#security");
+    await withPage("pages/paths.html", ({ document: doc }) => { assert.equal(doc.getElementById("path").value, "newcomer", "an unknown path falls back to the first"); }, "#nonsense");
   });
 
   QUnit.test("Every module page shows its prompts with working links, and never the teaching notes", async (assert) => {
@@ -1393,7 +1393,7 @@
   });
 
   QUnit.test("Teaching notes: every module is shown with its misconceptions, demonstration and listen-for lines; the picker narrows it", async (assert) => {
-    await withPage("teaching.html", ({ window: w, document: doc }) => {
+    await withPage("pages/teaching.html", ({ window: w, document: doc }) => {
       const D = w.OSData, sel = doc.getElementById("mod");
       assert.equal(doc.querySelectorAll(".teach-module").length, D.modules.length, "all modules at first");
       assert.equal(doc.querySelectorAll(".listen").length, Object.values(D.prompts).reduce((n, l) => n + l.length, 0), "a listen-for line per prompt");
@@ -1405,11 +1405,11 @@
       assert.equal(blocks[0].querySelectorAll("h3").length, 3);
       assert.ok(doc.querySelector('a[href="handouts.html"]'), "points to the answer keys");
     });
-    await withPage("teaching.html", ({ document: doc }) => { assert.equal(doc.querySelectorAll(".teach-module").length, 1); assert.ok(/Module 15: /.test(doc.querySelector(".teach-module h2").textContent)); }, "#module-15");
+    await withPage("pages/teaching.html", ({ document: doc }) => { assert.equal(doc.querySelectorAll(".teach-module").length, 1); assert.ok(/Module 15: /.test(doc.querySelector(".teach-module h2").textContent)); }, "#module-15");
   });
 
   QUnit.test("Handouts: the prompts sheet has the chosen modules' prompts with writing lines", async (assert) => {
-    await withPage("handouts.html", ({ window: w, document: doc }) => {
+    await withPage("pages/handouts.html", ({ window: w, document: doc }) => {
       const D = w.OSData, form = doc.getElementById("setup"), sheet = doc.getElementById("sheet");
       [...doc.querySelectorAll("#modules input")].forEach((b) => { b.checked = [3, 7].includes(+b.value); });
       const r = form.querySelector("input[name=kind][value=prompts]"); r.checked = true; r.dispatchEvent(new w.Event("change", { bubbles: true }));
@@ -1417,6 +1417,180 @@
       assert.equal(sheet.querySelectorAll(".lines").length, sheet.querySelectorAll(".wq").length, "space to write for each");
       assert.ok(!sheet.textContent.includes("Listen for"));
     });
+  });
+
+
+  QUnit.module("pages: shareable simulation links");
+
+  /** The hash that the "Copy link" button produces on a page: the page is driven by `act`, then the link box (shown when the clipboard is unavailable) is read. */
+  const linkFrom = (doc, name) => { const bar = sim(doc, name).querySelector(".share-bar"); button(bar, "Copy link to this setup").click(); return bar.querySelector("input").value; };
+  const hashOf = (url) => url.slice(url.indexOf("#"));
+  const statusOf = (doc, name) => text(sim(doc, name).querySelector(".share-bar .small"));
+
+  QUnit.test("Every shareable simulation has a Copy link button, and the link is a plain address", async (assert) => {
+    const where = { scheduling: "modules/04-scheduling.html", pagerepl: "modules/09-virtual-memory.html", disk: "modules/10-disk-io.html", banker: "modules/07-deadlocks.html", paging: "modules/08-memory.html", memalloc: "modules/08-memory.html" };
+    for (const [name, rel] of Object.entries(where)) {
+      await withPage(rel, ({ document: doc }) => {
+        const url = linkFrom(doc, name);
+        assert.ok(new RegExp("#" + name + "\.").test(url), `${name}: link names the simulation: ${url.slice(0, 90)}`);
+        assert.ok(!/[<>"' ]/.test(url), `${name}: only URL-safe characters`);
+        assert.ok(url.length < 1500, `${name}: short enough`);
+      });
+    }
+  });
+
+  QUnit.test("Scheduler: a link sets the table, algorithm and quantum; the result is the library's", async (assert) => {
+    const hash = "#scheduling.procs=A,0,5,1;B,1,3,2;C,2,1,3&scheduling.algo=RR&scheduling.q=2";
+    await withPage("modules/04-scheduling.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "scheduling");
+      assert.deepEqual([...s.querySelectorAll("tbody tr")].slice(0, 3).map((tr) => tr.querySelector("td").textContent.replace("■", "").trim()), ["A", "B", "C"], "the processes from the link");
+      assert.equal(field(doc, "Algorithm").value, "RR");
+      assert.equal(field(doc, "Time quantum").value, "2");
+      assert.notEqual(field(doc, "Time quantum").closest("label").style.display, "none", "the quantum control shows for Round Robin");
+      const r = w.OSLib.simulateScheduling([{ pid: "A", arrival: 0, burst: 5, priority: 1 }, { pid: "B", arrival: 1, burst: 3, priority: 2 }, { pid: "C", arrival: 2, burst: 1, priority: 3 }], "RR", { quantum: 2 });
+      assert.equal(metrics(s)[0], r.avg.waiting.toFixed(2), "average waiting time matches");
+      assert.ok(/Setup loaded/.test(statusOf(doc, "scheduling")));
+    }, hash);
+  });
+
+  QUnit.test("Scheduler: set it up by hand, copy the link, open it elsewhere, and see the same thing", async (assert) => {
+    let hash, before;
+    await withPage("modules/04-scheduling.html", ({ window: w, document: doc }) => {
+      setValue(w, field(doc, "Algorithm"), "SJF", "change");
+      const pr = doc.querySelector('[data-sim="scheduling"] input[aria-label="P2 burst"]'); setValue(w, pr, 11);
+      before = metrics(sim(doc, "scheduling")); hash = hashOf(linkFrom(doc, "scheduling"));
+    });
+    await withPage("modules/04-scheduling.html", ({ document: doc }) => {
+      assert.equal(field(doc, "Algorithm").value, "SJF");
+      assert.deepEqual(metrics(sim(doc, "scheduling")), before, "same numbers");
+      assert.equal(doc.querySelector('input[aria-label="P2 burst"]').value, "11");
+    }, hash);
+  });
+
+  QUnit.test("Scheduler: bad or hostile links change nothing and inject nothing", async (assert) => {
+    let fresh;
+    await withPage("modules/04-scheduling.html", ({ document: doc }) => { fresh = metrics(sim(doc, "scheduling")); });
+    const bad = ["#scheduling.q=99&scheduling.algo=nope", "#scheduling.procs=%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E,1,1,1", "#scheduling.procs=" + "A,0,1,1;".repeat(40), "#scheduling.procs=A,0,1,1;A,0,2,2", "#scheduling.algo=__proto__"];
+    for (const h of bad) {
+      await withPage("modules/04-scheduling.html", ({ document: doc }) => {
+        assert.deepEqual(metrics(sim(doc, "scheduling")), fresh, `unchanged by ${h.slice(0, 50)}`);
+        assert.equal(sim(doc, "scheduling").querySelectorAll("img").length, 0, "no element was created from the link");
+        assert.ok(!/Setup loaded/.test(statusOf(doc, "scheduling")), "it did not claim to load");
+        assert.ok(/Ignored/.test(statusOf(doc, "scheduling")), "it says what it ignored");
+      }, h);
+    }
+    await withPage("modules/04-scheduling.html", ({ document: doc }) => {
+      assert.equal(field(doc, "Algorithm").value, "SJF", "the good field of a mixed link is still used");
+    }, "#scheduling.algo=SJF&scheduling.q=99");
+  });
+
+  QUnit.test("Page replacement: Belady's anomaly from a link, and a round trip", async (assert) => {
+    await withPage("modules/09-virtual-memory.html", ({ document: doc }) => {
+      assert.equal(metrics(sim(doc, "pagerepl"))[0], "10", "FIFO with 4 frames faults 10 times");
+      assert.equal(field(doc, "Frames").value, "4");
+      assert.equal(field(doc, "Reference string").value, "1 2 3 4 1 2 5 1 2 3 4 5");
+    }, "#pagerepl.refs=1,2,3,4,1,2,5,1,2,3,4,5&pagerepl.frames=4&pagerepl.algo=FIFO");
+    let hash, before;
+    await withPage("modules/09-virtual-memory.html", ({ window: w, document: doc }) => {
+      setValue(w, field(doc, "Algorithm"), "LRU", "change"); setValue(w, field(doc, "Frames"), 5); setValue(w, field(doc, "Reference string"), "3 1 4 1 5 9 2 6 5 3 5");
+      before = metrics(sim(doc, "pagerepl")); hash = hashOf(linkFrom(doc, "pagerepl"));
+    });
+    await withPage("modules/09-virtual-memory.html", ({ document: doc }) => { assert.deepEqual(metrics(sim(doc, "pagerepl")), before); }, hash);
+    await withPage("modules/09-virtual-memory.html", ({ document: doc }) => { assert.equal(field(doc, "Frames").value, "3", "9 frames is out of range, so ignored"); }, "#pagerepl.frames=9&pagerepl.refs=1,2,x");
+  });
+
+  QUnit.test("Disk: the textbook queue under SSTF from a link moves 236 cylinders; round trip", async (assert) => {
+    await withPage("modules/10-disk-io.html", ({ document: doc }) => {
+      const m = sim(doc, "disk");
+      assert.equal(metrics(m)[0], "236");
+      assert.equal(field(doc, "Request queue").value, "98 183 37 122 14 124 65 67");
+    }, "#disk.reqs=98,183,37,122,14,124,65,67&disk.head=53&disk.max=199&disk.algo=SSTF");
+    let hash, before;
+    await withPage("modules/10-disk-io.html", ({ window: w, document: doc }) => {
+      setValue(w, field(doc, "Algorithm"), "CSCAN", "change"); setValue(w, field(doc, "Initial direction"), "down", "change"); setValue(w, field(doc, "Request queue"), "10 150 20 130 30 120");
+      before = metrics(sim(doc, "disk")); hash = hashOf(linkFrom(doc, "disk"));
+    });
+    await withPage("modules/10-disk-io.html", ({ document: doc }) => {
+      assert.deepEqual(metrics(sim(doc, "disk")), before);
+      assert.notEqual(field(doc, "Initial direction").closest("label").style.display, "none", "the direction control shows for C-SCAN");
+    }, hash);
+    await withPage("modules/10-disk-io.html", ({ document: doc }) => { assert.equal(field(doc, "Request queue").value, "98 183 37 122 14 124 65 67", "a queue beyond the disk is ignored"); }, "#disk.max=100&disk.reqs=500,2");
+  });
+
+  QUnit.test("Banker's: an unsafe state, and a request that is checked when the link opens", async (assert) => {
+    const unsafe = "#banker.alloc=0,1,0;2,0,0;3,0,2;2,1,1;3,3,2&banker.max=7,5,3;3,2,2;9,0,2;2,2,2;4,3,3&banker.avail=0,0,2&banker.pid=1&banker.req=1,0,2";
+    await withPage("modules/07-deadlocks.html", ({ document: doc }) => {
+      const b = sim(doc, "banker");
+      assert.ok(/UNSAFE/.test(text(b)), "the safety verdict follows the link");
+      const req = [...b.querySelectorAll("h4")].find((x) => x.textContent === "Make a request").parentElement;
+      assert.equal(req.querySelector("select").value, "1", "the requesting process");
+      assert.deepEqual([...req.querySelectorAll("input")].map((i) => i.value), ["1", "0", "2"], "the request");
+      assert.ok(/granted|exceed|not enough|unsafe/i.test(text(req.querySelector("p[aria-live]"))), "the request was checked when the link opened: " + text(req.querySelector("p[aria-live]")));
+    }, unsafe);
+    let hash;
+    await withPage("modules/07-deadlocks.html", ({ window: w, document: doc }) => {
+      setValue(w, doc.querySelector('input[aria-label="Available A"]'), 9);
+      hash = hashOf(linkFrom(doc, "banker"));
+    });
+    await withPage("modules/07-deadlocks.html", ({ document: doc }) => { assert.equal(doc.querySelector('input[aria-label="Available A"]').value, "9"); }, hash);
+    await withPage("modules/07-deadlocks.html", ({ document: doc }) => { assert.ok(/SAFE\./.test(text(sim(doc, "banker"))) && !/UNSAFE/.test(text(sim(doc, "banker"))), "a matrix with the wrong shape is ignored"); }, "#banker.alloc=1,2;3,4&banker.avail=1,2");
+  });
+
+  QUnit.test("Paging: page size, page table and address from a link", async (assert) => {
+    await withPage("modules/08-memory.html", ({ document: doc }) => {
+      assert.ok(/= 7188\b/.test(text(sim(doc, "paging"))), "address 1300 with the default 256-byte table is physical 7188");
+    }, "#paging.ps=256&paging.addr=1300");
+    await withPage("modules/08-memory.html", ({ document: doc }) => {
+      const p = sim(doc, "paging");
+      assert.equal(field(doc, "Page size").value, "1024");
+      assert.ok(/Physical = 0 × 1024 \+ 52 = 52/.test(text(p)), text(p).slice(-200));
+      assert.equal(p.querySelectorAll('input[aria-label^="Frame for page"]').length, 4);
+      assert.equal(p.querySelector('input[aria-label="Frame for page 1"]').value, "", "a blank entry is an unmapped page");
+    }, "#paging.ps=1024&paging.table=3,-1,0,1&paging.addr=2100");
+    await withPage("modules/08-memory.html", ({ document: doc }) => { assert.ok(/page fault/i.test(text(sim(doc, "paging"))), "an address on an unmapped page is a fault"); }, "#paging.ps=1024&paging.table=3,-1,0,1&paging.addr=1100");
+    let hash;
+    await withPage("modules/08-memory.html", ({ window: w, document: doc }) => {
+      setValue(w, field(doc, "Page size"), "512", "change"); setValue(w, doc.querySelector('input[aria-label="Frame for page 3"]'), 9); setValue(w, field(doc, "Logical address"), 2000);
+      hash = hashOf(linkFrom(doc, "paging"));
+    });
+    await withPage("modules/08-memory.html", ({ document: doc }) => {
+      assert.equal(field(doc, "Page size").value, "512"); assert.equal(doc.querySelector('input[aria-label="Frame for page 3"]').value, "9");
+      assert.ok(/Logical <?b?>?2000|Logical 2000/.test(text(sim(doc, "paging"))));
+    }, hash);
+    await withPage("modules/08-memory.html", ({ document: doc }) => { assert.equal(field(doc, "Page size").value, "256", "a page table of the wrong size, or a bad page size, is ignored"); }, "#paging.ps=300&paging.table=1,2,3");
+  });
+
+  QUnit.test("Memory allocation: a link replays the actions, and what you did replays the same way", async (assert) => {
+    const L = require("../js/lib/memory.js");
+    const independent = (ops) => {
+      let b = [{ start: 0, size: 100, pid: "OS" }, { start: 100, size: 900, pid: null }], n = 0, strat = "first";
+      ops.forEach((t) => { if (t[0] === "a") { const r = L.allocate(b, "P" + (n + 1), +t.slice(1), strat); if (r.ok) { n++; b = r.blocks; } } else if (t[0] === "f") b = L.release(b, "P" + t.slice(1)); else if (t === "c") b = L.compact(b); else if (t[0] === "S") strat = { f: "first", b: "best", w: "worst" }[t[1]]; });
+      const f = L.fragmentation(b); return [f.free + " KB", f.largest + " KB", String(f.holes), (f.external * 100).toFixed(0) + "%"];
+    };
+    const ops = ["a120", "a60", "a200", "f2", "a50", "Sb", "a30", "a700", "f1", "c"];
+    await withPage("modules/08-memory.html", ({ document: doc }) => {
+      assert.deepEqual(metrics(sim(doc, "memalloc")), independent(ops), "same memory map as an independent replay");
+      assert.ok(/Replayed 9 steps/.test(text(sim(doc, "memalloc"))), "the impossible allocation is skipped, and the message counts what was applied: " + text(sim(doc, "memalloc")).slice(-120));
+    }, "#memalloc.ops=" + ops.join(","));
+    let hash, before;
+    await withPage("modules/08-memory.html", ({ window: w, document: doc }) => {
+      const m = sim(doc, "memalloc");
+      setValue(w, field(doc, "Request size"), 150); button(m, "Allocate").click(); setValue(w, field(doc, "Request size"), 80); button(m, "Allocate").click();
+      setValue(w, field(doc, "Placement strategy"), "worst", "change"); setValue(w, field(doc, "Request size"), 40); button(m, "Allocate").click();
+      button(m, "P1 (150K)").click(); button(m, "Compact memory").click();
+      before = metrics(m); hash = hashOf(linkFrom(doc, "memalloc"));
+      assert.ok(/ops=a150,a80,Sw,a40,f1,c$/.test(hash.replace("memalloc.", "")) || /memalloc\.ops=a150,a80,Sw,a40,f1,c$/.test(hash), "the link is the list of actions: " + hash);
+    });
+    await withPage("modules/08-memory.html", ({ document: doc }) => { assert.deepEqual(metrics(sim(doc, "memalloc")), before); }, hash);
+    await withPage("modules/08-memory.html", ({ document: doc }) => { assert.deepEqual(metrics(sim(doc, "memalloc")).slice(0, 2), ["900 KB", "900 KB"], "unknown commands: the whole field is ignored"); }, "#memalloc.ops=a100,rm-rf");
+  });
+
+  QUnit.test("Links for one simulation leave the others on the page alone, and the existing #compare and #p links still work", async (assert) => {
+    await withPage("modules/08-memory.html", ({ document: doc }) => {
+      assert.equal(field(doc, "Page size").value, "256", "the paging simulation ignores memalloc's keys");
+      assert.equal(metrics(sim(doc, "memalloc"))[0], "670 KB");
+    }, "#memalloc.ops=a100,a130");
+    await withPage("modules/12-os-landscape.html", ({ document: doc }) => { assert.ok(/Windows/.test(text(doc.querySelector('[data-sim="oscompare"]'))) && /z\/OS/.test(text(doc.querySelector('[data-sim="oscompare"]')))); }, "#compare=windows,zos");
   });
 
 
@@ -1440,7 +1614,7 @@
   });
 
   QUnit.test("Flashcards: reveal, grade, boxes, direction, and the hide-known option", async (assert) => {
-    await withPage("flashcards.html", ({ window: w, document: doc }) => {
+    await withPage("pages/flashcards.html", ({ window: w, document: doc }) => {
       const P = w.OSProgress, card = () => doc.getElementById("card"), $ = (id) => doc.getElementById(id);
       assert.ok(/cards in this set/.test($("stats").textContent));
       assert.true($("knew").hidden && $("learning").hidden && !$("flip").hidden, "answer buttons appear only after revealing");
@@ -1477,7 +1651,7 @@
   });
 
   QUnit.test("Exam mode: setup validation, answering, scoring, review of misses, and progress", async (assert) => {
-    await withPage("exam.html", ({ window: w, document: doc }) => {
+    await withPage("pages/exam.html", ({ window: w, document: doc }) => {
       const $ = (id) => doc.getElementById(id), P = w.OSProgress;
       assert.equal(doc.querySelectorAll("#modules input[type=checkbox]").length, w.OSData.modules.length);
       $("none").click();
@@ -1517,7 +1691,7 @@
   });
 
   QUnit.test("Exam mode: the clock runs out and submits for you", async (assert) => {
-    await withPage("exam.html", ({ window: w, document: doc }) => {
+    await withPage("pages/exam.html", ({ window: w, document: doc }) => {
       const $ = (id) => doc.getElementById(id);
       let t = 1000000;
       w.OSExamNow = () => t;
@@ -1540,7 +1714,7 @@
   });
 
   QUnit.test("Scenario questions: choose, see every option explained, and filter by topic", async (assert) => {
-    await withPage("scenarios.html", ({ window: w, document: doc }) => {
+    await withPage("pages/scenarios.html", ({ window: w, document: doc }) => {
       const host = doc.getElementById("scenario");
       const stem = () => host.querySelector(".stem").textContent;
       const sc = () => w.OSData.scenarios.find((s) => s.situation === stem());
@@ -1550,7 +1724,7 @@
       host.querySelector(`button.choice[data-i="${sc().answer}"]`).click();
       assert.ok(host.querySelector(".explain").textContent.startsWith("Right."));
       assert.equal(host.querySelectorAll(".explain li").length, 4, "all four options explained");
-      assert.ok(host.querySelector(".explain a").getAttribute("href").startsWith("modules/"));
+      assert.ok(host.querySelector(".explain a").getAttribute("href").startsWith("../modules/"));
       assert.true([...host.querySelectorAll("button.choice")].every((b) => b.disabled));
       const first = sc().id;
       doc.getElementById("next").click();
@@ -1567,7 +1741,7 @@
   });
 
   QUnit.test("Progress page: import, summary, export and clear (with a confirmation step)", async (assert) => {
-    await withPage("progress.html", ({ window: w, document: doc }) => {
+    await withPage("pages/progress.html", ({ window: w, document: doc }) => {
       const $ = (id) => doc.getElementById(id);
       assert.equal(doc.querySelectorAll("#modules table").length, w.OSData.parts.length, "one table per part");
       assert.deepEqual([...doc.querySelectorAll("#overview .metric b")].map((b) => b.textContent), ["0 of " + w.OSData.modules.length, "0 of " + w.OSData.quizzes.length, "0", "0"]);
@@ -1627,26 +1801,26 @@
   });
 
   QUnit.test("Study aids are searchable and lead to their boxes", async (assert) => {
-    await withPage("search.html", ({ window: w, document: doc }) => {
+    await withPage("pages/search.html", ({ window: w, document: doc }) => {
       setValue(w, doc.getElementById("q"), "bug that depends on timing");
       const hrefs = [...doc.querySelectorAll("#results a")].map((a) => a.getAttribute("href"));
-      assert.ok(hrefs.some((h) => /^modules\/06-synchronization\.html#(objectives|key-takeaways)$/.test(h)), "a takeaway about races is found: " + hrefs.slice(0, 5).join(" "));
+      assert.ok(hrefs.some((h) => /^\.\.\/modules\/06-synchronization\.html#(objectives|key-takeaways)$/.test(h)), "a takeaway about races is found: " + hrefs.slice(0, 5).join(" "));
     });
   });
 
   QUnit.module("pages: site-wide search");
 
   QUnit.test("Search page: results, highlighting, filters, shareable links and untrusted input", async (assert) => {
-    await withPage("search.html", ({ window: w, document: doc }) => {
+    await withPage("pages/search.html", ({ window: w, document: doc }) => {
       const input = doc.getElementById("q"), results = () => [...doc.querySelectorAll("#results li")], status = () => doc.getElementById("status").textContent;
       assert.ok(/Type one or more words/.test(status()), "empty at first");
       setValue(w, input, "deadlock");
       assert.ok(/results? for “deadlock”/.test(status()));
       const first = results()[0];
       assert.equal(first.querySelector(".tag").textContent, "Glossary");
-      assert.equal(first.querySelector("a").getAttribute("href"), "glossary.html#deadlock");
+      assert.equal(first.querySelector("a").getAttribute("href"), "../pages/glossary.html#deadlock");
       assert.ok(first.querySelector("a mark") && first.querySelector("mark").textContent.toLowerCase() === "deadlock", "matches are marked");
-      assert.ok(results().some((li) => li.querySelector("a").getAttribute("href").startsWith("modules/07-deadlocks.html")), "lessons are found too");
+      assert.ok(results().some((li) => li.querySelector("a").getAttribute("href").startsWith("../modules/07-deadlocks.html")), "lessons are found too");
       setValue(w, doc.getElementById("kind"), "FAQ", "change");
       assert.ok(results().length > 0 && results().every((li) => li.querySelector(".tag").textContent === "FAQ"), "the Show filter keeps one kind");
       setValue(w, doc.getElementById("kind"), "", "change");
@@ -1657,17 +1831,17 @@
       assert.ok(/No results/.test(status()));
       setValue(w, input, "semaphore");
       const link = results().find((li) => li.querySelector(".tag").textContent === "Lesson").querySelector("a").getAttribute("href");
-      assert.ok(/^modules\/[A-Za-z0-9-]+\.html#[A-Za-z0-9-]+$/.test(link), "a lesson result links to its section: " + link);
+      assert.ok(/^\.\.\/modules\/[A-Za-z0-9-]+\.html#[A-Za-z0-9-]+$/.test(link), "a lesson result links to its section: " + link);
     });
-    await withPage("search.html", ({ document: doc }) => {
+    await withPage("pages/search.html", ({ document: doc }) => {
       assert.equal(doc.getElementById("q").value, "page fault", "?q= fills the box");
       assert.ok(doc.querySelectorAll("#results li").length > 0);
     }, "?q=page%20fault");
-    await withPage("search.html", ({ document: doc, errors }) => {
+    await withPage("pages/search.html", ({ document: doc, errors }) => {
       assert.deepEqual(errors, [], "a malformed link does not break the page");
     }, "#q=%E0%A4%A");
     await withPage("index.html", ({ document: doc }) => {
-      assert.ok([...doc.querySelectorAll("header nav a")].some((a) => a.textContent === "Search" && a.getAttribute("href") === "search.html"), "Search is in the navigation");
+      assert.ok([...doc.querySelectorAll("header nav a")].some((a) => a.textContent === "Search" && a.getAttribute("href") === "pages/search.html"), "Search is in the navigation");
     });
   });
 

@@ -1,6 +1,7 @@
 /* The progress page: summary of the stored progress, and export, import and clear. Everything stays in this browser. */
 (function () {
   "use strict";
+  const base = document.body.dataset.root || "";
   const { h } = OSUI;
   const P = window.OSProgress, $ = (id) => document.getElementById(id);
 
@@ -23,7 +24,7 @@
       h("div", { class: "table-scroll" }, h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Module", "First visited", "Questions mastered", "Right of answered"].map((t) => h("th", { text: t })))),
         h("tbody", {}, part.modules.map((n) => {
           const r = byNum[n], m = OSData.modules.find((x) => x.n === n);
-          return h("tr", {}, h("td", {}, h("a", { href: `modules/${m.slug}.html`, text: `${m.n}. ${m.title}` })), h("td", { text: r.visited || "not yet" }),
+          return h("tr", {}, h("td", {}, h("a", { href: base + `modules/${m.slug}.html`, text: `${m.n}. ${m.title}` })), h("td", { text: r.visited || "not yet" }),
             h("td", {}, bar(r.percent, `${r.mastered} of ${r.total} mastered`), h("span", { class: "small", text: ` ${r.mastered} of ${r.total}` })),
             h("td", { text: r.answered ? `${r.correct} of ${r.answered}` : "none yet" }));
         })))))));

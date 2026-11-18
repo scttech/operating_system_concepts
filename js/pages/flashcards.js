@@ -1,6 +1,7 @@
 /* Flashcards page. The choice of card is in js/lib/cards.js; boxes are stored through OSProgress. */
 (function () {
   "use strict";
+  const base = document.body.dataset.root || "";
   const { h } = OSUI;
   const L = OSLib, P = window.OSProgress, $ = (id) => document.getElementById(id);
   const cat = $("cat"), dir = $("dir"), known = $("known"), host = $("card"), flip = $("flip"), knew = $("knew"), learning = $("learning");
@@ -15,7 +16,7 @@
   function where(term) {
     const e = (OSData.glossaryIndex || {})[term], m = e && e[0] && OSData.modules.find((x) => x.n === e[0].m);
     if (!m) return null;
-    return h("a", { href: `modules/${m.slug}.html${e[0].kind === "dfn" ? "#" + e[0].id : ""}`, text: `Module ${m.n}: ${m.title}` });
+    return h("a", { href: base + `modules/${m.slug}.html${e[0].kind === "dfn" ? "#" + e[0].id : ""}`, text: `Module ${m.n}: ${m.title}` });
   }
   function show() {
     revealed = false;

@@ -1,6 +1,7 @@
 /* Teaching notes page. The notes are in js/data/teaching.js, the prompts in js/data/prompts.js. */
 (function () {
   "use strict";
+  const base = document.body.dataset.root || "";
   const { h } = OSUI;
   const L = OSLib, $ = (id) => document.getElementById(id);
   const sel = $("mod"), view = $("notes");
@@ -8,9 +9,9 @@
 
   function block(n) {
     const m = OSData.modules.find((x) => x.n === n), t = OSData.teaching[n], prompts = L.promptsFor(n, OSData);
-    const link = (href, text) => h("a", { href, text });
+    const link = (href, text) => h("a", { href: base + href, text });
     return h("section", { class: "teach-module" },
-      h("h2", { id: `module-${n}` }, `Module ${n}: ${m.title} `, h("a", { class: "small no-print", href: `modules/${m.slug}.html`, text: "(open the lesson)" })),
+      h("h2", { id: `module-${n}` }, `Module ${n}: ${m.title} `, h("a", { class: "small no-print", href: base + `modules/${m.slug}.html`, text: "(open the lesson)" })),
       h("h3", { text: "Misconceptions to listen for" }),
       h("ul", {}, t.misconceptions.map(([wrong, right]) => h("li", {}, h("b", { text: "Students may think: " }), wrong, " ", h("b", { text: "In fact: " }), right))),
       h("h3", { text: "A demonstration to run" }),

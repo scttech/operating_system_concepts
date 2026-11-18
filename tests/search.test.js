@@ -21,7 +21,7 @@
     assert.equal(docs.filter((d) => d.kind === "Glossary").length, D.glossary.length);
     assert.equal(docs.filter((d) => d.kind === "FAQ").length, D.faq.length);
     assert.ok(docs.filter((d) => d.kind === "Lesson").length >= 100, "lesson sections are indexed");
-    docs.forEach((d) => { if (!/^(modules|labs)\/[\w.-]+\.html(#[\w=,.-]+)?$|^(glossary|faq|cheatsheet)\.html(#[\w=,.-]+)?$/.test(d.url)) assert.ok(false, `odd url: ${d.url}`); });
+    docs.forEach((d) => { if (!/^(modules|labs)\/[\w.-]+\.html(#[\w=,.-]+)?$|^pages\/(glossary|faq|cheatsheet)\.html(#[\w=,.-]+)?$/.test(d.url)) assert.ok(false, `odd url: ${d.url}`); });
     assert.deepEqual(L.buildDocs({}), [], "missing sources are fine");
     assert.deepEqual(L.buildDocs(), []);
   });

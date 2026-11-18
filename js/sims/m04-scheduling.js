@@ -114,5 +114,21 @@
     }
 
     buildTable(); update();
+
+    // Shareable link: the process table, the algorithm and the quantum.
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareable(p, "scheduling", {
+        spec: { procs: S.table([S.word(6), S.int(0, 999), S.int(1, 999), S.int(0, 99)], 1, 10, 0), algo: S.oneOf(Object.keys(L.schedulingAlgos)), q: S.int(1, 12) },
+        get: () => ({ procs: procs.map((x) => [x.pid, x.arrival, x.burst, x.priority]), algo, q: quantum }),
+        set: (st) => {
+          if (st.procs) procs = st.procs.map(([pid, arrival, burst, priority]) => ({ pid, arrival, burst, priority }));
+          if (st.algo) { algo = st.algo; algoSel.set(algo); }
+          if (st.q) { quantum = st.q; qSl.set(quantum); }
+          qSl.el.style.display = algo === "RR" ? "" : "none";
+          buildTable(); update();
+        }
+      });
+    }
   });
 })();

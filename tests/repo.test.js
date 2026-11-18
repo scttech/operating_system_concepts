@@ -131,7 +131,7 @@
     assert.equal(baseFor("localhost", "/nope"), "/", "a local server");
     const flow = read(".github", "workflows", "pages.yml");
     assert.ok(/cp .*404\.html/.test(flow), "the deploy workflow copies 404.html");
-    ["index.html", "search.html", "glossary.html", "faq.html", "study.html"].forEach((p) => assert.ok(html.includes(`href="${p}"`), "links to " + p));
+    ["index.html", "pages/search.html", "pages/glossary.html", "pages/faq.html", "pages/study.html"].forEach((p) => assert.ok(html.includes(`href="${p}"`), "links to " + p));
   });
 
   QUnit.test("the print stylesheet hides controls and navigation, shows the chosen code language and spells out addresses", (assert) => {
@@ -148,6 +148,33 @@
     assert.ok(print.includes(".no-print"), "anything marked no-print is hidden on paper");
     assert.ok(/data-page="cheatsheet"\] main \{ column-count: 2/.test(print), "the cheat sheet prints in two columns");
     assert.ok(/\.gloss \{ column-count: 2/.test(print), "the glossary handout prints in two columns");
+  });
+
+  QUnit.module("source tree and old addresses");
+
+  QUnit.test("Only index.html and 404.html sit at the root; every other page is in pages/, modules/ or labs/", (assert) => {
+    assert.deepEqual(fs.readdirSync(ROOT).filter((f) => f.endsWith(".html")).sort(), ["404.html", "index.html"]);
+    const pages = fs.readdirSync(path.join(ROOT, "pages")).filter((f) => f.endsWith(".html"));
+    assert.ok(pages.length >= 15, "the site-level pages are in pages/");
+    pages.forEach((f) => assert.ok(read("pages", f).includes('data-root="../"'), f + " knows it is one folder down"));
+  });
+
+  QUnit.test("Redirect pages keep old addresses working, including the query and the #hash", (assert) => {
+    const r = require("../tools/build-redirects.js");
+    const names = r.movedPages();
+    assert.ok(names.includes("problems") && names.includes("study") && names.includes("labs"), "the old names are covered");
+    names.forEach((n) => {
+      const html = r.stub(n);
+      assert.ok(html.includes('content="0; url=pages/' + n + '.html"'), n + ": refresh fallback");
+      assert.ok(/noindex/.test(html), n + ": kept out of search engines");
+      let went = null;
+      new Function("location", /<script>([\s\S]*?)<\/script>/.exec(html)[1])({ search: "?q=x", hash: "#p=disk:48213:2", replace: (u) => { went = u; } });
+      assert.equal(went, "pages/" + n + ".html?q=x#p=disk:48213:2", n + ": query and hash survive");
+    });
+    const out = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "redir-"));
+    try { assert.equal(r.write(out).length, names.length); assert.ok(fs.existsSync(path.join(out, "problems.html"))); } finally { fs.rmSync(out, { recursive: true, force: true }); }
+    assert.ok(/build-redirects.js/.test(read(".github", "workflows", "pages.yml")), "the deploy workflow writes them");
+    assert.ok(/cp -r .* pages /.test(read(".github", "workflows", "pages.yml")), "and ships pages/");
   });
 
 })();

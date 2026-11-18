@@ -102,5 +102,24 @@
         : `Finished: ${r.total} cylinders moved in total.`;
     }
     update();
+
+    // Shareable link: the queue, where the head starts, the highest cylinder, the algorithm, the direction and the seek cost.
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareable(p, "disk", {
+        spec: { reqs: S.ints(0, 999, 1, 30), head: S.int(0, 999), max: S.int(50, 999), algo: S.oneOf(Object.keys(L.diskAlgos)), dir: S.oneOf(["up", "down"]), seek: S.num(0.01, 1, 2) },
+        get: () => ({ reqs, head, max, algo, dir, seek: seekMs }),
+        set: (st) => {
+          if (st.max) { max = st.max; maxIn.set(max); headSl.el.querySelector("input").max = max; }
+          if (st.head !== undefined) head = st.head;
+          head = Math.min(head, max); headSl.set(head);
+          if (st.algo) { algo = st.algo; algoSel.set(algo); }
+          if (st.dir) { dir = st.dir; dirSel.set(dir); }
+          dirSel.el.style.display = ["SCAN", "CSCAN", "LOOK", "CLOOK"].includes(algo) ? "" : "none";
+          if (st.seek) { seekMs = st.seek; msSl.set(seekMs); }
+          if (st.reqs && st.reqs.every((v) => v <= max)) { text.value = st.reqs.join(" "); parse(); } else update();
+        }
+      });
+    }
   });
 })();

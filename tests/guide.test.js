@@ -33,7 +33,7 @@
     const [file, frag] = href.split("#");
     if (!fs.existsSync(path.join(ROOT, file))) return `${file} does not exist`;
     if (!frag) return "";
-    if (file === "problems.html") return /^topic=/.test(frag) && kindIds().includes(frag.slice(6)) ? "" : `unknown problem topic ${frag}`;
+    if (file === "pages/problems.html") return /^topic=/.test(frag) && kindIds().includes(frag.slice(6)) ? "" : `unknown problem topic ${frag}`;
     return idsOn(file).has(frag) ? "" : `${file} has no #${frag}`;
   }
 
@@ -45,7 +45,7 @@
     assert.equal(L.targetPath({ id: "paging" }, 8, D), "modules/08-memory.html#paging", "a prompt's own module is the default");
     assert.equal(L.targetPath({ mod: 12, id: "compare-the-systems" }, 4, D), "modules/12-os-landscape.html#compare-the-systems", "another module overrides it");
     assert.equal(L.targetPath({ lab: 2 }, undefined, D), "labs/02-threads.html");
-    assert.equal(L.targetPath({ page: "problems.html", hash: "topic=paging" }, undefined, D), "problems.html#topic=paging");
+    assert.equal(L.targetPath({ page: "problems.html", hash: "topic=paging" }, undefined, D), "pages/problems.html#topic=paging");
     ["", null, undefined, {}, { mod: 99 }, { lab: 99 }, { page: "../etc/passwd" }, { page: "a.html?x" }, { page: "javascript:alert(1)" }, "modules/04.html"].forEach((bad) => assert.equal(L.targetPath(bad, undefined, D), null, JSON.stringify(bad)));
   });
 

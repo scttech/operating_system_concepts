@@ -13,20 +13,36 @@ live d3.js simulations whose parameters students can change, and self-check ques
 There is also a searchable glossary, an FAQ, a cheat sheet, a mixed practice quiz, **randomized calculation problems
 with worked solutions**, and **hands-on Python labs**.
 
-**Study tools** (`study.html`): quiz questions with instant feedback, glossary **flashcards** that return more often until you know them,
+**Study tools** (`pages/study.html`): quiz questions with instant feedback, glossary **flashcards** that return more often until you know them,
 **scenario questions** (which scheduler, lock, isolation or OS fits this situation, and why), a **timed exam mode** with a review of every miss,
 and a private **progress record** kept only in the learner's own browser (exportable, importable, clearable). Each module also states
 what you should be able to do, its key takeaways, and free further reading. Result tables can be copied or downloaded as CSV, and two
 schedulers or two page-replacement policies can be compared side by side on the same workload.
 
-**Paths and teaching:** `paths.html` offers ordered routes through the material for one goal (programs, memory, concurrency, security, performance, other designs).
-Every module page ends with discussion and journal prompts. `teaching.html` is for instructors: common misconceptions, a classroom demonstration
+**Shareable setups:** the scheduler, page-replacement, disk, Banker's, paging and memory-allocation simulations have a "Copy link to this setup" button.
+The link holds the inputs (for example `#scheduling.algo=RR&scheduling.q=3`), so an assignment can say "run this exact case and explain it". Links are validated, never trusted.
+
+**Paths and teaching:** `pages/paths.html` offers ordered routes through the material for one goal (programs, memory, concurrency, security, performance, other designs).
+Every module page ends with discussion and journal prompts. `pages/teaching.html` is for instructors: common misconceptions, a classroom demonstration
 and what to listen for in each prompt, for every module.
 
-**On paper** (`handouts.html`): a study guide with check-off objectives, a quiz worksheet with a separate answer key, and a glossary sheet, for the
+**On paper** (`pages/handouts.html`): a study guide with check-off objectives, a quiz worksheet with a separate answer key, and a glossary sheet, for the
 modules you choose. Every page also has a print stylesheet, and the cheat sheet prints in two columns.
 
 No build step, no framework, no CDN: open the files or serve the folder. d3 v7.9.0 is vendored in `js/vendor/`.
+
+**Where things are**
+
+| Folder | Holds |
+|---|---|
+| `index.html`, `404.html` | the home page and the not-found page (the only pages at the root, as GitHub Pages expects) |
+| `pages/` | the site-level pages: study tools, glossary, FAQ, cheat sheet, search, handouts, paths, teaching notes, problems, labs index |
+| `modules/`, `labs/` | one page per lesson and per lab |
+| `js/`, `css/`, `images/` | scripts (`data/` holds the content, `lib/` the tested logic, `sims/` the simulations, `pages/` page scripts), the stylesheet and the pictures |
+| `examples/`, `labs/code/` | the real C and Python programs shown in lessons and labs |
+| `tests/`, `tools/` | the test suites, and the tools that generate files or audit the pages |
+
+Pages at the old root addresses (for example `problems.html#p=disk:48213:2`) still work on the published site: the deploy step adds a small redirect page for each one.
 
 ## Run locally
 
@@ -70,11 +86,11 @@ operating system's "reduce motion" setting.
 
 ### Calculation practice
 
-[problems.html](problems.html) generates a fresh problem every time (scheduling, page replacement, disk scheduling, paging,
+[pages/problems.html](pages/problems.html) generates a fresh problem every time (scheduling, page replacement, disk scheduling, paging,
 effective access time, Banker's algorithm, memory allocation, inode file size, Amdahl's law, Unix permissions) at two
 difficulty levels, checks the answer, and shows a step-by-step worked solution. Each problem has a code such as
-`disk:48213:2`. The same code always gives the same problem, so a link like `problems.html#p=disk:48213:2` can be used in an
-assignment. Lessons link to the matching topic (`problems.html#topic=scheduling`). The generators are pure logic in
+`disk:48213:2`. The same code always gives the same problem, so a link like `pages/problems.html#p=disk:48213:2` can be used in an
+assignment. Lessons link to the matching topic (`pages/problems.html#topic=scheduling`). The generators are pure logic in
 `js/lib/problems.js`.
 
 ### Source viewer and language tabs
@@ -153,7 +169,7 @@ What is covered:
   a test checks the shape and that every link is `https`). Scenario questions are in `js/data/scenarios.js`. Flashcards come from the glossary.
 * **Progress and privacy:** progress lives in `localStorage` under one key and never leaves the browser. Its logic is `js/lib/progress.js`, and
   imports are validated strictly because exported text is untrusted.
-* **Search:** the site-wide search (`search.html`) reads the glossary, FAQ, labs, module list and OS profiles directly, and the text of
+* **Search:** the site-wide search (`pages/search.html`) reads the glossary, FAQ, labs, module list and OS profiles directly, and the text of
   every lesson section, lab guide and cheat-sheet section from `js/data/search-index.js`. After editing any page text, run
   `npm run build:search`; the tests fail if it is out of date. Headings get link targets automatically, so you do not need to give them ids.
 * **Course parts:** `OSData.parts` in `js/data/modules.js` groups the modules into parts and sets the reading order (the home page,

@@ -98,6 +98,20 @@
         .text(`Belady's anomaly: FIFO gets worse going to ${anomalies.map((q) => q.frames).join(", ")} frames`);
     }
     update();
+
+    // Shareable link: the reference string, the number of frames and the algorithm.
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareable(p, "pagerepl", {
+        spec: { refs: S.ints(0, 999, 1, 60), frames: S.int(1, 8), algo: S.oneOf(Object.keys(L.pageAlgos)) },
+        get: () => ({ refs, frames, algo }),
+        set: (st) => {
+          if (st.frames) { frames = st.frames; fSl.set(frames); }
+          if (st.algo) { algo = st.algo; algoSel.set(algo); }
+          if (st.refs) { text.value = st.refs.join(" "); parse(); } else update();
+        }
+      });
+    }
   });
 
   OSUI.register("eat", (el) => {

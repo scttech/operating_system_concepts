@@ -58,8 +58,9 @@ jobs:
       - name: Assemble site (only the files the browser needs)
         run: |
           mkdir _site
-          cp index.html labs.html problems.html glossary.html faq.html practice.html cheatsheet.html search.html study.html progress.html flashcards.html exam.html scenarios.html handouts.html paths.html teaching.html 404.html LICENSE.txt _site/
-          cp -r css js modules labs examples images _site/
+          cp index.html 404.html LICENSE.txt _site/
+          cp -r css js pages modules labs examples images _site/
+          node tools/build-redirects.js _site
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

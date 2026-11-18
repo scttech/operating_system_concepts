@@ -9,12 +9,17 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 * **Quiz progress is tied to the wording of a question.** Learners' saved results are stored against a short fingerprint of each question's text.
   If a question's wording is edited, that one question counts as unanswered again for learners who had answered it. Changes of this kind are
   marked **(resets saved progress for that item)** below.
+* **Old page addresses keep working.** The site-level pages (study tools, glossary, problems and the rest) moved into `pages/`. The published site redirects the old addresses, including `?` and `#` parts, so existing links and bookmarks still work. New links should use the `pages/` address.
 * **Shared problem links stay stable.** Practice-problem links such as `problems.html#p=disk:48213:2` keep producing the same problem and answer.
   A change that would alter one is marked **(changes shared links)**.
 
 ## [Unreleased]
 
+### Changed
+- **Tidier source tree:** the site-level pages now live in `pages/`, leaving only `index.html` and `404.html` at the top. Old addresses redirect on the published site.
+
 ### Added
+- **Shareable simulation setups**: a "Copy link to this setup" button on the scheduler, page-replacement, disk, Banker's, paging and memory-allocation simulations. Opening the link restores the setup; invalid or oversized links are ignored.
 - **Study paths** (`paths.html`): seven ordered routes through lessons, simulations, labs and practice.
 - **Discussion and journal prompts** on every module page ("Think, discuss, write"), also printable with writing space.
 - **Teaching notes** (`teaching.html`) for instructors: misconceptions, a classroom demonstration and what to listen for, for every module.

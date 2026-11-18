@@ -1,5 +1,6 @@
 (function () {
   "use strict";
+  const base = document.body.dataset.root || "";
   const { h } = OSUI;
   const items = OSData.glossary.slice().sort((a, b) => a.term.localeCompare(b.term, undefined, { sensitivity: "base" }));
   const list = document.getElementById("list"), q = document.getElementById("q"), cat = document.getElementById("cat"), count = document.getElementById("count");
@@ -10,7 +11,7 @@
   const where = OSData.glossaryIndex || {}, mods = Object.fromEntries(OSData.modules.map((m) => [m.n, m]));
   const modSel = document.getElementById("mod");
   modSel.append(h("option", { value: "all", text: "All lessons" }), ...OSData.modules.map((m) => h("option", { value: m.n, text: `Module ${m.n}: ${m.title}` })));
-  const href = (e) => `modules/${mods[e.m].slug}.html${e.id ? "#" + e.id : ""}`;
+  const href = (e) => base + `modules/${mods[e.m].slug}.html${e.id ? "#" + e.id : ""}`;
 
   function seeAlso(term) {
     const entries = where[term];

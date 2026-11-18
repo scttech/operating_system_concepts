@@ -86,6 +86,27 @@
       drawBank();
     }
     build(); run();
+
+    // Shareable link: the three matrices, and the request to check (which is checked again when the link opens).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareable(p, "banker", {
+        spec: { alloc: S.matrix(5, 3, 0, 99), max: S.matrix(5, 3, 0, 99), avail: S.ints(0, 99, 3, 3), pid: S.int(0, 4), req: S.ints(0, 99, 3, 3) },
+        get: () => ({ alloc: st.alloc, max: st.max, avail: st.available, pid: +reqPid.value, req: reqIn.map((i) => Math.max(0, +i.value || 0)) }),
+        set: (s) => {
+          if (s.alloc) st.alloc = s.alloc.map((r) => r.slice());
+          if (s.max) st.max = s.max.map((r) => r.slice());
+          if (s.avail) st.available = s.avail.slice();
+          build(); run();
+          if (s.pid !== undefined) reqPid.value = String(s.pid);
+          if (s.req) {
+            s.req.forEach((v, i) => { reqIn[i].value = v; });
+            const check = [...reqHost.querySelectorAll("button")].find((b) => b.textContent === "Check request");
+            if (check) check.click();
+          }
+        }
+      });
+    }
   });
 
   OSUI.register("philosophers", (el) => {

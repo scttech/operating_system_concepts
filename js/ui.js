@@ -191,5 +191,39 @@
     return h("div", { class: "export-bar" }, h("div", { class: "row" }, copy, save, status), box);
   }
 
-  window.OSUI = { h, fill, slider, select, number, button, panel, svg, ticker, player, nextId, register, mountAll, watchScroll, exportBar };
+  /**
+   * Makes a simulation shareable: a "Copy link to this setup" button, and applying a link's settings when the page opens (or the address changes).
+   *   panel  the object returned by panel()
+   *   name   the simulation's short name, the prefix of its keys in the address
+   *   cfg    { spec, get(), set(state) }: spec as in js/lib/share.js; get() returns the current inputs; set(state) applies the valid ones
+   * Reading and writing the address is done by OSLib.share, which accepts only well-formed values inside their limits.
+   */
+  function shareable(panel, name, cfg) {
+    const S = window.OSLib && window.OSLib.share;
+    if (!S) return null;
+    const status = h("span", { class: "small", "aria-live": "polite" });
+    const box = h("input", { type: "text", readonly: "", hidden: true, "aria-label": "Link to this setup", style: "width:100%" });
+    function manual(url, why) { box.value = url; box.hidden = false; box.focus(); box.select(); status.textContent = why; }
+    const btn = h("button", { type: "button", class: "btn secondary", text: "Copy link to this setup", onclick: () => {
+      const url = S.linkFor(location.href, name, cfg.spec, cfg.get());
+      try { history.replaceState(null, "", url.slice(url.indexOf("#"))); } catch (e) { /* some file:// contexts */ }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(() => { status.textContent = "Link copied. Anyone who opens it sees this setup."; }, () => manual(url, "Copying was blocked. Select the link below and copy it."));
+      else manual(url, "Select the link below and copy it.");
+    } });
+    panel.body.append(h("div", { class: "share-bar" }, h("div", { class: "row" }, btn, status), box));
+    let first = true;
+    function apply() {
+      const { state, ignored } = S.fromHash(name, cfg.spec, location.hash);
+      if (!Object.keys(state).length && !ignored.length) return;
+      if (Object.keys(state).length) cfg.set(state);
+      status.textContent = ignored.length ? `Link loaded. Ignored values that were not valid: ${ignored.join(", ")}.` : "Setup loaded from the link.";
+      if (first && Object.keys(state).length && panel.root.scrollIntoView) { try { panel.root.scrollIntoView({ block: "start" }); } catch (e) { /* ignore */ } }
+      first = false;
+    }
+    window.addEventListener("hashchange", apply);
+    apply();
+    return { apply, button: btn, status };
+  }
+
+  window.OSUI = { h, fill, slider, select, number, button, panel, svg, ticker, player, nextId, register, mountAll, watchScroll, exportBar, shareable };
 })();

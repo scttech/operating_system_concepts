@@ -14,10 +14,10 @@
   } catch (e) { /* storage unavailable */ }
 
   const links = [
-    ["index.html", "Home", ["home"]], ["labs.html", "Labs", ["labs"]],
-    ["study.html", "Study tools", ["study", "practice", "problems", "flashcards", "scenarios", "exam", "progress", "handouts", "paths", "teaching"]],
-    ["glossary.html", "Glossary", ["glossary"]], ["faq.html", "FAQ", ["faq"]],
-    ["cheatsheet.html", "Cheat sheet", ["cheatsheet"]], ["search.html", "Search", ["search"]]
+    ["index.html", "Home", ["home"]], ["pages/labs.html", "Labs", ["labs"]],
+    ["pages/study.html", "Study tools", ["study", "practice", "problems", "flashcards", "scenarios", "exam", "progress", "handouts", "paths", "teaching"]],
+    ["pages/glossary.html", "Glossary", ["glossary"]], ["pages/faq.html", "FAQ", ["faq"]],
+    ["pages/cheatsheet.html", "Cheat sheet", ["cheatsheet"]], ["pages/search.html", "Search", ["search"]]
   ];
   const nav = document.createElement("nav");
   nav.setAttribute("aria-label", "Main");
@@ -179,7 +179,7 @@
       const anchor = `term-${slug(entry.term)}`;
       if (!document.getElementById(anchor)) el.id = anchor;
       const a = document.createElement("a");
-      a.href = `${root}glossary.html#${slug(entry.term)}`;
+      a.href = `${root}pages/glossary.html#${slug(entry.term)}`;
       a.append(...el.childNodes);
       el.append(a);
     });

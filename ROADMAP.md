@@ -106,12 +106,12 @@ Goal: a "Problems" page where students practice the calculations they will meet 
 
 Goal: an instructor can assign "run this exact case and explain it" by sending one URL. The compare tool already works this way.
 
-- [ ] **SL-1 URL state for simulations** (M). *(Already done for practice problems: `problems.html#p=disk:48213:2`, and for the OS compare tool: `#compare=windows,zos`.)* Encode inputs in the hash:
+- [x] **SL-1 URL state for simulations** (M). **Done** for the scheduler, page replacement, disk, Banker's, paging and memory allocation (`#scheduling.algo=RR&scheduling.q=3&...`); the other simulations are not shareable yet. Original plan: *(Already done for practice problems: `problems.html#p=disk:48213:2`, and for the OS compare tool: `#compare=windows,zos`.)* Encode inputs in the hash:
   scheduler (processes, algorithm, quantum), page replacement (string, frames, algorithm), disk (queue, head, algorithm),
   Banker's (matrices), paging (page size, table, address), memory allocation requests.
-- [ ] **SL-2 "Copy link" button** on each simulation (S).
-- [ ] **SL-3 Safe parsing** (S). Ignore bad or oversized input in links; never execute or inject it.
-- [ ] **SL-4 Tests** (S). Round-trip: state to link to state, plus malformed links.
+- [x] **SL-2 "Copy link" button** on each simulation (S). **Done** for those six, with a select-and-copy box when the browser blocks the clipboard.
+- [x] **SL-3 Safe parsing** (S). **Done** in `js/lib/share.js`: every field is checked whole against its limits, bad fields are ignored and reported, oversized links are ignored, and nothing from a link is ever inserted as markup. Ignore bad or oversized input in links; never execute or inject it.
+- [x] **SL-4 Tests** (S). **Done:** `tests/share.test.js` (round trips of random states, hostile links) and page tests for all six simulations. Round-trip: state to link to state, plus malformed links.
 
 ## Phase 3: Instructor page and syllabus map
 

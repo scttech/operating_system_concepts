@@ -14,14 +14,14 @@
    * Where a target points, as a path from the site root, or null if it does not name anything.
    *   { mod, id? }        a module page (and a heading on it)
    *   { lab }             a lab page
-   *   { page, hash? }     any other page, optionally with a #hash
+   *   { page, hash? }     a page in pages/ (give its file name), optionally with a #hash
    * A target without mod takes defaultMod, so a prompt can link to its own module with only an id.
    */
   function targetPath(to, defaultMod, data) {
     if (!to || typeof to !== "object") return null;
     const frag = (s) => (s ? "#" + s : "");
     if (to.lab !== undefined) { const lab = (data.labs || []).find((l) => l.n === to.lab); return lab ? `labs/${lab.slug}.html` : null; }
-    if (to.page) return /^[a-z0-9-]+\.html$/.test(to.page) ? to.page + frag(to.hash) : null;
+    if (to.page) return /^[a-z0-9-]+\.html$/.test(to.page) ? "pages/" + to.page + frag(to.hash) : null;
     const n = to.mod !== undefined ? to.mod : defaultMod, m = data.modules.find((x) => x.n === n);
     return m ? `modules/${m.slug}.html${frag(to.id)}` : null;
   }
