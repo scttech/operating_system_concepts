@@ -328,3 +328,26 @@ input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
 .stack-cells .cell.canary.intact { background: var(--c2); color: var(--on-c2); border-color: var(--c2); }
 .stack-cells .cell.ret.intact { background: var(--c5); color: var(--on-c5); border-color: var(--c5); }
 .status-ok code, .status-bad code { color: var(--fg); }
+
+/* Printing: black on white, no navigation or controls, no page breaks inside tables, code or answers, and external addresses spelled out. */
+@media print {
+  :root, :root[data-theme="dark"] { --bg: #fff; --fg: #000; --muted: #333; --card: #fff; --border: #999; --accent: #000; --code-bg: #f2f2f2; --shadow: none; --grid: #ccc; }
+  html { scroll-behavior: auto; }
+  body { background: #fff; color: #000; font-size: 11pt; line-height: 1.4; }
+  .skip, header.site, #theme-toggle, .pager, .controls, .export-bar, .code-tabs .tablist .tab[aria-selected="false"],
+  .sim button, .sim input, .sim select, .codebar button, .row .btn, noscript { display: none !important; }
+  main, main.narrow { max-width: none; padding: 0; }
+  h1, h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
+  h2 { border-bottom-color: #000; }
+  pre, table, figure, .sim, .callout, .q, details, .os-card, svg { break-inside: avoid; page-break-inside: avoid; }
+  pre { white-space: pre-wrap; word-break: break-word; border: 1px solid #999; }
+  .sim, .table-scroll, .compare-wrap { overflow: visible !important; box-shadow: none; border-color: #999; }
+  .code-tabs .tablist { border-bottom: 0; }
+  .code-tabs .tab { border: 0; background: transparent; color: #000; font-weight: 700; padding-left: 0; }
+  .code-tabs .tabpanel[hidden] { display: none !important; }
+  a { color: #000; text-decoration: underline; }
+  main a[href^="http"]::after { content: " (" attr(href) ")"; font-size: .85em; word-break: break-all; }
+  .hero-logo { box-shadow: none; max-width: 60%; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  @page { margin: 1.6cm; }
+}

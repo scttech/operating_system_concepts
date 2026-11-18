@@ -15,6 +15,7 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ## [Unreleased]
 
 ### Added
+- **Printing**: a print stylesheet (black on white, no menus or controls, only the chosen code language, tables and code kept whole, link addresses spelled out) and a friendly 404 page that works from any folder. Every page now carries link-preview tags (title, description and the logo) so shared links look right.
 - **Module 18, Security in Depth** (part: Foundations): a stack-frame simulator showing how an overflow reaches the return address and what a canary, non-executable memory, ASLR and an information leak each change; password-guessing time estimates and a salted, repeated hashing demo; and STRIDE threat-modeling exercises for three small systems. Two C and Python examples (a simulated stack frame, password hashing with its own SHA-256).
 - **Module 19, Storage Reliability** (part: Memory and storage): RAID 0, 1, 5, 6 and 10 with failing disks, XOR parity and rebuilding, rebuild-risk estimates, SSD write amplification and wear, and a journaling simulator that crashes at every step. Two C and Python examples (XOR parity and a write-ahead log).
 - **Eight more operating systems** in the Module 12 compare tool and family tree: HarmonyOS, Fuchsia, Solaris and illumos, OpenBSD, z/VM, z/TPF, Plan 9 and MINIX 3, with five new quick comparisons and a short section on what each shows best.

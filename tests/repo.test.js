@@ -88,4 +88,63 @@
       .forEach(([re, actual]) => { const q = quoted(re); assert.ok(q !== null && q <= actual, `${re}: quoted ${q}, project has ${actual}`); });
   });
 
+  QUnit.module("print, link previews and the 404 page");
+
+  QUnit.test("link-preview tags are generated, current and complete on every page", (assert) => {
+    const meta = require("../tools/build-meta.js");
+    assert.deepEqual(meta.run(false), [], "node tools/build-meta.js --check finds nothing to change");
+    const base = meta.siteUrl();
+    assert.ok(/^https:\/\/.+\/$/.test(base), "the site address is https and ends in a slash: " + base);
+    const pages = meta.pages();
+    assert.ok(pages.length >= 37, "every page is covered");
+    pages.forEach((rel) => {
+      const html = read(rel);
+      const tag = (re) => { const m = re.exec(html); return m ? m[1] : null; };
+      const img = tag(/property="og:image" content="([^"]*)"/);
+      assert.equal(img, base + "images/logo-hero.jpg", rel + ": image");
+      assert.ok(tag(/property="og:title" content="([^"]+)"/), rel + ": title");
+      assert.ok(tag(/property="og:description" content="([^"]+)"/), rel + ": description");
+      assert.equal(tag(/name="twitter:card" content="([^"]*)"/), "summary_large_image", rel + ": card");
+      if (rel !== "404.html") {
+        const want = base + (rel === "index.html" ? "" : rel);
+        assert.equal(tag(/rel="canonical" href="([^"]*)"/), want, rel + ": canonical");
+        assert.equal(tag(/property="og:url" content="([^"]*)"/), want, rel + ": og:url");
+      } else assert.equal(tag(/rel="canonical" href="([^"]*)"/), null, "404.html has no canonical address");
+    });
+    assert.ok(fs.existsSync(path.join(ROOT, "images", "logo-hero.jpg")), "the preview image exists");
+    assert.ok(pkg.scripts["build:meta"], "npm run build:meta exists");
+  });
+
+  QUnit.test("the 404 page finds the site root from any folder and is published", (assert) => {
+    const html = read("404.html");
+    assert.ok(/name="robots" content="noindex"/.test(html), "search engines are told to skip it");
+    const script = /<script>([\s\S]*?)<\/script>/.exec(html)[1];
+    const baseFor = (hostname, pathname) => {
+      let written = "";
+      new Function("location", "document", script)({ hostname, pathname }, { write: (s) => { written += s; } });
+      return (/href="([^"]*)"/.exec(written) || [])[1];
+    };
+    assert.equal(baseFor("scttech.github.io", "/operating_system_concepts/modules/nope.html"), "/operating_system_concepts/", "GitHub project site, deep path");
+    assert.equal(baseFor("scttech.github.io", "/operating_system_concepts/x"), "/operating_system_concepts/", "GitHub project site, shallow path");
+    assert.equal(baseFor("scttech.github.io", "/"), "/", "a user site has its root at /");
+    assert.equal(baseFor("example.org", "/anything/deep/page.html"), "/", "a custom domain");
+    assert.equal(baseFor("localhost", "/nope"), "/", "a local server");
+    const flow = read(".github", "workflows", "pages.yml");
+    assert.ok(/cp .*404\.html/.test(flow), "the deploy workflow copies 404.html");
+    ["index.html", "search.html", "glossary.html", "faq.html", "study.html"].forEach((p) => assert.ok(html.includes(`href="${p}"`), "links to " + p));
+  });
+
+  QUnit.test("the print stylesheet hides controls and navigation, shows the chosen code language and spells out addresses", (assert) => {
+    const css = read("css", "style.css");
+    const at = css.indexOf("@media print");
+    assert.ok(at > 0, "there is a print section");
+    const print = css.slice(at);
+    ["header.site", ".pager", ".controls", ".sim button", "#theme-toggle", ".skip"].forEach((sel) => assert.ok(print.includes(sel), sel + " is hidden when printing"));
+    assert.ok(/color:\s*#000/.test(print) && /background:\s*#fff/.test(print), "black text on white");
+    assert.ok(/attr\(href\)/.test(print), "external addresses are printed");
+    assert.ok(/break-inside:\s*avoid/.test(print), "tables, code and answers are not split");
+    assert.ok(/aria-selected="false"/.test(print), "only the chosen language's tab label prints");
+    assert.ok(/@page/.test(print), "page margins are set");
+  });
+
 })();

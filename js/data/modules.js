@@ -1,7 +1,8 @@
 /* Module index. To add a module: add an entry here and create modules/<slug>.html */
 window.OSData = window.OSData || {};
-/* Site settings. If you copy this project, set repo to your own repository (or "" to hide the feedback link in the footer). */
-window.OSData.site = { repo: "https://github.com/scttech/operating_system_concepts" };
+/* Site settings. If you copy this project, set repo to your own repository (or "" to hide the feedback link in the footer) and url to where your copy is published
+   (the address that shows in link previews; then run: node tools/build-meta.js). */
+window.OSData.site = { repo: "https://github.com/scttech/operating_system_concepts", url: "https://scttech.github.io/operating_system_concepts/" };
 window.OSData.modules = [
   { n: 1,  slug: "01-fundamentals",     title: "OS Fundamentals & System Calls",
     summary: "What an OS does, kernel vs. user mode, and how a system call crosses the boundary.",

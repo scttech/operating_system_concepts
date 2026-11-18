@@ -37,15 +37,16 @@ There is no build step for the site itself: the pages are plain HTML, CSS and Ja
 
 ### Generated files (run these after you change the pages)
 
-Three files are generated from the pages, and the tests fail if they are out of date:
+Four sets of files are generated from the pages, and the tests fail if they are out of date:
 
 | Command | Regenerates | Run it after you change... |
 |---|---|---|
 | `npm run build:labs` | the code listings embedded in lab and lesson pages | any file in `labs/code/` or `examples/` |
 | `npm run build:glossary` | `js/data/glossary-index.js` (where each term is discussed) | any `<dfn data-term>` or the glossary |
 | `npm run build:search` | `js/data/search-index.js` (text for the site search) | the text of any lesson, lab or the cheat sheet |
+| `npm run build:meta` | the link-preview tags in every page's `<head>` | a page title or description, or `OSData.site.url` (set it to where your copy is published) |
 
-When in doubt, run all three. Each also has a `--check` form (`node tools/build-search-index.js --check`) that only reports.
+When in doubt, run all four. Each also has a `--check` form (`node tools/build-search-index.js --check`) that only reports.
 
 ### Testing the way CI does
 
