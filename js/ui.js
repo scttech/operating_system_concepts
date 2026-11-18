@@ -225,5 +225,37 @@
     return { apply, button: btn, status };
   }
 
-  window.OSUI = { h, fill, slider, select, number, button, panel, svg, ticker, player, nextId, register, mountAll, watchScroll, exportBar, shareable };
+  /**
+   * Shareable setups for simulations driven by ordinary controls. fields maps a key (the name in the link) to
+   *   { ctl, apply?, spec? }  ctl is a slider, select or number made by OSUI; its limits and options give the spec.
+   *                           apply(value) copies a loaded value into the simulation's own variables (when it keeps any).
+   *                           spec overrides the derived spec (for limits that change while the page is used).
+   *   { spec, get, set }      anything else (a checkbox, a list): the spec from OSLib.share, and how to read and write it.
+   * After a link is applied, refresh() redraws. A select whose option values are not plain words (long preset names) is shared by position.
+   */
+  function shareControls(panel, name, fields, refresh) {
+    const S = window.OSLib && window.OSLib.share;
+    if (!S) return null;
+    const spec = {}, getters = {}, setters = {};
+    Object.entries(fields).forEach(([key, f]) => {
+      if (!f.ctl) { spec[key] = f.spec; getters[key] = f.get; setters[key] = f.set; return; }
+      const c = f.ctl, sel = c.el.querySelector("select"), input = c.el.querySelector("input"), after = (v) => { if (f.apply) f.apply(v); };
+      if (sel) {
+        const opts = [...sel.options].map((o) => o.value);
+        if (opts.every((v) => /^[A-Za-z0-9_.-]{1,30}$/.test(v))) { spec[key] = f.spec || S.oneOf(opts); getters[key] = () => c.get(); setters[key] = (v) => { c.set(v); after(v); }; }
+        else { spec[key] = f.spec || S.int(0, opts.length - 1); getters[key] = () => opts.indexOf(c.get()); setters[key] = (i) => { c.set(opts[i]); after(opts[i]); }; }
+      } else {
+        const min = +input.min, max = +input.max, step = +input.step || 1, dec = (String(step).split(".")[1] || "").length;
+        spec[key] = f.spec || (Number.isInteger(step) ? S.int(min, max) : S.num(min, max, dec));
+        getters[key] = () => c.get(); setters[key] = (v) => { c.set(v); after(v); };
+      }
+    });
+    return shareable(panel, name, {
+      spec,
+      get: () => Object.fromEntries(Object.keys(getters).map((k) => [k, getters[k]()])),
+      set: (st) => { Object.keys(setters).forEach((k) => { if (Object.prototype.hasOwnProperty.call(st, k)) setters[k](st[k]); }); if (refresh) refresh(); }
+    });
+  }
+
+  window.OSUI = { h, fill, slider, select, number, button, panel, svg, ticker, player, nextId, register, mountAll, watchScroll, exportBar, shareable, shareControls };
 })();

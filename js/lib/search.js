@@ -10,7 +10,19 @@
 
   const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const stripTags = (s) => String(s).replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
-  const KINDS = ["Module", "Lesson", "Glossary", "FAQ", "Lab", "Operating system", "Cheat sheet"];
+  const KINDS = ["Module", "Lesson", "Glossary", "FAQ", "Lab", "Operating system", "Cheat sheet", "Study path", "Prompt", "Teaching note", "Study tool"];
+  /** The study tools and handouts, which are pages rather than data: [title, url, what is there]. */
+  const TOOLS = [
+    ["Quiz questions", "pages/practice.html", "Pick modules and answer quiz questions with instant feedback and an explanation."],
+    ["Flashcards", "pages/flashcards.html", "Glossary flashcards that come back more often until you know them."],
+    ["Scenario questions", "pages/scenarios.html", "Which scheduler, lock, isolation or operating system fits this situation, and why?"],
+    ["Calculation practice", "pages/problems.html", "A fresh scheduling, paging, disk or deadlock problem each time, with worked solutions and shareable problem codes."],
+    ["Exam mode", "pages/exam.html", "A timed, shuffled practice exam with a score by module and a review of every miss."],
+    ["My progress", "pages/progress.html", "Modules visited, questions mastered and exam scores, kept privately in your browser and exportable."],
+    ["Printable handouts", "pages/handouts.html", "Print a study guide, a quiz worksheet, an answer key, a prompts sheet with writing space, or a glossary sheet for the modules you choose."],
+    ["Study paths", "pages/paths.html", "Ordered routes through the lessons, simulations, labs and practice for one goal, from newcomer to advanced."],
+    ["Teaching notes", "pages/teaching.html", "For instructors: common misconceptions, a classroom demonstration and what to listen for in discussion, for every module."]
+  ];
 
   /**
    * data: { modules, glossary, faq, labs, osList, searchIndex } as in window.OSData (any may be missing).
@@ -35,6 +47,14 @@
     (d.labs || []).forEach((l) => add("Lab", `Lab ${l.n}: ${l.title}`, "Lab overview", `labs/${l.slug}.html`, `${l.summary} ${l.platform || ""}`));
     (d.osList || []).forEach((o) => add("Operating system", o.name, o.group, `modules/18-os-landscape.html#compare=${o.id}`,
       [o.tagline, o.category, o.maker, o.uses, o.kernel, o.scheduling, o.memory, o.files, o.security, o.strengths, o.tradeoffs, o.fact].filter(Boolean).join(" ")));
+    (d.paths || []).forEach((p) => add("Study path", p.title, "Study paths", `pages/paths.html#${p.id}`, [p.who, p.goal, ...p.steps.map((s) => `${s.label} ${s.note}`)].join(" ")));
+    (d.modules || []).forEach((m) => {
+      const prompts = (d.prompts || {})[m.n], notes = (d.teaching || {})[m.n], where = `Module ${m.n}: ${m.title}`;
+      if (prompts) add("Prompt", "Think, discuss, write", where, `modules/${m.slug}.html#think-and-discuss`, prompts.map((q) => q.text).join(" "));
+      if (notes) add("Teaching note", "Misconceptions, demonstration and what to listen for", where, `pages/teaching.html#module-${m.n}`,
+        [...notes.misconceptions.map((x) => x.join(" ")), ...notes.demos.map((x) => `${x.title} ${x.steps.join(" ")}`), ...notes.listen].join(" "));
+    });
+    TOOLS.forEach(([title, url, text]) => add("Study tool", title, "Study tools", url, text));
     return docs;
   }
 

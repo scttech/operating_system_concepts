@@ -46,7 +46,7 @@ Four sets of files are generated from the pages, and the tests fail if they are 
 | `npm run build:search` | `js/data/search-index.js` (text for the site search) | the text of any lesson, lab or the cheat sheet |
 | `npm run build:meta` | the link-preview tags in every page's `<head>` | a page title or description, or `OSData.site.url` (set it to where your copy is published) |
 
-When in doubt, run all four. Each also has a `--check` form (`node tools/build-search-index.js --check`) that only reports.
+When in doubt, run `npm run build`, which does all four. `npm run check` only reports what is out of date (each tool also has a `--check` form, for example `node tools/build-search-index.js --check`).
 
 ### Testing the way CI does
 

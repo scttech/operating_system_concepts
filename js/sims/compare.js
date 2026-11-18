@@ -44,6 +44,14 @@
       notes.replaceChildren(...c.summary.map((t) => h("li", { text: t })));
     }
     update();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "schedvs", {
+        work: { ctl: wSel, apply: (v) => { work = v; } }, a: { ctl: aSel, apply: (v) => { A = v; } }, b: { ctl: bSel, apply: (v) => { B = v; } }, q: { ctl: qSl, apply: (v) => { quantum = v; } }
+      }, update);
+    }
   });
 
   const STRINGS = {
@@ -82,5 +90,13 @@
       notes.replaceChildren(...c.summary.map((t) => h("li", { text: t })), ...(A === "FIFO" || B === "FIFO" ? [h("li", { class: "small", text: "Try the Belady's anomaly string with FIFO and 3, then 4 frames." })] : []));
     }
     update();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "pagevs", {
+        refs: { ctl: sSel, apply: (v) => { key = v; } }, frames: { ctl: fSl, apply: (v) => { frames = v; } }, a: { ctl: aSel, apply: (v) => { A = v; } }, b: { ctl: bSel, apply: (v) => { B = v; } }
+      }, update);
+    }
   });
 })();

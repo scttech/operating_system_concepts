@@ -20,7 +20,8 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 - **Tidier source tree:** the site-level pages now live in `pages/`, leaving only `index.html` and `404.html` at the top. Old addresses redirect on the published site.
 
 ### Added
-- **Shareable simulation setups**: a "Copy link to this setup" button on the scheduler, page-replacement, disk, Banker's, paging and memory-allocation simulations. Opening the link restores the setup; invalid or oversized links are ignored.
+- **Shareable simulation setups**: a "Copy link to this setup" button on 22 simulations (schedulers, page replacement, disk, Banker's, paging, memory allocation, Amdahl's law, RAID, SSD wear, journaling, the stack-overflow demo and more). Opening the link restores the setup; invalid or oversized links are ignored.
+- **Search** now also finds study paths, discussion prompts, teaching notes and the study tools and handouts pages.
 - **Study paths** (`paths.html`): seven ordered routes through lessons, simulations, labs and practice.
 - **Discussion and journal prompts** on every module page ("Think, discuss, write"), also printable with writing space.
 - **Teaching notes** (`teaching.html`) for instructors: misconceptions, a classroom demonstration and what to listen for, for every module.

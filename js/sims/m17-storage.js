@@ -32,6 +32,15 @@
         "6": "Two parity blocks per stripe. Any two disks can fail. A small write costs 6 operations.", "10": "Disks are mirrored in pairs, and the pairs are striped. Survives one failure for sure, and more if they fall in different pairs. Fast and simple, at half the capacity." }[level];
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "raid", {
+        level: { ctl: lvSel, apply: (v) => { level = v; } }, disks: { ctl: nSl, apply: (v) => { n = v; } }, size: { ctl: sSl, apply: (v) => { size = v; } },
+        failed: { spec: S.ints(0, 9, 0, 10), get: () => [...failed], set: (v) => { failed.clear(); v.filter((d) => d < n).forEach((d) => failed.add(d)); } }
+      }, draw);
+    }
   });
 
   OSUI.register("raidparity", (el) => {
@@ -74,6 +83,12 @@
         h("p", { class: "small", text: "This is why large RAID 5 arrays of big consumer disks are considered risky, and why RAID 6, mirrors with three copies, and checksummed file systems are preferred. RAID also does not protect against deleting a file, a bug, ransomware or a fire: that is what backups are for." }));
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "raidrisk", { size: { ctl: sSl, apply: (v) => { size = v; } }, disks: { ctl: nSl, apply: (v) => { n = v; } }, error: { ctl: uSel, apply: (v) => { ure = +v; } } }, draw);
+    }
   });
 
   // ---------- SSD ----------
@@ -106,6 +121,15 @@
         h("p", { class: "small", text: "More spare space means garbage collection finds emptier blocks to clean, so it copies fewer pages. A drive that is nearly full, handling random writes, amplifies the most. The operating system helps by telling the drive which blocks are free (TRIM), which turns stale-looking space back into spare space." }));
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "ssdwear", {
+        spare: { ctl: opSl, apply: (v) => { op = v / 100; } }, full: { ctl: fSl, apply: (v) => { fill = v / 100; } }, writes: { ctl: pSel, apply: (v) => { pattern = v; } },
+        separate: { spec: S.bool(), get: () => separate, set: (v) => { separate = v; cb.checked = v; } }
+      }, draw);
+    }
   });
 
   // ---------- journaling ----------
@@ -139,5 +163,14 @@
         h("p", { class: "small", text: mode === "none" ? "Without a journal, the file system must scan everything at the next start (fsck) to find and repair damage, and some damage cannot be repaired. The order of the writes decides how bad a crash can be: writing the data first never makes a file point at garbage." : "With a journal, the new state is written to the log first and made official by a single commit record. A crash before it means nothing happened; a crash after it means the update is replayed. The disk always ends up all-old or all-new." }));
     }
     sync(); draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "journal", {
+        fs: { ctl: modeSel, apply: (v) => { mode = v; } }, order: { ctl: orderSel, apply: (v) => { order = v; } },
+        crash: { ctl: crSl, spec: S.int(0, 8), apply: (v) => { crash = v; } }
+      }, () => { sync(); draw(); });
+    }
   });
 })();

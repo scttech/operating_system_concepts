@@ -138,7 +138,8 @@ async function main() {
     gs.slice(0, 12).forEach((g) => console.log(`  - ${g.page}  [${g.where.length} view(s): ${[...new Set(g.where.map((w) => w.split("/")[0]))].join(",")}]  ${g.detail}`));
     if (gs.length > 12) console.log(`  … ${gs.length - 12} more`);
   });
-  fs.writeFileSync(path.join(ROOT, "audit-report.json"), JSON.stringify(list, null, 1));
+  fs.mkdirSync(path.join(ROOT, ".audit"), { recursive: true });
+  fs.writeFileSync(path.join(ROOT, ".audit", "report.json"), JSON.stringify(list, null, 1));
   if (!REPORT_ONLY) process.exitCode = 1;
 }
 main().catch((e) => { console.error(e); process.exit(2); });

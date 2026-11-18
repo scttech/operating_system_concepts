@@ -5,7 +5,7 @@
   if (typeof require !== "undefined") {
     globalThis.window = globalThis;
     delete globalThis.OSData;
-    ["modules", "glossary", "faq", "labs", "oslist", "search-index"].forEach((f) => { delete require.cache[require.resolve(`../js/data/${f}.js`)]; require(`../js/data/${f}.js`); });
+    ["modules", "glossary", "faq", "labs", "oslist", "search-index", "paths", "prompts", "teaching"].forEach((f) => { delete require.cache[require.resolve(`../js/data/${f}.js`)]; require(`../js/data/${f}.js`); });
     L = require("../js/lib/search.js");
   } else L = window.OSLib;
   D = window.OSData;
@@ -21,9 +21,9 @@
     assert.equal(docs.filter((d) => d.kind === "Glossary").length, D.glossary.length);
     assert.equal(docs.filter((d) => d.kind === "FAQ").length, D.faq.length);
     assert.ok(docs.filter((d) => d.kind === "Lesson").length >= 100, "lesson sections are indexed");
-    docs.forEach((d) => { if (!/^(modules|labs)\/[\w.-]+\.html(#[\w=,.-]+)?$|^pages\/(glossary|faq|cheatsheet)\.html(#[\w=,.-]+)?$/.test(d.url)) assert.ok(false, `odd url: ${d.url}`); });
-    assert.deepEqual(L.buildDocs({}), [], "missing sources are fine");
-    assert.deepEqual(L.buildDocs(), []);
+    docs.forEach((d) => { if (!/^(modules|labs)\/[\w.-]+\.html(#[\w=,.-]+)?$|^pages\/[a-z]+\.html(#[\w=,.-]+)?$/.test(d.url)) assert.ok(false, `odd url: ${d.url}`); });
+    assert.ok(L.buildDocs({}).every((d) => d.kind === "Study tool"), "missing sources are fine: only the built-in study tool pages remain");
+    assert.ok(L.buildDocs().every((d) => d.kind === "Study tool"));
   });
 
   QUnit.test("Queries: empty, case, several words, and nothing found", (assert) => {
@@ -37,6 +37,18 @@
     assert.ok(r.total > 0 && r.results.every((x) => ["semaphore", "deadlock", "banker"].every((w) => x.doc.lt.includes(w) || x.doc.lw.includes(w) || x.doc.lx.includes(w))), "every word must occur (AND)");
     assert.equal(L.searchDocs(docs, "zzzzqqqq").total, 0);
     assert.equal(L.searchDocs(docs, "deadlock zzzzqqqq").total, 0, "one missing word means no match");
+  });
+
+  QUnit.test("Paths, prompts, teaching notes and study tools can be found, and point at real places", (assert) => {
+    assert.equal(docs.filter((d) => d.kind === "Study path").length, D.paths.length);
+    assert.equal(docs.filter((d) => d.kind === "Prompt").length, D.modules.length, "one prompts document per module");
+    assert.equal(docs.filter((d) => d.kind === "Teaching note").length, D.modules.length);
+    assert.ok(docs.filter((d) => d.kind === "Study tool").length >= 9);
+    assert.ok(top("buffer overflow canary", 6, { kinds: ["Prompt", "Teaching note"] }).some((t) => /^Prompt|^Teaching note/.test(t)), "a prompt or note about canaries is found");
+    assert.ok(top("misconception", 5, { kinds: ["Teaching note"] }).length > 0 || top("convoy", 5, { kinds: ["Teaching note"] }).length > 0, "teaching notes are searchable");
+    assert.equal(L.searchDocs(docs, "printable handouts worksheet", { kinds: ["Study tool"] }).results[0].doc.url, "pages/handouts.html");
+    assert.equal(L.searchDocs(docs, "newcomer to advanced", { kinds: ["Study path"] }).results[0].doc.url, "pages/paths.html#newcomer");
+    assert.equal(L.searchDocs(docs, "teaching notes instructors", { kinds: ["Study tool"] }).results[0].doc.url, "pages/teaching.html");
   });
 
   QUnit.test("Ranking: titles beat body text, glossary terms beat prose", (assert) => {

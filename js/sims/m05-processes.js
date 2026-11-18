@@ -117,5 +117,11 @@
       node.append("text").attr("text-anchor", "middle").attr("dy", 4).style("font-size", "10px").style("fill", (d) => (d.depth === 0 ? "var(--accent-fg)" : "var(--on-c3)")).style("font-weight", 700).text((d) => d.data.id);
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "forktree", { n: { ctl: sl } }, () => { pl.reset(); draw(); });
+    }
   });
 })();

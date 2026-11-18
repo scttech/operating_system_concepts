@@ -8,6 +8,8 @@
     "build:glossary": "node tools/build-glossary-index.js",
     "build:search": "node tools/build-search-index.js",
     "build:meta": "node tools/build-meta.js",
+    "build": "npm run build:labs && npm run build:glossary && npm run build:search && npm run build:meta",
+    "check": "node tools/build-labs.js --check && node tools/build-glossary-index.js --check && node tools/build-search-index.js --check && node tools/build-meta.js --check",
     "serve": "python -m http.server 8000",
     "audit": "node tools/audit.js",
     "build:labs": "node tools/build-labs.js",

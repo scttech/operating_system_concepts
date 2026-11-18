@@ -44,6 +44,17 @@
       steps.replaceChildren(...r.steps.map((t) => h("li", { text: t })));
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "stackattack", {
+        length: { spec: S.int(0, 32), get: () => o.inputLen, set: (v) => { o.inputLen = v; } },
+        crafted: { spec: S.bool(), get: () => o.crafted, set: (v) => { o.crafted = v; } }, canary: { spec: S.bool(), get: () => o.canary, set: (v) => { o.canary = v; } },
+        nx: { spec: S.bool(), get: () => o.nx, set: (v) => { o.nx = v; } }, aslr: { spec: S.bool(), get: () => o.aslr, set: (v) => { o.aslr = v; } },
+        leak: { spec: S.bool(), get: () => o.leak, set: (v) => { o.leak = v; } }, target: { spec: S.oneOf(["shellcode", "reuse"]), get: () => o.target, set: (v) => { o.target = v; } }
+      }, () => set({ ...o }));
+    }
   });
 
   // ---------- passwords ----------
@@ -68,6 +79,12 @@
         h("p", { class: "small", text: "Red: under a month. Green: over a century. The slow, salted hash turns the same password into a task ten million times harder than a fast unsalted one." }));
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "pwcrack", { length: { ctl: lenSl, apply: (v) => { length = v; } }, chars: { ctl: setSel, apply: (v) => { charset = v; } }, chosen: { ctl: howSel, apply: (v) => { how = v; } } }, draw);
+    }
   });
 
   OSUI.register("hashdemo", (el) => {

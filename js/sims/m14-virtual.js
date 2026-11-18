@@ -145,5 +145,11 @@
       s.append("circle").attr("cx", x(pSl.get())).attr("cy", y(eat)).attr("r", 6).style("fill", "var(--c2)").style("stroke", "var(--bg)").attr("stroke-width", 2);
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "eat", { mem: { ctl: mSl }, fault: { ctl: fSl }, rate: { ctl: pSl } }, draw);
+    }
   });
 })();

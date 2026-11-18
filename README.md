@@ -19,7 +19,7 @@ and a private **progress record** kept only in the learner's own browser (export
 what you should be able to do, its key takeaways, and free further reading. Result tables can be copied or downloaded as CSV, and two
 schedulers or two page-replacement policies can be compared side by side on the same workload.
 
-**Shareable setups:** the scheduler, page-replacement, disk, Banker's, paging and memory-allocation simulations have a "Copy link to this setup" button.
+**Shareable setups:** 22 simulations (both scheduler and page-replacement comparisons, Banker's, paging, memory allocation, disk, Amdahl's law, RAID, SSD wear, journaling, the stack-overflow demo and more) have a "Copy link to this setup" button.
 The link holds the inputs (for example `#scheduling.algo=RR&scheduling.q=3`), so an assignment can say "run this exact case and explain it". Links are validated, never trusted.
 
 **Paths and teaching:** `pages/paths.html` offers ordered routes through the material for one goal (programs, memory, concurrency, security, performance, other designs).
@@ -30,6 +30,13 @@ and what to listen for in each prompt, for every module.
 modules you choose. Every page also has a print stylesheet, and the cheat sheet prints in two columns.
 
 No build step, no framework, no CDN: open the files or serve the folder. d3 v7.9.0 is vendored in `js/vendor/`.
+
+**Publishing your own copy**
+
+1. Copy the folder (the MIT license allows it) and push it to a GitHub repository; in its settings, set Pages to deploy from GitHub Actions.
+2. In `js/data/modules.js`, set `OSData.site.repo` to your repository and `OSData.site.url` to the address your copy will have, then run `npm run build`
+   (this rewrites the link-preview tags that contain the address).
+3. Run `npm test`. The workflow in `.github/workflows/pages.yml` tests and deploys on every push to `main`.
 
 **Where things are**
 

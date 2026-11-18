@@ -45,6 +45,16 @@
     }
     function paint(t) { if (clip) clip.attr("width", x(Math.min(t, cur.end)) + (t >= cur.end ? 4 : 0)); }
     update();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "mlfq", {
+        workload: { ctl: presetSel, apply: (v) => { preset = v; jobs = L.mlfqPresets[v].jobs; } },
+        slices: { spec: S.ints(1, 16, 3, 3), get: () => q.slice(), set: (v) => { v.forEach((x, i) => { q[i] = x; qs[i].set(x); }); } },
+        boost: { ctl: bs, apply: (v) => { boost = v; } }
+      }, update);
+    }
   });
 
   // ---------- real time ----------
@@ -146,5 +156,16 @@
         h("p", { class: "small", text: "Dealing tasks out evenly is free but can be unlucky when sizes differ. Stealing adapts, at the price of cold caches. With a high cost per move, stealing a tiny task is not worth it, but the simulation keeps it simple and steals anyway; real schedulers also weigh the cost." }));
     }
     update();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "multicore", {
+        workload: { ctl: wkSel, apply: (v) => { wk = v; if (v !== "random") works = WORK[v][1].slice(); } },
+        tasks: { spec: S.ints(1, 40, 1, 16), get: () => works.slice(), set: (v) => { works = v.slice(); } },
+        cores: { ctl: coreSl, apply: (v) => { cores = v; } }, start: { ctl: placeSel, apply: (v) => { place = v; } },
+        balance: { ctl: polSel, apply: (v) => { policy = v; } }, cost: { ctl: penSl, apply: (v) => { penalty = v; } }
+      }, update);
+    }
   });
 })();

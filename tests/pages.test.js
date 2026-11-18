@@ -1585,6 +1585,51 @@
     await withPage("modules/13-memory.html", ({ document: doc }) => { assert.deepEqual(metrics(sim(doc, "memalloc")).slice(0, 2), ["900 KB", "900 KB"], "unknown commands: the whole field is ignored"); }, "#memalloc.ops=a100,rm-rf");
   });
 
+  QUnit.test("The other shareable simulations: set up, copy the link, open it elsewhere, and the simulation shows the same thing", async (assert) => {
+    const inSim = (el, labelStart) => {
+      const l = [...el.querySelectorAll("label")].find((x) => x.textContent.trim().toLowerCase().startsWith(labelStart.toLowerCase()));
+      if (!l) throw new Error(`no field labelled “${labelStart}”`);
+      return l.querySelector("input,select");
+    };
+    const signature = (el) => { const c = el.cloneNode(true); c.querySelectorAll(".share-bar").forEach((n) => n.remove()); return text(c); };
+    const pickOption = (w, sel, i) => setValue(w, sel, sel.options[i].value, "change");
+    const check = (el, i, on, w) => { const b = el.querySelectorAll("input[type=checkbox]")[i]; b.checked = on; fire(w, b, "change"); };
+    const CASES = {
+      schedvs: ["modules/06-scheduling.html", (e, w) => { setValue(w, inSim(e, "Algorithm A"), "SJF", "change"); pickOption(w, inSim(e, "Workload"), 2); }],
+      pagevs: ["modules/14-virtual-memory.html", (e, w) => { setValue(w, inSim(e, "Policy A"), "OPT", "change"); setValue(w, inSim(e, "Frames"), 4); pickOption(w, inSim(e, "Reference string"), 1); }],
+      amdahl: ["modules/07-threads.html", (e, w) => { setValue(w, inSim(e, "Parallel fraction"), 0.5); setValue(w, inSim(e, "Your core count"), 16); }],
+      switchcost: ["modules/07-threads.html", (e, w) => { setValue(w, inSim(e, "Time quantum"), 30); setValue(w, inSim(e, "Runnable processes"), 20); }],
+      eat: ["modules/14-virtual-memory.html", (e, w) => { setValue(w, inSim(e, "Memory access"), 200); setValue(w, inSim(e, "Fault service time"), 4.5); setValue(w, inSim(e, "Fault rate"), -4.5); }],
+      alloc: ["modules/16-file-systems.html", (e, w) => { setValue(w, inSim(e, "File length"), 9); setValue(w, inSim(e, "Read file block"), 3); }],
+      inode: ["modules/16-file-systems.html", (e, w) => { setValue(w, inSim(e, "Block size"), "2048", "change"); setValue(w, inSim(e, "Pointer size"), "8", "change"); setValue(w, inSim(e, "Direct pointers"), 10); check(e, 2, true, w); }],
+      forktree: ["modules/05-processes.html", (e, w) => { setValue(w, inSim(e, "Number of fork"), 4); }],
+      mlfq: ["modules/08-advanced-scheduling.html", (e, w) => { pickOption(w, inSim(e, "Workload"), 1); setValue(w, inSim(e, "Time slice, level 2"), 6); setValue(w, inSim(e, "Priority boost"), 10); }],
+      multicore: ["modules/08-advanced-scheduling.html", (e, w) => { pickOption(w, inSim(e, "Workload"), 1); setValue(w, inSim(e, "Cores"), 6); pickOption(w, inSim(e, "Balancing"), 0); setValue(w, inSim(e, "Cost of moving"), 3); }],
+      raid: ["modules/17-storage-reliability.html", (e, w) => { setValue(w, inSim(e, "RAID level"), "6", "change"); setValue(w, inSim(e, "Disks"), 7); e.querySelectorAll('[role="group"] button')[1].click(); e.querySelectorAll('[role="group"] button')[4].click(); }],
+      raidrisk: ["modules/17-storage-reliability.html", (e, w) => { setValue(w, inSim(e, "Disk size"), 12); setValue(w, inSim(e, "Disks in the array"), 8); setValue(w, inSim(e, "Drive's error rate"), "1e15", "change"); }],
+      ssdwear: ["modules/17-storage-reliability.html", (e, w) => { setValue(w, inSim(e, "Hidden spare"), 20); setValue(w, inSim(e, "How full"), 50); pickOption(w, inSim(e, "Writes"), 1); check(e, 0, false, w); }],
+      journal: ["modules/17-storage-reliability.html", (e, w) => { pickOption(w, inSim(e, "File system"), 1); setValue(w, inSim(e, "Crash after"), 2); }],
+      stackattack: ["modules/03-security-depth.html", (e, w) => { setValue(w, inSim(e, "Input length"), 20); check(e, 0, true, w); check(e, 1, true, w); }],
+      pwcrack: ["modules/03-security-depth.html", (e, w) => { setValue(w, inSim(e, "Length"), 12); pickOption(w, inSim(e, "Characters used"), 1); pickOption(w, inSim(e, "How was it chosen"), 1); }]
+    };
+    for (const [name, [rel, mutate]] of Object.entries(CASES)) {
+      let fresh, changed, hash;
+      await withPage(rel, ({ window: w, document: doc }) => {
+        const e = sim(doc, name);
+        fresh = signature(e);
+        mutate(e, w);
+        changed = signature(e);
+        assert.notEqual(changed, fresh, `${name}: the changes show`);
+        hash = hashOf(linkFrom(doc, name));
+        assert.ok(hash.startsWith("#" + name + "."), `${name}: the link names the simulation: ${hash.slice(0, 100)}`);
+        assert.ok(!/[<>"' ]/.test(hash), `${name}: URL-safe`);
+      });
+      await withPage(rel, ({ document: doc }) => { assert.equal(signature(sim(doc, name)), changed, `${name}: the link restores what was set up`); }, hash);
+      await withPage(rel, ({ document: doc }) => { assert.equal(signature(sim(doc, name)), fresh, `${name}: a link for other keys, and junk values, change nothing`); }, `#${name}.nothing=1&${name}.${hash.slice(name.length + 2).split("=")[0]}=%3Cimg%3E&other.x=2`);
+    }
+  });
+
+
   QUnit.test("Links for one simulation leave the others on the page alone, and the existing #compare and #p links still work", async (assert) => {
     await withPage("modules/13-memory.html", ({ document: doc }) => {
       assert.equal(field(doc, "Page size").value, "256", "the paging simulation ignores memalloc's keys");

@@ -60,6 +60,12 @@
             .map(([n, k, ra, fr]) => h("tr", {}, h("td", { text: n }), h("td", { text: readsOf(k) }), h("td", { text: ra }), h("td", { text: fr }))))));
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "alloc", { len: { ctl: lenSl }, k: { ctl: kSl } }, draw);
+    }
   });
 
   OSUI.register("inode", (el) => {
@@ -98,5 +104,14 @@
       s.selectAll("rect").data(shown).join("rect").attr("x", m.l).attr("y", (d) => y(d.name)).attr("height", y.bandwidth()).attr("width", (d) => Math.max(1, x(Math.max(d.blocks * B, B)) - m.l)).style("fill", (d, i) => `var(--c${i + 1})`);
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "inode", {
+        block: { ctl: bs }, pointer: { ctl: ps }, direct: { ctl: dSl },
+        levels: { spec: S.ints(0, 1, 3, 3), get: () => boxes.map((b) => (b.cb.checked ? 1 : 0)), set: (v) => { v.forEach((x, i) => { boxes[i].cb.checked = x === 1; }); } }
+      }, draw);
+    }
   });
 })();

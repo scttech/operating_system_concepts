@@ -5,7 +5,7 @@
   const L = OSLib, root = document.body.dataset.root || "";
   const docs = L.buildDocs(OSData);
   const input = document.getElementById("q"), kindSel = document.getElementById("kind"), status = document.getElementById("status"), list = document.getElementById("results");
-  const GROUPS = [["", "Everything"], ["Lesson", "Lessons"], ["Module", "Module overviews"], ["Glossary", "Glossary"], ["FAQ", "FAQ"], ["Lab", "Labs"], ["Operating system", "Operating systems"], ["Cheat sheet", "Cheat sheet"]];
+  const GROUPS = [["", "Everything"], ["Lesson", "Lessons"], ["Module", "Module overviews"], ["Glossary", "Glossary"], ["FAQ", "FAQ"], ["Lab", "Labs"], ["Operating system", "Operating systems"], ["Cheat sheet", "Cheat sheet"], ["Study path", "Study paths"], ["Prompt", "Discussion prompts"], ["Teaching note", "Teaching notes"], ["Study tool", "Study tools"]];
   GROUPS.forEach(([v, label]) => kindSel.append(h("option", { value: v, text: label })));
 
   /** Text with <mark> around the matches, built from text nodes only (nothing from a page or a query is ever parsed as HTML). */

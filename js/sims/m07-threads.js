@@ -84,6 +84,12 @@
       s.append("circle").attr("cx", x(N)).attr("cy", y(Math.min(s1, y.domain()[1]))).attr("r", 6).style("fill", "var(--c2)").style("stroke", "var(--bg)").attr("stroke-width", 2);
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "amdahl", { p: { ctl: pSl }, max: { ctl: nSl }, cores: { ctl: cSl } }, draw);
+    }
   });
 
   OSUI.register("switchcost", (el) => {
@@ -120,5 +126,11 @@
       s.append("text").attr("x", m.l + 8).attr("y", m.t + 28).style("fill", "var(--c6t)").style("font-size", "12px").style("font-weight", 600).text("■ Worst-case wait, ms (right axis)");
     }
     draw();
+
+    // Shareable link (see js/lib/share.js).
+    if (L.share) {
+      const S = L.share;
+      OSUI.shareControls(p, "switchcost", { q: { ctl: qSl }, s: { ctl: sSl }, n: { ctl: nSl } }, draw);
+    }
   });
 })();
