@@ -14,4 +14,11 @@
           h("div", {}, m.tags.map((t) => h("span", { class: "tag", text: t })))));
       }))));
   });
+  // Show private progress on the cards, when there is any (it lives only in this browser).
+  if (window.OSProgress) {
+    window.OSProgress.summary().rows.forEach((r) => {
+      const card = [...host.querySelectorAll(".card")].find((c) => c.querySelector(".num").textContent === `Module ${r.n}`);
+      if (card && (r.visited || r.answered)) card.querySelector("p").after(h("p", { class: "small progress-chip", text: `${r.visited ? "Visited" : ""}${r.visited && r.answered ? " · " : ""}${r.answered ? `${r.mastered} of ${r.total} questions mastered` : ""}` }));
+    });
+  }
 })();

@@ -34,7 +34,7 @@
       explain.replaceChildren(
         h("strong", { text: chosen === null ? "Answer: " : (chosen === q.answer ? "Correct. " : "Not quite. ") }),
         h("span", { text: (chosen === null || chosen !== q.answer ? `The answer is “${q.choices[q.answer]}”. ` : "") + q.explain }));
-      if (first && onAnswer) onAnswer(chosen === q.answer);
+      if (first && onAnswer) onAnswer(chosen === q.answer, chosen === null);
       revealBtn.hidden = true;
     }
 
@@ -60,7 +60,7 @@
     const update = () => { score.textContent = done ? `Score: ${right} / ${done} answered (${questions.length} questions)` : `${questions.length} questions`; };
     update();
     container.append(score);
-    questions.forEach((q, i) => container.append(renderQuestion(q, i, opts, (ok) => { done++; if (ok) right++; update(); })));
+    questions.forEach((q, i) => container.append(renderQuestion(q, i, opts, (ok, revealed) => { done++; if (ok) right++; update(); if (!revealed && window.OSProgress) window.OSProgress.answer(q.mod, q.q, ok); })));
     if (!questions.length) container.append(h("p", { text: "No questions match this filter." }));
   }
 

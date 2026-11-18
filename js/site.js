@@ -14,16 +14,17 @@
   } catch (e) { /* storage unavailable */ }
 
   const links = [
-    ["index.html", "Home", "home"], ["labs.html", "Labs", "labs"], ["problems.html", "Problems", "problems"], ["practice.html", "Quiz", "practice"],
-    ["glossary.html", "Glossary", "glossary"], ["faq.html", "FAQ", "faq"],
-    ["cheatsheet.html", "Cheat sheet", "cheatsheet"], ["search.html", "Search", "search"]
+    ["index.html", "Home", ["home"]], ["labs.html", "Labs", ["labs"]],
+    ["study.html", "Study tools", ["study", "practice", "problems", "flashcards", "scenarios", "exam", "progress"]],
+    ["glossary.html", "Glossary", ["glossary"]], ["faq.html", "FAQ", ["faq"]],
+    ["cheatsheet.html", "Cheat sheet", ["cheatsheet"]], ["search.html", "Search", ["search"]]
   ];
   const nav = document.createElement("nav");
   nav.setAttribute("aria-label", "Main");
-  links.forEach(([href, text, key]) => {
+  links.forEach(([href, text, keys]) => {
     const a = document.createElement("a");
     a.href = root + href; a.textContent = text;
-    if (page === key) a.setAttribute("aria-current", "page");
+    if (keys.includes(page)) a.setAttribute("aria-current", "page");
     nav.append(a);
   });
   const modSel = document.createElement("select");
@@ -98,6 +99,24 @@
       eyebrow.append(" · ", a, ` (${where.index} of ${where.of})`);
     }
     main.append(pager);
+  }
+
+  // Study aids from js/data/study.js: objectives under the introduction, key takeaways before the quiz, further reading after it.
+  const study = window.OSData && window.OSData.study && modNum ? window.OSData.study[modNum] : null;
+  if (study && main) {
+    const el = (tag, attrs, ...kids) => { const e = document.createElement(tag); Object.entries(attrs || {}).forEach(([k, v]) => e.setAttribute(k, v)); e.append(...kids); return e; };
+    const list = (items) => el("ul", {}, ...items.map((t) => el("li", {}, t)));
+    const lead = main.querySelector(".lead"), quiz = main.querySelector("[data-quiz]");
+    if (lead) lead.after(el("section", { class: "study objectives", "aria-labelledby": "objectives" }, el("h2", { id: "objectives" }, "What you should be able to do"), list(study.objectives)));
+    if (quiz) {
+      const quizHeading = quiz.previousElementSibling && quiz.previousElementSibling.tagName === "H2" ? quiz.previousElementSibling : quiz;
+      quizHeading.before(el("section", { class: "study takeaways", "aria-labelledby": "key-takeaways" }, el("h2", { id: "key-takeaways" }, "Key takeaways"), list(study.takeaways)));
+      const links = el("ul", {}, ...study.reading.map(([title, url, note]) => {
+        const a = el("a", { href: url, rel: "noopener" }, title);
+        return el("li", {}, a, el("span", { class: "small" }, ` (${note}; opens an outside site)`));
+      }));
+      quiz.after(el("section", { class: "study reading", "aria-labelledby": "further-reading" }, el("h2", { id: "further-reading" }, "Further reading"), el("p", { class: "small" }, "Free, outside this site. Use them to go deeper or to read the same idea explained differently."), links));
+    }
   }
 
   // Wide content must scroll inside its own box, never sideways across the whole page (phones), and be keyboard reachable.

@@ -105,6 +105,11 @@ region.close()</code></pre>
   <div data-sim="pagerepl"></div>
   <div class="callout"><p><b>Experiments:</b> (1) Use the <em>Belady</em> preset with FIFO and watch the faults-vs-frames chart rise from 3 to 4 frames. (2) Switch to LRU and OPT: they never get worse with more frames. (3) Use the <em>Sequential scan</em> preset with LRU and 4 frames. Why does LRU do terribly on a loop slightly larger than memory?</p></div>
 
+  <h2 id="compare">Compare two policies</h2>
+  <p>The simulator above runs one policy at a time. Here two policies see the <em>same</em> references with the <em>same</em> number of frames, so you can see on which references they differ.</p>
+  <div data-sim="pagevs"></div>
+  <div class="callout"><p><b>Try it:</b> compare FIFO with LRU on the classic string (15 faults against 12). Then choose “A loop slightly larger than memory” with 3 frames: both policies fault on <em>every</em> reference, while OPT would not. Finally compare FIFO with itself on Belady's string at 3 and then 4 frames.</p></div>
+
   <h2>Effective access time</h2>
   <p>If memory takes <i>t<sub>m</sub></i> and a page fault costs <i>t<sub>f</sub></i> (milliseconds for a disk, so about 100,000× slower), then <code>EAT = (1 − p) × t<sub>m</sub> + p × t<sub>f</sub></code>. A fault rate of 1 in 1000 on a 100 ns memory with an 8 ms fault already slows the system 81×.</p>
   <div data-sim="eat"></div>
@@ -142,13 +147,18 @@ region.close()</code></pre>
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
 <script src="../js/data/glossary.js"></script>
+<script src="../js/data/study.js"></script>
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
 <script src="../js/vendor/prism.min.js"></script>
 <script src="../js/code.js"></script>
+<script src="../js/lib/progress.js"></script>
+<script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/paging.js"></script>
+<script src="../js/lib/compare.js"></script>
 <script src="../js/sims/m09-virtual.js"></script>
+<script src="../js/sims/compare.js"></script>
 </body>
 </html>

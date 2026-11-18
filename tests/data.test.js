@@ -3,7 +3,7 @@
   "use strict";
   if (typeof require !== "undefined") {
     globalThis.window = globalThis;
-    ["modules", "glossary", "quizzes", "faq", "oslist"].forEach((f) => require(`../js/data/${f}.js`));
+    ["modules", "glossary", "quizzes", "faq", "oslist", "study", "scenarios"].forEach((f) => require(`../js/data/${f}.js`));
   }
   const D = window.OSData;
 
@@ -28,6 +28,42 @@
     assert.deepEqual([D.partOf(15).index, D.partOf(15).of, D.partOf(15).number], [2, 4, 3]);
     assert.equal(D.partOf(99), null);
     assert.ok(D.readingOrder.indexOf(1) === 0, "the course starts with Module 1");
+  });
+
+  QUnit.test("Study aids: every module has objectives, takeaways and working-looking free reading links", (assert) => {
+    assert.deepEqual(Object.keys(D.study).map(Number).sort((a, b) => a - b), D.modules.map((m) => m.n), "one entry per module, no extras");
+    D.modules.forEach((m) => {
+      const st = D.study[m.n];
+      assert.ok(st.objectives.length >= 3 && st.objectives.length <= 6, `module ${m.n} has 3 to 6 objectives`);
+      assert.ok(st.takeaways.length >= 3 && st.takeaways.length <= 5, `module ${m.n} has 3 to 5 takeaways`);
+      assert.ok(st.reading.length >= 2, `module ${m.n} has further reading`);
+      [...st.objectives, ...st.takeaways].forEach((t) => assert.ok(/^[A-Za-z]/.test(t) && /[.]$/.test(t) && t.length > 30 && t.length < 260, `module ${m.n}: a full sentence: ${t.slice(0, 40)}`));
+      st.objectives.forEach((t) => assert.ok(/^(Name|Explain|Tell|Trace|State|Read|Match|List|Draw|Describe|Compare|Simulate|Define|Say|Show|Use|Find|Run|Break|Translate|Walk|Compute|Test|Apply|Place|Order|Predict|Choose|Build) /.test(t), `module ${m.n}: starts with a skill verb: ${t.slice(0, 30)}`));
+      const urls = st.reading.map((r) => r[1]);
+      assert.equal(new Set(urls).size, urls.length, `module ${m.n}: no duplicate links`);
+      st.reading.forEach(([title, url, note]) => assert.ok(title && note && /^https:\/\/[a-z0-9.~-]+\/[^\s"'<>]*$/i.test(url) && !/[()]/.test(url), `module ${m.n}: ${url}`));
+    });
+    const everyUrl = Object.values(D.study).flatMap((st) => st.reading.map((r) => r[1]));
+    assert.ok(everyUrl.filter((u) => u.includes("OSTEP")).length >= 20, "the free OSTEP textbook is the backbone");
+  });
+
+  QUnit.test("Scenario questions are complete: four options, one best fit, a note for each", (assert) => {
+    const sc = D.scenarios;
+    assert.ok(sc.length >= 12);
+    assert.equal(new Set(sc.map((x) => x.id)).size, sc.length, "ids unique");
+    sc.forEach((x) => {
+      assert.ok(D.modules.some((m) => m.n === x.mod), `${x.id}: real module`);
+      assert.equal(x.options.length, 4, `${x.id}: four options`);
+      assert.equal(x.notes.length, 4, `${x.id}: a note for every option`);
+      assert.ok(Number.isInteger(x.answer) && x.answer >= 0 && x.answer < 4, `${x.id}: valid answer`);
+      assert.ok(x.situation.length > 60 && /[?]$/.test(x.question) && x.topic, `${x.id}: situation, question and topic`);
+      assert.equal(new Set(x.options).size, 4, `${x.id}: options differ`);
+      x.notes.forEach((n) => assert.ok(n.length > 25 && /[.]$/.test(n), `${x.id}: note is a sentence`));
+      assert.ok(x.notes[x.answer].startsWith("Right."), `${x.id}: the best-fit note says so`);
+    });
+    const pos = [0, 1, 2, 3].map((i) => sc.filter((x) => x.answer === i).length);
+    assert.ok(pos.every((c) => c >= 2), "the best answer is not always in the same position: " + pos.join(","));
+    assert.ok(new Set(sc.map((x) => x.mod)).size >= 8, "scenarios span many modules");
   });
 
   QUnit.test("Every quiz question is well formed", (assert) => {

@@ -56,15 +56,17 @@
         ["Context switches", r.contextSwitches], ["CPU utilization", `${(100 * (r.makespan - r.idle) / r.makespan).toFixed(0)}%`]]
         .map(([k, v]) => h("div", { class: "metric" }, h("b", { text: v }), h("span", { text: k }))));
       last = r; pl.reset(); render();
-      statsHost.replaceChildren(h("table", { class: "compact" },
+      const statsTable = h("table", { class: "compact" },
         h("thead", {}, h("tr", {}, ["Process", "Arrival", "Burst", "Completion", "Turnaround", "Waiting", "Response"].map((t) => h("th", { text: t })))),
-        h("tbody", {}, r.stats.map((s) => h("tr", {}, [s.pid, s.arrival, s.burst, s.completion, s.turnaround, s.waiting, s.response].map((v) => h("td", { text: v })))))));
+        h("tbody", {}, r.stats.map((s) => h("tr", {}, [s.pid, s.arrival, s.burst, s.completion, s.turnaround, s.waiting, s.response].map((v) => h("td", { text: v }))))));
+      statsHost.replaceChildren(statsTable, OSUI.exportBar(statsTable, "scheduling results"));
       const all = Object.keys(L.schedulingAlgos).map((a) => ({ a, r: L.simulateScheduling(procs, a, { quantum }) }));
       const best = Math.min(...all.map((x) => x.r.avg.waiting));
-      compareHost.replaceChildren(h("table", { class: "compact" },
+      const cmpTable = h("table", { class: "compact" },
         h("thead", {}, h("tr", {}, ["Algorithm", "Avg waiting", "Avg turnaround", "Avg response", "Context switches"].map((t) => h("th", { text: t })))),
         h("tbody", {}, all.map((x) => h("tr", { style: x.a === algo ? "font-weight:700" : "" },
-          h("td", { text: L.schedulingAlgos[x.a].label + (x.r.avg.waiting === best ? "  ★" : "") }), h("td", { text: x.r.avg.waiting.toFixed(2) }), h("td", { text: x.r.avg.turnaround.toFixed(2) }), h("td", { text: x.r.avg.response.toFixed(2) }), h("td", { text: x.r.contextSwitches }))))),
+          h("td", { text: L.schedulingAlgos[x.a].label + (x.r.avg.waiting === best ? "  ★" : "") }), h("td", { text: x.r.avg.waiting.toFixed(2) }), h("td", { text: x.r.avg.turnaround.toFixed(2) }), h("td", { text: x.r.avg.response.toFixed(2) }), h("td", { text: x.r.contextSwitches })))));
+      compareHost.replaceChildren(cmpTable, OSUI.exportBar(cmpTable, "scheduling comparison"),
         h("p", { class: "small", text: "★ = lowest average waiting time. Round Robin uses the quantum above; priority uses the Priority column." }));
     }
 

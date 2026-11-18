@@ -38,8 +38,9 @@
       });
       r.boosts.forEach((b) => g.append("line").attr("x1", x(b)).attr("x2", x(b)).attr("y1", m.t - 4).attr("y2", H - 4).style("stroke", "var(--ok)").attr("stroke-dasharray", "4 3").attr("stroke-width", 2).append("title").text(`priority boost at ${b}`));
       note.textContent = `Colour = queue level (${q.map((v, i) => `level ${i + 1}: ${v}-tick slice`).join(", ")}). Dashed green lines are priority boosts.${q.some((a, k) => k && a < q[k - 1]) ? " Note: lower queues normally get longer slices than higher ones." : ""}`;
-      tbl.replaceChildren(h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Job", "Arrives", "CPU needed", "First ran", "Finished", "Response", "Turnaround", "Waited", "Longest stretch"].map((t) => h("th", { text: t })))),
-        h("tbody", {}, r.jobs.map((j) => h("tr", {}, [j.id, j.arrive, j.total, j.firstRun, j.finish, j.response, j.turnaround, j.wait, j.longestWait].map((v) => h("td", { text: v })))))));
+      const jobTable = h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Job", "Arrives", "CPU needed", "First ran", "Finished", "Response", "Turnaround", "Waited", "Longest stretch"].map((t) => h("th", { text: t })))),
+        h("tbody", {}, r.jobs.map((j) => h("tr", {}, [j.id, j.arrive, j.total, j.firstRun, j.finish, j.response, j.turnaround, j.wait, j.longestWait].map((v) => h("td", { text: v }))))));
+      tbl.replaceChildren(jobTable, OSUI.exportBar(jobTable, "feedback queue results"));
       pl.reset(); paint(pl.index);
     }
     function paint(t) { if (clip) clip.attr("width", x(Math.min(t, cur.end)) + (t >= cur.end ? 4 : 0)); }
@@ -139,8 +140,9 @@
         }
       });
       const all = [["static", "one"], ["static", "spread"], ["steal", "one"], ["steal", "spread"]].map(([pol, pl2]) => [pol, pl2, L.mcSimulate(tasks, cores, { policy: pol, place: pl2, penalty })]);
-      cmp.replaceChildren(h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Balancing", "Start", "Ticks", "Utilization", "Tasks moved"].map((t) => h("th", { text: t })))),
-        h("tbody", {}, all.map(([pol, pl2, a]) => h("tr", { style: pol === policy && pl2 === place ? "font-weight:700" : "" }, h("td", { text: pol === "static" ? "none" : "work stealing" }), h("td", { text: pl2 === "one" ? "all on core 0" : "dealt evenly" }), h("td", { text: a.makespan }), h("td", { text: `${Math.round(a.utilization * 100)}%` }), h("td", { text: a.migrations }))))),
+      const cmpTable = h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Balancing", "Start", "Ticks", "Utilization", "Tasks moved"].map((t) => h("th", { text: t })))),
+        h("tbody", {}, all.map(([pol, pl2, a]) => h("tr", { style: pol === policy && pl2 === place ? "font-weight:700" : "" }, h("td", { text: pol === "static" ? "none" : "work stealing" }), h("td", { text: pl2 === "one" ? "all on core 0" : "dealt evenly" }), h("td", { text: a.makespan }), h("td", { text: `${Math.round(a.utilization * 100)}%` }), h("td", { text: a.migrations })))));
+      cmp.replaceChildren(cmpTable, OSUI.exportBar(cmpTable, "multicore comparison"),
         h("p", { class: "small", text: "Dealing tasks out evenly is free but can be unlucky when sizes differ. Stealing adapts, at the price of cold caches. With a high cost per move, stealing a tiny task is not worth it, but the simulation keeps it simple and steals anyway; real schedulers also weigh the cost." }));
     }
     update();

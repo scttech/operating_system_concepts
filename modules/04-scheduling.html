@@ -44,6 +44,11 @@
   <p>Load a preset or edit the process table. For example, load <em>Convoy effect</em> and compare FCFS to SJF and Round Robin, then try different quanta.</p>
   <div data-sim="scheduling"></div>
 
+  <h2 id="compare">Compare two algorithms</h2>
+  <p>The simulator above shows one algorithm at a time. Here two algorithms run the <em>same</em> processes, one above the other, so you can see exactly what each choice costs and buys.</p>
+  <div data-sim="schedvs"></div>
+  <div class="callout"><p><b>Try it:</b> compare FCFS with Round Robin on “One long job and several short ones”. Round Robin cuts the response time sharply and also the average waiting time, at the price of many more context switches. Then compare SJF with Round Robin on the textbook workload: neither wins on every measure.</p></div>
+
   <h2>Things to try</h2>
   <ol>
     <li>On the <em>Textbook</em> preset, switch FCFS → SJF. Average waiting time drops from 6.67 to 4.00. SJF is provably optimal for average waiting time when bursts are known.</li>
@@ -82,11 +87,17 @@
 <script src="../js/vendor/d3.min.js"></script>
 <script src="../js/data/modules.js"></script>
 <script src="../js/data/glossary.js"></script>
+<script src="../js/data/study.js"></script>
 <script src="../js/data/quizzes.js"></script>
 <script src="../js/ui.js"></script>
 <script src="../js/site.js"></script>
+<script src="../js/lib/progress.js"></script>
+<script src="../js/progress.js"></script>
 <script src="../js/quiz.js"></script>
 <script src="../js/lib/scheduling.js"></script>
+<script src="../js/lib/csv.js"></script>
+<script src="../js/lib/compare.js"></script>
 <script src="../js/sims/m04-scheduling.js"></script>
+<script src="../js/sims/compare.js"></script>
 </body>
 </html>

@@ -61,8 +61,9 @@
       ov = s.append("g").attr("class", "overlay");
       const all = Object.keys(L.diskAlgos).map((a) => ({ a, t: L.scheduleDisk(reqs, head, a, { max, dir }).total }));
       const best = Math.min(...all.map((x) => x.t));
-      cmp.replaceChildren(h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Algorithm", "Cylinders moved", "Seek time"].map((t) => h("th", { text: t })))),
-        h("tbody", {}, all.map((x) => h("tr", { style: x.a === algo ? "font-weight:700" : "" }, h("td", { text: L.diskAlgos[x.a] + (x.t === best ? "  ★" : "") }), h("td", { text: x.t }), h("td", { text: `${(x.t * seekMs).toFixed(1)} ms` }))))),
+      const cmpTable = h("table", { class: "compact" }, h("thead", {}, h("tr", {}, ["Algorithm", "Cylinders moved", "Seek time"].map((t) => h("th", { text: t })))),
+        h("tbody", {}, all.map((x) => h("tr", { style: x.a === algo ? "font-weight:700" : "" }, h("td", { text: L.diskAlgos[x.a] + (x.t === best ? "  ★" : "") }), h("td", { text: x.t }), h("td", { text: `${(x.t * seekMs).toFixed(1)} ms` })))));
+      cmp.replaceChildren(cmpTable, OSUI.exportBar(cmpTable, "disk scheduling comparison"),
         h("p", { class: "small", text: "★ = least head movement. Remember: the lowest total is not the only goal. SSTF can starve distant requests; C-SCAN gives more uniform waiting times." }));
       pl.reset(); prevFrame = pl.index; drawOverlay(pl.index, false);
     }

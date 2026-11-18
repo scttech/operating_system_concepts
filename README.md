@@ -13,6 +13,12 @@ live d3.js simulations whose parameters students can change, and self-check ques
 There is also a searchable glossary, an FAQ, a cheat sheet, a mixed practice quiz, **randomized calculation problems
 with worked solutions**, and **hands-on Python labs**.
 
+**Study tools** (`study.html`): quiz questions with instant feedback, glossary **flashcards** that return more often until you know them,
+**scenario questions** (which scheduler, lock, isolation or OS fits this situation, and why), a **timed exam mode** with a review of every miss,
+and a private **progress record** kept only in the learner's own browser (exportable, importable, clearable). Each module also states
+what you should be able to do, its key takeaways, and free further reading. Result tables can be copied or downloaded as CSV, and two
+schedulers or two page-replacement policies can be compared side by side on the same workload.
+
 No build step, no framework, no CDN: open the files or serve the folder. d3 v7.9.0 is vendored in `js/vendor/`.
 
 ## Run locally
@@ -134,6 +140,10 @@ What is covered:
   gives a hover definition that links to the glossary, and marks the spot the glossary links *back* to ("First discussed in
   Module 7 (…)"). After adding or moving terms in lessons, run `npm run build:glossary` to regenerate
   `js/data/glossary-index.js`. The tests fail if that file is out of date, and every term must be discussed in some lesson.
+* **Study aids:** each module's learning objectives, takeaways and further-reading links are in `js/data/study.js` (one entry per module;
+  a test checks the shape and that every link is `https`). Scenario questions are in `js/data/scenarios.js`. Flashcards come from the glossary.
+* **Progress and privacy:** progress lives in `localStorage` under one key and never leaves the browser. Its logic is `js/lib/progress.js`, and
+  imports are validated strictly because exported text is untrusted.
 * **Search:** the site-wide search (`search.html`) reads the glossary, FAQ, labs, module list and OS profiles directly, and the text of
   every lesson section, lab guide and cheat-sheet section from `js/data/search-index.js`. After editing any page text, run
   `npm run build:search`; the tests fail if it is out of date. Headings get link targets automatically, so you do not need to give them ids.

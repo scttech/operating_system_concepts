@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flashcards — OS Concepts</title>
+<meta name="description" content="Review operating-system terms with flashcards. Cards you are still learning come up more often.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="flashcards">
+<main class="narrow">
+  <h1>Flashcards</h1>
+  <p class="lead">Test yourself on the glossary. Say the answer to yourself first, then reveal it. Mark the card <b>known</b> or <b>still learning</b>: cards you are still learning come back more often.</p>
+  <div class="controls">
+    <label><span>Topic</span><select id="cat"></select></label>
+    <label><span>Show first</span><select id="dir"><option value="term">The term (recall the definition)</option><option value="def">The definition (recall the term)</option></select></label>
+    <label><span>Cards you already know</span><select id="known"><option value="mix">Mix them in</option><option value="hide">Hide them</option></select></label>
+  </div>
+  <p id="stats" class="small" aria-live="polite"></p>
+  <div id="card" class="flashcard" aria-live="polite"></div>
+  <div class="row">
+    <button class="btn" id="flip" type="button">Show answer</button>
+    <button class="btn" id="knew" type="button" hidden>I knew it</button>
+    <button class="btn secondary" id="learning" type="button" hidden>Still learning</button>
+  </div>
+  <p class="small">Keyboard: <kbd>Space</kbd> shows the answer, then <kbd>K</kbd> means known and <kbd>L</kbd> means still learning. Your boxes are kept only in this browser; see <a href="progress.html">My progress</a>.</p>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/data/glossary-index.js"></script>
+<script src="js/data/quizzes.js"></script>
+<script src="js/lib/progress.js"></script>
+<script src="js/lib/cards.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/pages/flashcards.js"></script>
+</body>
+</html>

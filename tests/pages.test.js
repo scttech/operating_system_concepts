@@ -7,7 +7,7 @@
   const { JSDOM, VirtualConsole } = require("jsdom");
   const ROOT = path.resolve(__dirname, "..");
 
-  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html"];
+  const rootPages = ["index.html", "labs.html", "problems.html", "glossary.html", "faq.html", "practice.html", "cheatsheet.html", "search.html", "study.html", "progress.html", "flashcards.html", "exam.html", "scenarios.html"];
   const moduleFiles = fs.readdirSync(path.join(ROOT, "modules")).filter((f) => f.endsWith(".html")).sort();
   const labFiles = fs.readdirSync(path.join(ROOT, "labs")).filter((f) => f.endsWith(".html")).sort();
   const allPages = [...rootPages, ...moduleFiles.map((f) => "modules/" + f), ...labFiles.map((f) => "labs/" + f)];
@@ -893,14 +893,14 @@
     });
   });
 
-  QUnit.test("Navigation includes Labs and Problems on every page", async (assert) => {
+  QUnit.test("Navigation includes Labs and Study tools on every page", async (assert) => {
     await withPage("index.html", ({ document: doc }) => {
       const links = [...doc.querySelectorAll("header.site nav a")].map((a) => [a.textContent, a.getAttribute("href")]);
-      assert.deepEqual(links.filter(([t]) => ["Labs", "Problems"].includes(t)), [["Labs", "labs.html"], ["Problems", "problems.html"]]);
+      assert.deepEqual(links.filter(([t]) => ["Labs", "Study tools"].includes(t)), [["Labs", "labs.html"], ["Study tools", "study.html"]]);
       assert.ok([...doc.querySelectorAll("main a.btn")].some((a) => a.getAttribute("href") === "problems.html"), "home page promotes the problems");
     });
     await withPage("labs/02-threads.html", ({ document: doc }) => {
-      assert.deepEqual([...doc.querySelectorAll("header.site nav a")].filter((a) => ["Labs", "Problems"].includes(a.textContent)).map((a) => a.getAttribute("href")), ["../labs.html", "../problems.html"]);
+      assert.deepEqual([...doc.querySelectorAll("header.site nav a")].filter((a) => ["Labs", "Study tools"].includes(a.textContent)).map((a) => a.getAttribute("href")), ["../labs.html", "../study.html"]);
     });
   });
 
@@ -1178,6 +1178,307 @@
         assert.ok(b.querySelector('.lang-note[data-lang="c"]') && b.querySelector('.lang-note[data-lang="python"]'));
         assert.ok(b.querySelectorAll(".marker").length >= 8, "numbered comments are badges in both listings");
       });
+    });
+  });
+
+  QUnit.module("pages: side-by-side comparison");
+
+  QUnit.test("Scheduler comparison: two Gantt strips, a verdict per measure, and a plain-language summary", async (assert) => {
+    await withPage("modules/04-scheduling.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "schedvs"), L = w.OSLib;
+      assert.equal(s.querySelectorAll(".gantt-strip").length, 2);
+      assert.equal(s.querySelectorAll(".gantt-strip")[0].getAttribute("aria-label").startsWith("A: "), true);
+      const procs = [["P1", 0, 6, 2], ["P2", 0, 8, 1], ["P3", 0, 3, 3]].map(([pid, arrival, burst, priority]) => ({ pid, arrival, burst, priority }));
+      const c = L.compareSchedules(procs, "FCFS", "RR", { quantum: 3 });
+      const rows = () => [...s.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((td) => td.textContent));
+      assert.equal(rows().length, 5);
+      assert.equal(rows()[0][1], (Math.round(c.rows[0].a * 10) / 10).toFixed(1), "the table shows the library's numbers");
+      assert.equal(rows()[0][3], c.rows[0].better === "tie" ? "equal" : c.rows[0].better.toUpperCase());
+      assert.ok([...s.querySelectorAll("ul li")].some((li) => /lower average|equal|same algorithm/.test(li.textContent)), "a summary sentence");
+      setValue(w, field(s, "Algorithm B"), "FCFS", "change");
+      assert.ok(/same algorithm/.test(s.querySelector("ul").textContent), "the same algorithm on both sides");
+      assert.true(rows().every((r) => r[3] === "equal"));
+      setValue(w, field(s, "Workload"), "One long job and several short ones", "change");
+      setValue(w, field(s, "Algorithm B"), "SJF", "change");
+      assert.ok(/Shortest Job First|SJF/.test(s.querySelector("ul").textContent));
+      assert.equal(s.querySelector("label input[type=range]").closest("label").style.display, "none", "the quantum slider only shows when Round Robin is chosen");
+    });
+  });
+
+  QUnit.test("Page-replacement comparison: the classic string, where the two policies differ, and the same policy twice", async (assert) => {
+    await withPage("modules/09-virtual-memory.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "pagevs"), caps = () => [...s.querySelectorAll("caption")].map((c) => c.textContent);
+      assert.deepEqual(caps(), ["A: FIFO: 15 faults, 5 hits", "B: LRU: 12 faults, 8 hits"]);
+      assert.ok([...s.querySelectorAll("ul li")][0].textContent.includes("LRU causes 3 fewer page faults (12 against 15)"));
+      const refs = w.OSData ? null : null;
+      const differs = s.querySelectorAll("table")[0].querySelectorAll("th.differs").length, differsB = s.querySelectorAll("table")[1].querySelectorAll("th.differs").length;
+      assert.equal(differs - differsB, 3, "FIFO faults alone at three more references than LRU does");
+      assert.equal(s.querySelectorAll("table")[0].querySelectorAll("tbody tr").length, 4, "three frames plus the result row");
+      setValue(w, field(s, "Policy B"), "FIFO", "change");
+      assert.ok(/same policy/.test(s.querySelector("ul").textContent));
+      assert.equal(s.querySelectorAll("th.differs").length, 0);
+      setValue(w, field(s, "Reference string"), "A loop slightly larger than memory", "change");
+      setValue(w, field(s, "Frames"), 3);
+      setValue(w, field(s, "Policy A"), "LRU", "change");
+      setValue(w, field(s, "Policy B"), "OPT", "change");
+      assert.ok(/OPT|Optimal/.test(caps()[1]) && Number(/: ([0-9]+) faults/.exec(caps()[0])[1]) > Number(/: ([0-9]+) faults/.exec(caps()[1])[1]), "OPT beats LRU on a loop larger than memory: " + caps().join(" | "));
+    });
+  });
+
+  QUnit.module("pages: CSV export");
+
+  QUnit.test("Results tables can be copied or downloaded as CSV, with a manual fallback", async (assert) => {
+    await withPage("modules/04-scheduling.html", ({ window: w, document: doc }) => {
+      const s = sim(doc, "scheduling"), bars = s.querySelectorAll(".export-bar");
+      assert.equal(bars.length, 2, "the per-process table and the comparison table each have export buttons");
+      const bar = bars[0], table = bar.previousElementSibling;
+      assert.equal(table.tagName, "TABLE");
+      bar.querySelectorAll("button")[0].click();   // jsdom has no clipboard, so the text box appears
+      const box = bar.querySelector("textarea");
+      assert.false(box.hidden, "fallback text box shown");
+      const lines = box.value.split(String.fromCharCode(10)).filter(Boolean);
+      assert.equal(lines[0], "Process,Arrival,Burst,Completion,Turnaround,Waiting,Response");
+      assert.equal(lines.length, 1 + table.querySelectorAll("tbody tr").length);
+      assert.ok(/^P1,0,/.test(lines[1]), lines[1]);
+      assert.equal(box.value, w.OSLib.toCSV([...table.querySelectorAll("tr")].map((tr) => [...tr.children].map((c) => c.textContent))).split(String.fromCharCode(13)).join(""), "the CSV is the table's text (a text box keeps only line feeds)");
+      setValue(w, field(s, "Algorithm"), "RR", "change");
+      bar.querySelectorAll("button")[1].click();
+      assert.ok(/Select the text below/.test(bar.querySelector(".small").textContent) || !box.hidden, "download falls back too");
+    });
+    await withPage("modules/10-disk-io.html", ({ document: doc }) => {
+      assert.equal(sim(doc, "disk").querySelectorAll(".export-bar").length, 1);
+    });
+    await withPage("modules/17-advanced-scheduling.html", ({ document: doc }) => {
+      assert.equal(sim(doc, "mlfq").querySelectorAll(".export-bar").length, 1);
+      assert.equal(sim(doc, "multicore").querySelectorAll(".export-bar").length, 1);
+    });
+  });
+
+  QUnit.module("pages: study tools");
+
+  QUnit.test("Study hub links to every tool, and the nav marks it current on each tool's page", async (assert) => {
+    await withPage("study.html", ({ document: doc }) => {
+      assert.deepEqual([...doc.querySelectorAll("main a.card")].map((a) => a.getAttribute("href")), ["practice.html", "flashcards.html", "scenarios.html", "problems.html", "exam.html", "progress.html"]);
+    });
+    for (const rel of ["practice.html", "problems.html", "flashcards.html", "exam.html", "scenarios.html", "progress.html", "study.html"]) {
+      await withPage(rel, ({ document: doc }) => {
+        const cur = [...doc.querySelectorAll('header.site nav a[aria-current="page"]')].map((a) => a.textContent);
+        assert.deepEqual(cur, ["Study tools"], `${rel}: the Study tools link is current`);
+      });
+    }
+  });
+
+  QUnit.test("Answering a quiz question records progress, and visiting a module records the visit", async (assert) => {
+    await withPage("modules/06-synchronization.html", ({ window: w, document: doc }) => {
+      const P = w.OSProgress, L = w.OSLib;
+      assert.ok(P, "progress is loaded on module pages");
+      assert.deepEqual(Object.keys(P.state.visited), ["6"], "the visit is recorded");
+      const q = doc.querySelector(".quiz .q"), stem = q.querySelector(".stem").textContent.replace(/^[0-9]+[.] /, "").replace(/ [(]Module.*$/, "");
+      const data = w.OSData.quizzes.find((x) => stem.startsWith(x.q));
+      q.querySelector(`button.choice[data-i="${data.answer}"]`).click();
+      assert.equal(P.state.quiz[6].answered, 1);
+      assert.equal(P.state.quiz[6].correct, 1);
+      assert.equal(P.state.quiz[6].q[L.questionId(data.q)], 1, "stored under the question's id");
+      const q2 = doc.querySelectorAll(".quiz .q")[1];
+      q2.querySelector("button.reveal").click();
+      assert.equal(P.state.quiz[6].answered, 1, "just revealing an answer is not counted");
+      const wrong = q2.querySelector("button.choice");
+      assert.ok(wrong, "the second question's choices are still there");
+    });
+  });
+
+  QUnit.test("Flashcards: reveal, grade, boxes, direction, and the hide-known option", async (assert) => {
+    await withPage("flashcards.html", ({ window: w, document: doc }) => {
+      const P = w.OSProgress, card = () => doc.getElementById("card"), $ = (id) => doc.getElementById(id);
+      assert.ok(/cards in this set/.test($("stats").textContent));
+      assert.true($("knew").hidden && $("learning").hidden && !$("flip").hidden, "answer buttons appear only after revealing");
+      const term = card().querySelector(".front .big").textContent;
+      assert.ok(w.OSData.glossary.some((g) => g.term === term), "the front shows a glossary term");
+      $("flip").click();
+      const def = w.OSData.glossary.find((g) => g.term === term).def;
+      assert.equal(card().querySelector(".back .big").textContent, def, "the back shows its definition");
+      assert.false($("knew").hidden);
+      assert.ok(card().querySelector(".back a"), "a link to where the term is discussed");
+      $("knew").click();
+      assert.deepEqual(JSON.parse(JSON.stringify(P.state.cards[term])), { box: 1, seen: 1 });
+      const next = card().querySelector(".front .big").textContent;
+      assert.notEqual(next, term, "never the same card twice in a row");
+      $("flip").click(); $("learning").click();
+      assert.equal(P.state.cards[next].box, 0);
+      // keyboard
+      doc.dispatchEvent(new w.KeyboardEvent("keydown", { key: " ", bubbles: true }));
+      assert.false(card().querySelector(".back").hidden, "Space reveals");
+      const t3 = card().querySelector(".front .big").textContent;
+      doc.dispatchEvent(new w.KeyboardEvent("keydown", { key: "k", bubbles: true }));
+      assert.equal(P.state.cards[t3].box, 1, "K marks known");
+      // direction
+      setValue(w, $("dir"), "def", "change");
+      const shown = card().querySelector(".front .big").textContent;
+      assert.ok(w.OSData.glossary.some((g) => g.def === shown), "definition first");
+      // topic with everything known and 'hide'
+      setValue(w, $("cat"), "Scheduling", "change");
+      w.OSData.glossary.filter((g) => g.cat === "Scheduling").forEach((g) => { P.card(g.term, true); P.card(g.term, true); P.card(g.term, true); });
+      setValue(w, $("known"), "hide", "change");
+      assert.ok(/every card in this set is marked known/.test(card().textContent), "nothing left to study");
+      assert.true($("flip").hidden);
+    });
+  });
+
+  QUnit.test("Exam mode: setup validation, answering, scoring, review of misses, and progress", async (assert) => {
+    await withPage("exam.html", ({ window: w, document: doc }) => {
+      const $ = (id) => doc.getElementById(id), P = w.OSProgress;
+      assert.equal(doc.querySelectorAll("#modules input[type=checkbox]").length, w.OSData.modules.length);
+      $("none").click();
+      $("start").click();
+      assert.ok(/at least one module/.test($("setup-msg").textContent) && $("exam").hidden, "needs a module");
+      doc.querySelector('#modules input[value="1"]').checked = true;
+      setValue(w, $("count"), "10", "change"); setValue(w, $("time"), "0", "change");
+      $("start").click();
+      assert.false($("exam").hidden);
+      assert.true($("setup").hidden);
+      const qs = [...doc.querySelectorAll("#questions fieldset")];
+      assert.equal(qs.length, Math.min(10, w.OSData.quizzes.filter((q) => q.mod === 1).length));
+      assert.equal($("clock").textContent, "No time limit");
+      assert.equal(doc.querySelectorAll("#questions .explain, #questions .correct, #questions .wrong").length, 0, "no answers are shown during the exam");
+      assert.true(qs.every((f) => f.querySelectorAll("input[type=radio]").length === 4));
+      // answer the first 3 correctly, the 4th wrongly, leave the rest
+      const text = (f) => f.querySelector("legend").textContent.replace(/^[0-9]+[.] /, "");
+      qs.slice(0, 4).forEach((f, i) => {
+        const data = w.OSData.quizzes.find((q) => q.q === text(f));
+        const pick = i < 3 ? data.answer : (data.answer + 1) % 4;
+        f.querySelector(`input[value="${pick}"]`).click();
+      });
+      assert.equal($("answered").textContent, `4 of ${qs.length} answered`);
+      $("submit").click();
+      assert.false($("results").hidden);
+      assert.ok($("score").textContent.startsWith("Score: 3 of " + qs.length), $("score").textContent);
+      assert.ok($("results").textContent.includes(`1 wrong, ${qs.length - 4} left blank`));
+      const reviews = doc.querySelectorAll("#results .review");
+      assert.equal(reviews.length, qs.length - 3, "every miss and blank is reviewed");
+      assert.ok([...reviews].some((r) => /You left this blank/.test(r.textContent)) && [...reviews].some((r) => /You chose:/.test(r.textContent)));
+      assert.equal(P.state.exams.length, 1);
+      assert.deepEqual([P.state.exams[0].correct, P.state.exams[0].total, P.state.exams[0].mods], [3, qs.length, [1]]);
+      assert.equal(P.state.quiz[1].answered, 4, "answered questions also update mastery");
+      $("again").click();
+      assert.false($("setup").hidden);
+    });
+  });
+
+  QUnit.test("Exam mode: the clock runs out and submits for you", async (assert) => {
+    await withPage("exam.html", ({ window: w, document: doc }) => {
+      const $ = (id) => doc.getElementById(id);
+      let t = 1000000;
+      w.OSExamNow = () => t;
+      doc.querySelector('#modules input[value="2"]').checked = true;
+      $("none").click(); doc.querySelector('#modules input[value="2"]').checked = true;
+      setValue(w, $("count"), "10", "change"); setValue(w, $("time"), "1", "change");
+      $("start").click();
+      const limit = w.OSLib.suggestedSeconds(Math.min(10, w.OSData.quizzes.filter((q) => q.mod === 2).length));
+      assert.equal($("clock").textContent, w.OSLib.formatClock(limit), "the clock starts at the limit");
+      t += (limit - 60) * 1000; w.OSExam.check();
+      assert.ok($("clock").textContent === "1:00", "about a minute left: " + $("clock").textContent);
+      assert.ok(/1 minute left/.test($("alerts").textContent), "a warning is announced");
+      assert.true($("exam-bar").classList.contains("low"));
+      assert.true($("results").hidden);
+      t += 61 * 1000; w.OSExam.check();
+      assert.false($("results").hidden, "submitted automatically");
+      assert.ok(/The time limit ended the exam/.test($("results").textContent));
+      assert.ok(/Score: 0 of/.test($("score").textContent), "nothing was answered");
+    });
+  });
+
+  QUnit.test("Scenario questions: choose, see every option explained, and filter by topic", async (assert) => {
+    await withPage("scenarios.html", ({ window: w, document: doc }) => {
+      const host = doc.getElementById("scenario");
+      const stem = () => host.querySelector(".stem").textContent;
+      const sc = () => w.OSData.scenarios.find((s) => s.situation === stem());
+      assert.ok(sc(), "a scenario from the data is shown");
+      assert.equal(host.querySelectorAll("button.choice").length, 4);
+      assert.true(host.querySelector(".explain").hidden, "explanations wait for an answer");
+      host.querySelector(`button.choice[data-i="${sc().answer}"]`).click();
+      assert.ok(host.querySelector(".explain").textContent.startsWith("Right."));
+      assert.equal(host.querySelectorAll(".explain li").length, 4, "all four options explained");
+      assert.ok(host.querySelector(".explain a").getAttribute("href").startsWith("modules/"));
+      assert.true([...host.querySelectorAll("button.choice")].every((b) => b.disabled));
+      const first = sc().id;
+      doc.getElementById("next").click();
+      assert.notEqual(sc().id, first, "another scenario");
+      const wrong = (sc().answer + 1) % 4;
+      host.querySelector(`button.choice[data-i="${wrong}"]`).click();
+      assert.ok(host.querySelector(".explain").textContent.startsWith("Not the best fit."));
+      assert.equal(host.querySelectorAll("button.choice.wrong").length, 1);
+      setValue(w, doc.getElementById("topic"), "Virtualization", "change");
+      assert.equal(sc().topic, "Virtualization");
+      host.querySelector("button.btn.secondary").click();
+      assert.ok(host.querySelector(".explain").textContent.startsWith("Best fit:"), "'just show the answer' skips the guess");
+    });
+  });
+
+  QUnit.test("Progress page: import, summary, export and clear (with a confirmation step)", async (assert) => {
+    await withPage("progress.html", ({ window: w, document: doc }) => {
+      const $ = (id) => doc.getElementById(id);
+      assert.equal(doc.querySelectorAll("#modules table").length, w.OSData.parts.length, "one table per part");
+      assert.deepEqual([...doc.querySelectorAll("#overview .metric b")].map((b) => b.textContent), ["0 of " + w.OSData.modules.length, "0 of " + w.OSData.quizzes.length, "0", "0"]);
+      const p = w.OSLib.newProgress();
+      w.OSLib.markVisited(p, 4, "2026-11-03"); w.OSLib.recordAnswer(p, 4, "abc", true); w.OSLib.gradeCard(p, "Deadlock", true);
+      w.OSLib.recordExam(p, { date: "2026-11-04", mods: [4], total: 10, correct: 7, seconds: 125 });
+      $("import-text").value = w.OSLib.serializeProgress(p);
+      $("import").click();
+      assert.ok(/Imported/.test($("message").textContent));
+      assert.equal(doc.querySelector("#overview .metric b").textContent, "1 of " + w.OSData.modules.length);
+      assert.ok(text(doc.getElementById("modules")).includes("2026-11-03"));
+      assert.ok(/7 of 10 \(70%\)/.test(text($("exams"))) || text($("exams")).includes("7 of 10 (70%)"));
+      assert.ok(text($("exams")).includes("2:05"), "exam time shown as minutes:seconds");
+      $("export").click();
+      assert.false($("export-box").hidden);
+      assert.equal(JSON.parse($("export-text").value).visited["4"], "2026-11-03", "export is the stored state");
+      $("import-text").value = "this is not progress";
+      $("import").click();
+      assert.ok(/not valid progress data/.test($("message").textContent), "bad import is refused with a reason");
+      assert.equal(doc.querySelector("#overview .metric b").textContent, "1 of " + w.OSData.modules.length, "and nothing changed");
+      $("clear").click();
+      assert.false($("clear-confirm").hidden, "clearing asks first");
+      $("clear-no").click();
+      assert.equal(doc.querySelector("#overview .metric b").textContent, "1 of " + w.OSData.modules.length, "'Keep it' keeps it");
+      $("clear").click(); $("clear-yes").click();
+      assert.equal(doc.querySelector("#overview .metric b").textContent, "0 of " + w.OSData.modules.length);
+      assert.deepEqual(JSON.parse(JSON.stringify(w.OSProgress.state.visited)), {});
+    });
+  });
+
+  QUnit.test("Home page cards show progress once a module has been visited", async (assert) => {
+    await withPage("index.html", ({ window: w, document: doc }) => {
+      assert.equal(doc.querySelectorAll(".progress-chip").length, 0, "nothing yet");
+      assert.ok(w.OSProgress, "progress is available on the home page");
+    });
+  });
+
+  QUnit.module("pages: study aids");
+
+  QUnit.test("Every module shows its objectives under the introduction, takeaways before the quiz, and outside reading after it", async (assert) => {
+    for (const f of MODULE_PAGES) {
+      await withPage(`modules/${f}`, ({ window: w, document: doc }) => {
+        const n = +doc.body.dataset.module, st = w.OSData.study[n];
+        const obj = doc.getElementById("objectives"), key = doc.getElementById("key-takeaways"), rd = doc.getElementById("further-reading"), quiz = doc.querySelector("[data-quiz]");
+        assert.ok(obj && key && rd, `${f}: all three boxes exist`);
+        if (!obj || !key || !rd) return;
+        assert.deepEqual([...obj.parentElement.querySelectorAll("li")].map((li) => li.textContent), st.objectives, `${f}: objectives`);
+        assert.deepEqual([...key.parentElement.querySelectorAll("li")].map((li) => li.textContent), st.takeaways, `${f}: takeaways`);
+        const links = [...rd.parentElement.querySelectorAll("a")];
+        assert.deepEqual(links.map((a) => a.getAttribute("href")), st.reading.map((r) => r[1]), `${f}: reading links`);
+        assert.true(links.every((a) => a.getAttribute("rel") === "noopener" && /^https:/.test(a.href)), `${f}: outside links are https and rel=noopener`);
+        const pos = (a, b) => !!(a.compareDocumentPosition(b) & 4);   // b follows a
+        assert.true(pos(doc.querySelector(".lead"), obj) && pos(obj, key) && pos(key, quiz) && pos(quiz, rd), `${f}: order is introduction, objectives, ..., takeaways, quiz, reading`);
+        assert.equal(obj.parentElement.getAttribute("aria-labelledby"), "objectives");
+      });
+    }
+  });
+
+  QUnit.test("Study aids are searchable and lead to their boxes", async (assert) => {
+    await withPage("search.html", ({ window: w, document: doc }) => {
+      setValue(w, doc.getElementById("q"), "bug that depends on timing");
+      const hrefs = [...doc.querySelectorAll("#results a")].map((a) => a.getAttribute("href"));
+      assert.ok(hrefs.some((h) => /^modules\/06-synchronization\.html#(objectives|key-takeaways)$/.test(h)), "a takeaway about races is found: " + hrefs.slice(0, 5).join(" "));
     });
   });
 

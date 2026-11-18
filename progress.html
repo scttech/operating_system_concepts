@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My progress — OS Concepts</title>
+<meta name="description" content="Your own record of the modules you have visited and the questions you have answered, kept only in your browser.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="images/favicon.png">
+</head>
+<body data-root="" data-page="progress">
+<main class="narrow">
+  <h1>My progress</h1>
+  <p class="lead">A private record of where you have been and what you have answered. It lives <b>only in this browser</b>: it is never sent anywhere, and nobody else, including your instructor, can see it unless you export it and share the file.</p>
+  <p id="storage-note" class="callout" hidden></p>
+  <div id="overview" class="metrics" aria-live="polite"></div>
+  <div id="modules"></div>
+  <h2 id="cards-heading">Flashcards</h2>
+  <p id="cards-summary"></p>
+  <h2 id="exams-heading">Exams</h2>
+  <div id="exams"></div>
+
+  <h2>Back up, move or clear your progress</h2>
+  <div class="row">
+    <button class="btn" id="export" type="button">Show export text</button>
+    <a class="btn secondary" id="download" download="os-concepts-progress.json" hidden>Download as a file</a>
+    <button class="btn secondary" id="clear" type="button">Clear my progress</button>
+  </div>
+  <p id="clear-confirm" class="callout" hidden>This erases everything above from this browser. <button class="btn" id="clear-yes" type="button">Yes, clear it</button> <button class="btn secondary" id="clear-no" type="button">Keep it</button></p>
+  <label id="export-box" hidden><span>Copy this text and keep it somewhere safe</span><textarea id="export-text" rows="8" readonly></textarea></label>
+  <label><span>To restore or move progress, paste exported text here or choose a file, then import</span><textarea id="import-text" rows="4" placeholder="Paste exported progress here…"></textarea></label>
+  <div class="row">
+    <input type="file" id="import-file" accept="application/json,.json" aria-label="Choose an exported progress file">
+    <button class="btn secondary" id="import" type="button">Import (replaces what is here)</button>
+  </div>
+  <p id="message" class="small" aria-live="polite"></p>
+</main>
+<script src="js/data/modules.js"></script>
+<script src="js/data/glossary.js"></script>
+<script src="js/data/quizzes.js"></script>
+<script src="js/lib/progress.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/site.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/pages/progress.js"></script>
+</body>
+</html>

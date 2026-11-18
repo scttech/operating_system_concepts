@@ -166,13 +166,13 @@ Each new module follows the existing pattern: lesson, one or more simulations (p
 - [x] **L-8 "Going deeper" tiers for every module** (L). Add an opt-in advanced block to each lesson (the pattern from Module 8) so readers can move from beginner to advanced inside one site. **Done:** every module 1–12 has one, and a page test requires it.
 - [x] **L-9 C | Python tabs in the labs and older lessons** (M). Where C shows the real thing better (`fork`/`exec`, threads with pthreads, semaphores, signals), add a tested C version next to the Python one, with a note on how the two differ. **Done:** Labs 1, 2 and 4 and seven lesson examples (modules 1, 2, 5, 6, 8, 9, 11) have tested C and Python tabs.
 - [x] **L-10 Group modules into parts** (M). Foundations, Systems in practice, Security, Modern infrastructure, so the list stays coherent as it grows past 12 modules. **Done:** five parts with a reading order; the home page, jump menu and Previous/Next links follow it, and each lesson names its part.
-- [ ] **L-1 Learning objectives, key takeaways and further reading** per module (M). Map objectives to the course competencies. Include free references (for example OSTEP) next to the course text.
-- [ ] **L-2 Flashcards** (S). Built from the glossary, with "I knew it / still learning" piles.
-- [ ] **L-3 Progress tracking** (M). Modules visited and quiz scores kept in the student's own browser. Private by default; the instructor cannot see it, and students can export or clear it.
-- [ ] **L-4 Scenario questions** (M). "Which scheduler, page-replacement policy or OS fits this situation, and why?" with a model answer.
-- [ ] **L-5 Side-by-side algorithm comparison** (M). Two schedulers (or page-replacement algorithms) on the same workload, stacked.
-- [ ] **L-6 Exam mode** (M). Timed, shuffled, scored quiz with a review of misses.
-- [ ] **L-7 Export results** (S). Copy or download a simulation's results table (CSV) for journals and reports.
+- [x] **L-1 Learning objectives, key takeaways and further reading** per module (M). Map objectives to the course competencies. Include free references (for example OSTEP) next to the course text. **Done:** Every module has objectives, takeaways and free reading (OSTEP chapters, Linux manual pages and kernel documentation), rendered from `js/data/study.js`, searchable, with link shapes checked by tests.
+- [x] **L-2 Flashcards** (S). Built from the glossary, with "I knew it / still learning" piles. **Done:** `flashcards.html`: weighted by box, term-to-definition or the reverse, with keyboard shortcuts.
+- [x] **L-3 Progress tracking** (M). Modules visited and quiz scores kept in the student's own browser. Private by default; the instructor cannot see it, and students can export or clear it. **Done:** `progress.html`: modules visited, per-question mastery, flashcard boxes and exam scores, kept only in the browser, with validated export, import and clear.
+- [x] **L-4 Scenario questions** (M). "Which scheduler, page-replacement policy or OS fits this situation, and why?" with a model answer. **Done:** `scenarios.html`: 17 scenarios, each with a note on why every option does or does not fit.
+- [x] **L-5 Side-by-side algorithm comparison** (M). Two schedulers (or page-replacement algorithms) on the same workload, stacked. **Done:** Compare two schedulers (Module 4) or two page-replacement policies (Module 9) on one workload, with a plain-language verdict.
+- [x] **L-6 Exam mode** (M). Timed, shuffled, scored quiz with a review of misses. **Done:** `exam.html`: shuffled, timed, no feedback until submission, per-module score and review of misses.
+- [x] **L-7 Export results** (S). Copy or download a simulation's results table (CSV) for journals and reports. **Done:** Copy or download any results table as CSV (formula-safe), in Modules 4, 10 and 17.
 
 ## Phase 7: Site polish
 

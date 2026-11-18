@@ -160,9 +160,36 @@
     });
     if (window.OSSite && OSSite.enhance) OSSite.enhance(document); // glossary tooltips inside simulations
     if (window.OSSite && OSSite.focusHash) OSSite.focusHash();       // simulations changed the page height: re-aim at #term-…
-    document.querySelectorAll(".sim, .chart, .compare-wrap").forEach(watchScroll);
+    document.querySelectorAll(".sim, .chart, .compare-wrap, .table-scroll").forEach(watchScroll);
   }
   document.addEventListener("DOMContentLoaded", mountAll);
 
-  window.OSUI = { h, fill, slider, select, number, button, panel, svg, ticker, player, nextId, register, mountAll, watchScroll };
+  /**
+   * "Copy as CSV" and "Download CSV" buttons for a results table, so the numbers can go into a spreadsheet, journal or report.
+   * Reads the table's text as it is when the button is pressed. If the browser will not copy or download (some embedded or older
+   * browsers), the CSV text is shown in a box to select and copy by hand. Needs js/lib/csv.js.
+   */
+  function exportBar(table, name) {
+    const status = h("span", { class: "small", "aria-live": "polite" });
+    const box = h("textarea", { readonly: "", rows: 5, "aria-label": "Results as CSV text", hidden: true, style: "width:100%" });
+    const rows = () => [...table.querySelectorAll("tr")].map((tr) => [...tr.children].map((c) => c.textContent.replace(/\s+/g, " ").trim()));
+    const csv = () => window.OSLib.toCSV(rows());
+    function manual(text, why) { box.value = text; box.hidden = false; box.focus(); box.select(); status.textContent = why; }
+    const copy = h("button", { type: "button", class: "btn secondary", text: "Copy as CSV", onclick: () => {
+      const text = csv();
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => { status.textContent = "Copied. Paste it into a spreadsheet."; }, () => manual(text, "Copying was blocked. Select the text below and copy it."));
+      else manual(text, "Select the text below and copy it.");
+    } });
+    const save = h("button", { type: "button", class: "btn secondary", text: "Download CSV", onclick: () => {
+      const text = csv();
+      if (window.Blob && window.URL && URL.createObjectURL) {
+        const a = h("a", { href: URL.createObjectURL(new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8" })), download: window.OSLib.csvFileName(name) });
+        document.body.append(a); a.click(); a.remove();
+        status.textContent = `Saved ${window.OSLib.csvFileName(name)}.`;
+      } else manual(text, "Downloads are not available here. Select the text below and copy it.");
+    } });
+    return h("div", { class: "export-bar" }, h("div", { class: "row" }, copy, save, status), box);
+  }
+
+  window.OSUI = { h, fill, slider, select, number, button, panel, svg, ticker, player, nextId, register, mountAll, watchScroll, exportBar };
 })();

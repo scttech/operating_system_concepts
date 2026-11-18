@@ -20,6 +20,15 @@
     const d = data || {}, docs = [];
     const add = (kind, title, where, url, text, matchTitle) => docs.push({ kind, title, where, url, text, lt: (matchTitle || title).toLowerCase(), lw: (where || "").toLowerCase(), lx: text.toLowerCase() });
     (d.modules || []).forEach((m) => add("Module", `${m.n}. ${m.title}`, "Module overview", `modules/${m.slug}.html`, `${m.summary} ${(m.tags || []).join(" ")}`, m.title));
+    const bySlug = Object.fromEntries((d.modules || []).map((m) => [m.n, m]));
+    Object.entries(d.study || {}).forEach(([n, st]) => {
+      const m = bySlug[n];
+      if (!m) return;
+      const where = `Module ${m.n}: ${m.title}`, url = `modules/${m.slug}.html`;
+      add("Lesson", "What you should be able to do", where, `${url}#objectives`, st.objectives.join(" "));
+      add("Lesson", "Key takeaways", where, `${url}#key-takeaways`, st.takeaways.join(" "));
+      add("Lesson", "Further reading", where, `${url}#further-reading`, st.reading.map((r) => `${r[0]} ${r[2]}`).join(" "));
+    });
     (d.searchIndex || []).forEach(([url, page, heading, text, kind]) => add(kind, heading, page, url, text));
     (d.glossary || []).forEach((g) => add("Glossary", g.term, g.cat, `glossary.html#${slug(g.term)}`, g.def));
     (d.faq || []).forEach((f) => add("FAQ", f.q, f.group, "faq.html", stripTags(f.a)));

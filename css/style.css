@@ -111,7 +111,7 @@ dfn.flash { animation: flash 2.4s ease-out; border-radius: 3px; }
 .card { display: block; height: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; text-decoration: none; color: var(--fg); box-shadow: var(--shadow); }
 .card:hover { border-color: var(--accent); }
 .card .num { color: var(--accent); font-weight: 700; font-size: .85rem; }
-.card h3 { margin: .1rem 0 .3rem; font-size: 1.1rem; }
+.card h2, .card h3 { margin: .1rem 0 .3rem; font-size: 1.1rem; }
 .card p { margin: 0; color: var(--muted); font-size: .93rem; }
 .tag { display: inline-block; font-size: .75rem; border: 1px solid var(--border); border-radius: 999px; padding: 0 .5rem; color: var(--muted); margin: .4rem .25rem 0 0; }
 
@@ -287,3 +287,34 @@ button.btn, .btn { white-space: normal; max-width: 100%; text-align: center; }
 .result .snippet { margin: .25rem 0 0; color: var(--muted); font-size: .93rem; }
 .result .where { color: var(--muted); }
 mark { background: color-mix(in srgb, var(--c2) 40%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+
+/* study aids */
+.study { margin: 1.25rem 0; padding: .6rem 1rem; border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--card); }
+.study h2 { margin: .3rem 0 .4rem; font-size: 1.1rem; }
+.study ul { margin: .3rem 0 .5rem; }
+.study.reading { border-left-color: var(--muted); }
+.bar { display: inline-block; width: 8rem; height: .7rem; background: var(--code-bg); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; vertical-align: middle; }
+.bar .fill { height: 100%; background: var(--c3); }
+.flashcard { min-height: 9rem; border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; background: var(--card); margin: 1rem 0; box-shadow: var(--shadow); }
+.flashcard .big { font-size: 1.25rem; margin: .5rem 0; }
+.flashcard .back { border-top: 1px dashed var(--border); margin-top: .75rem; padding-top: .5rem; }
+kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 .35em; font: inherit; font-size: .85em; background: var(--code-bg); }
+.exam-setup fieldset, .exam-q { border: 1px solid var(--border); border-radius: 8px; margin: .6rem 0; padding: .5rem .9rem; }
+.exam-part legend, .exam-q legend { font-weight: 600; padding: 0 .3rem; }
+.pick, .choice-line { display: block; padding: .15rem 0; }
+.exam-bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 1rem; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: .4rem .8rem; margin: .6rem 0; }
+.exam-bar #clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.15rem; }
+.exam-bar.low #clock { color: var(--bad); }
+.review { border-top: 1px solid var(--border); padding-top: .5rem; }
+/* side-by-side comparison */
+.gantt-row { margin: .5rem 0 1rem; }
+.gantt-label { font-weight: 600; font-size: .9rem; margin-bottom: .15rem; }
+.gantt-strip { display: flex; height: 2rem; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.gantt-strip .seg { display: flex; align-items: center; justify-content: center; font-size: .78rem; border-right: 1px solid var(--bg); min-width: 0; overflow: hidden; }
+.gantt-ticks { display: flex; color: var(--muted); }
+.gantt-ticks span { overflow: visible; white-space: nowrap; }
+.pagegrid td.pg { min-width: 1.6rem; text-align: center; }
+.pagegrid td.fault { background: color-mix(in srgb, var(--bad) 22%, var(--card)); }
+.pagegrid td.differs, .pagegrid th.differs { outline: 3px solid var(--fg); outline-offset: -3px; }
+.pagegrid caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
+input[type=file] { min-height: 2.25rem; font: inherit; max-width: 100%; }
