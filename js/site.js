@@ -37,16 +37,36 @@
   modSel.addEventListener("change", () => { if (modSel.value) location.href = `${root}modules/${modSel.value}.html`; });
   nav.append(modSel);
 
+  // Theme toggle: an icon button. It shows the theme a click will switch TO (a moon in light mode, a sun in dark mode),
+  // and its label says the same in words. Until the reader picks, it follows the system setting.
+  const darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const currentTheme = () => document.documentElement.dataset.theme || (darkQuery && darkQuery.matches ? "dark" : "light");
+  const SVG = "http://www.w3.org/2000/svg";
+  const icon = (paths) => {
+    const svg = document.createElementNS(SVG, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("width", "18"); svg.setAttribute("height", "18");
+    svg.setAttribute("fill", "none"); svg.setAttribute("stroke", "currentColor"); svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round"); svg.setAttribute("stroke-linejoin", "round"); svg.setAttribute("aria-hidden", "true");
+    paths.forEach((d) => { const p = document.createElementNS(SVG, "path"); p.setAttribute("d", d); svg.append(p); });
+    return svg;
+  };
+  const MOON = ["M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"];
+  const SUN = ["M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M12 2v2", "M12 20v2", "M4.9 4.9l1.4 1.4", "M17.7 17.7l1.4 1.4", "M2 12h2", "M20 12h2", "M4.9 19.1l1.4-1.4", "M17.7 6.3l1.4-1.4"];
   const toggle = document.createElement("button");
-  toggle.id = "theme-toggle"; toggle.type = "button"; toggle.textContent = "Theme";
-  toggle.setAttribute("aria-label", "Toggle light or dark theme");
+  toggle.id = "theme-toggle"; toggle.type = "button";
+  const paintToggle = () => {
+    const dark = currentTheme() === "dark", label = dark ? "Switch to light theme" : "Switch to dark theme";
+    toggle.replaceChildren(icon(dark ? SUN : MOON));
+    toggle.setAttribute("aria-label", label); toggle.title = label;
+  };
   toggle.addEventListener("click", () => {
-    const cur = document.documentElement.dataset.theme ||
-      (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const next = cur === "dark" ? "light" : "dark";
+    const next = currentTheme() === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem("osc-theme", next); } catch (e) { /* ignore */ }
+    paintToggle();
   });
+  if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener("change", paintToggle);
+  paintToggle();
 
   const header = document.createElement("header");
   header.className = "site";

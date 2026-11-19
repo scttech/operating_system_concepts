@@ -185,6 +185,47 @@ Goal: let learners *observe* operating-system ideas on a real kernel, with Docke
 - [x] **HD-4 Lab 8** (M). **Done:** exploring other operating systems. One verified recipe: the OpenBSD 8.0 install image (pinned, SHA-256 checked) booted headless under QEMU over a serial console, compared with Linux (`/proc` against `sysctl`, device numbers, tools, the installer as a shell script), plus a feasibility table and a worksheet. 9front, FreeBSD, MINIX 3 and FreeDOS are listed as unverified or not attempted (downloads too slow or unreachable from the test setup, or no serial console), and macOS and Windows as out of scope. Worth retrying later: FreeBSD and 9front recipes from a better network.
 - [ ] Possible later: run the Docker test in CI (it would also exercise cgroup v2), and link the labs from more lessons and the study paths.
 
+
+## Phase 9: Hands-on with VirtualBox (optional, planned)
+
+Goal: let learners observe the parts of an operating system that containers cannot show, because a container shares the host's kernel and a virtual machine boots its own. A sibling to Phase 8, in a separate optional section (for example `handson-vm/`, with its own overview, troubleshooting page and labs), never mixed into the lessons. **Status: planned; development is moving to a Mac. Nothing is built.**
+
+**Why a VM, not a container.** Docker labs cannot cover: the real boot path (firmware, boot loader, kernel parameters, init), installing an OS (partitions, a real file system, swap, LVM), `systemd` as a true PID 1, kernel modules, a firewall on a full system, swap and the OOM killer on a whole machine, snapshots, and NAT or host-only networking. It also pairs with Module 19 (a Type 2 hypervisor with hardware help, against Lab 7's emulation).
+
+**Rules carried over from Phase 8 (the user's `DOCKER_HANDS_ON_SPEC.md` is the model).**
+- Every command is run and verified before it is published; example output comes from real runs; never invent output. Mark anything unverified, and say what was tested on (host, CPU, VirtualBox version).
+- Keep the site neutral and independent. Do not commit or push; the user does that.
+- Name everything `oslab-vm-<lab>-<purpose>` and tag it so cleanup is checkable. Every lab ends with a clean-up that removes every VM and disk it made, and a test confirms nothing is left.
+- No Extension Pack (its licence differs from VirtualBox itself, GPLv3). No Windows or macOS guests (licensing, weight). Pin and checksum every ISO. No answers hidden, labs as a supplement.
+- Same page template as the Docker labs: goal, concept link, learn, time and level, prerequisites, platform notes, steps with why-it-matters, try it, 4 to 6 checks, clean-up, troubleshooting, takeaways.
+- Reuse the existing infrastructure: `tools/build-labs.js` and `tools/build-meta.js` (generated files), `js/data/handson.js` pattern for the lab list and checks, the opt-in test pattern in `tests/handson.test.js` (a `VBOX=1` test that runs every command block in order), and `npm run check`.
+
+**Facts and constraints found so far.**
+- The Windows development machine has WSL2 and Docker Desktop (a hypervisor already running), and VirtualBox is not installed there. VirtualBox can coexist with Hyper-V but slowly and sometimes unreliably, so it was not installed and nothing here is verified on Windows.
+- **Apple silicon:** VirtualBox 7.1 and later run on Macs with Apple silicon but only Arm guests, not x86-64, so those labs would use Debian's arm64 image and cannot verify x86-64. An Intel Mac runs x86-64 guests. First step on the Mac: record which it is, and `VBoxManage --version`.
+- Weight: an ISO is 0.5 to 2 GB, a VM needs 10 to 20 GB of disk and an install takes 10 to 30 minutes. State this at the top of each lab.
+- `VBoxManage` can create, start and snapshot VMs headless, and `VBoxManage unattended install` can install Debian, Ubuntu or Fedora with no clicking, so an opt-in test is feasible, but each VM install is slow. Verify that the unattended install works for the chosen ISO on the Mac before writing any lab on top of it.
+
+**Proposed labs (Debian only to start).**
+1. Setup and the first VM: install VirtualBox, check the ISO checksum, make an unattended Debian VM, log in, compare what is inside with a container.
+2. Boot: the boot loader (GRUB), kernel parameters, boot messages, runlevels or `systemd` targets.
+3. `systemd` and services: PID 1 for real, units, the journal, restarting a failed service (links to Docker Lab 6).
+4. Disks and memory: partitions, a file system, swap, `free` and `vmstat`, a real OOM kill (links to Docker Labs 3 and 4).
+5. Users, permissions and a firewall.
+6. Snapshots and networking modes (NAT and host-only), and how they differ from container networking.
+7. A second operating system, a BSD or FreeDOS, only if it installs unattended and is verified; otherwise leave it out and say why. (This is what Docker Lab 8 could not do for FreeBSD, MINIX 3 and 9front.)
+
+**Open decisions for the user.**
+- [ ] Apple silicon or Intel Mac (decides the guest architecture).
+- [ ] Section name and folder (`handson-vm/` suggested) and whether to link it from the Docker overview.
+- [ ] Debian only, or also another distribution later.
+- [ ] Phase the work like Phase 8: overview and Labs 1 to 2 first, then the rest.
+
+- [ ] **VM-1 Overview, troubleshooting page and Labs 1 to 2** (L).
+- [ ] **VM-2 Labs 3 to 5** (L).
+- [ ] **VM-3 Labs 6 and 7** (M).
+- [ ] Possible later: the same Docker and VM opt-in tests in CI; also re-run the Docker labs on the Mac and drop the "not tested on macOS or ARM64" caveats if they pass.
+
 ## Phase 7: Site polish
 
 - [x] **P-1 Site-wide search** (M). Client-side index of lessons, glossary and FAQ. **Done:** `search.html`, covering lessons, glossary, FAQ, labs, cheat sheet and OS profiles, with a generated page-text index and highlighted results.

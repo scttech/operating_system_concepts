@@ -18,6 +18,7 @@ terms. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ### Changed
 - **Modules renumbered in course order.** The numbers used to be the order the modules were written; they now run 1 to 19 in the order a learner reads them (Security in depth is Module 3 and The boot process is Module 4, for example). Page addresses changed to match.
 - **Tidier source tree:** the site-level pages now live in `pages/`, leaving only `index.html` and `404.html` at the top. Old addresses redirect on the published site.
+- **Interface polish:** the theme switch is now an icon button (a moon in light mode, a sun in dark mode) with a label that says what it will do, and it follows the system setting until you choose; the home page Parts fold and unfold (with Expand all and Collapse all, remembered in your browser, and always open when printing or when a link points at one); and the home page links to the Hands-on labs.
 
 ### Added
 - **Shareable simulation setups**: a "Copy link to this setup" button on 22 simulations (schedulers, page replacement, disk, Banker's, paging, memory allocation, Amdahl's law, RAID, SSD wear, journaling, the stack-overflow demo and more). Opening the link restores the setup; invalid or oversized links are ignored.
