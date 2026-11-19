@@ -1,0 +1,6 @@
+# Your own xv6: a changed boot message and one new program, rebuilt on top of the first image.
+FROM oslab-07-xv6
+COPY hello.c user/hello.c
+RUN sed -i 's/xv6 kernel is booting/my own kernel is booting/' kernel/main.c \
+ && sed -i 's|^UPROGS=|UPROGS=$U/_hello |' Makefile \
+ && make kernel/kernel fs.img

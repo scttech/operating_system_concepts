@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 7: Booting a different kernel — OS Concepts</title>
+<meta name="description" content="Cross the container boundary: build and boot xv6, a small teaching operating system, under the QEMU emulator inside a container, then read its source and change it.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/07-booting-a-kernel.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 7: Booting a different kernel — OS Concepts">
+<meta property="og:description" content="Cross the container boundary: build and boot xv6, a small teaching operating system, under the QEMU emulator inside a container, then read its source and change it.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/07-booting-a-kernel.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="7">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 7</p>
+  <h1>Booting a different kernel</h1>
+  <p class="lead">Every earlier lab shared one kernel. Here you start a <em>second</em> kernel for real: xv6, a small teaching operating system from MIT, running on an emulated RISC-V computer inside a container. Then you read its source and change it.</p>
+  <div class="lab-meta"><span>About 45 minutes</span><span>Intermediate</span><span>Related: <a href="../modules/19-virtualization.html">Module 19 Virtualization &amp; Containers</a>, <a href="../modules/04-boot.html">Module 4 Boot Process</a>, <a href="../modules/01-fundamentals.html">Module 1 OS Fundamentals</a></span></div>
+  <p><b>Concept link:</b> <a href="../modules/19-virtualization.html">Module 19</a> separates containers from virtual machines and emulators; this lab is the “emulator” case, and <a href="../modules/04-boot.html">Module 4</a> describes what a kernel does when it starts.</p>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Say precisely how an <b>emulator</b> differs from a container: it provides a pretend <em>computer</em>, so it can run a different kernel and even a different processor design.</li>
+    <li>Build and boot <b>xv6</b> (a RISC-V teaching kernel of about 6,000 lines of C) under <b>QEMU</b>, and use its tiny shell.</li>
+    <li>Explain why this is slow without hardware help (no KVM), and why that does not matter for learning.</li>
+    <li>Find the boot message and the system-call list in the source, then change the message, add a program and rebuild.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Prerequisites:</b> <a href="00-setup-and-big-idea.html">Lab 0</a>. <a href="05-system-calls.html">Lab 5</a> is helpful background for the system-call step.</li>
+    <li><b>Disk and time:</b> the first build downloads about 1 GB of tools and takes <b>3 to 5 minutes</b>. The image is about 1 GB on disk. The clean-up removes it.</li>
+    <li>Make an empty folder for this lab (for example <code>oslab-07</code>) and open your terminal in it. You will download four small files into it.</li>
+    <li>You need internet access during the build: it downloads the xv6 source from GitHub. The lab pins one exact version, so what you build matches this page.</li>
+  </ul>
+  <div class="callout">
+    <p><b>Platform notes.</b> <b>No KVM.</b> Nothing here uses KVM (the Linux feature that lets a virtual machine run at full speed). On Windows Home with WSL2 and on many Macs it is not available inside containers, so QEMU emulates every instruction in software. xv6 is small enough that it still boots in a second or two. <b>Works on x86-64 and ARM64:</b> the guest is always RISC-V, so the same page works on both, and the example output comes from an x86-64 machine. <b>Exit key:</b> in the interactive session, press <kbd>Ctrl</kbd>+<kbd>A</kbd>, release, then press <kbd>X</kbd> to stop QEMU. <i>Not tested on macOS or ARM64.</i></p>
+  </div>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>Build the xv6 image</h3>
+      <p>Download these two files into your lab folder first. The Dockerfile installs a <b>cross compiler</b> (a compiler that runs on your computer but makes programs for a RISC-V processor), the QEMU emulator and <code>make</code>, downloads one pinned version of xv6 and builds it. <code>run-xv6.sh</code> is a small helper that boots xv6 without a keyboard, so the examples can be repeated exactly.</p>
+      <pre class="code" data-src="handson/assets/07-booting-a-kernel/Dockerfile" data-lang="docker"><code># Debian with a RISC-V cross compiler and the QEMU emulator, plus one pinned copy of xv6, built once.
+FROM debian:13-slim
+RUN apt-get update \
+ &amp;&amp; apt-get install -y --no-install-recommends git make bc gcc libc6-dev gcc-riscv64-unknown-elf qemu-system-misc ca-certificates \
+ &amp;&amp; rm -rf /var/lib/apt/lists/*
+RUN git clone -q https://github.com/mit-pdos/xv6-riscv.git /xv6 \
+ &amp;&amp; git -C /xv6 checkout -q fa2ddcb7ca87a77af579380a6eafd5aff163b44f
+WORKDIR /xv6
+RUN make kernel/kernel fs.img
+COPY --chmod=755 run-xv6.sh /usr/local/bin/run-xv6.sh
+CMD ["make", "qemu", "CPUS=1"]</code></pre>
+      <pre class="code" data-src="handson/assets/07-booting-a-kernel/run-xv6.sh"><code>#!/bin/sh
+# Boot xv6 without a keyboard: type each command in $XV6_CMDS (separated by semicolons), then quit QEMU.
+cd /xv6 || exit 1
+{
+  sleep 4
+  echo "$XV6_CMDS" | tr ';' '\n' | while read -r line; do echo "$line"; sleep 2; done
+  printf '\001x'
+} | make qemu CPUS=1</code></pre>
+      <p>Also download <code>Dockerfile.mine</code> and <code>hello.c</code> now, so the folder is complete (they are explained in step 7). Then build:</p>
+      <pre data-lang="bash" class="cmd" data-id="07-build" data-expect="sha256:" data-assets="07-booting-a-kernel"><code>docker build -q --label oslab=true -t oslab-07-xv6 .</code></pre>
+      <p class="small"><b>Example output</b> (be patient: several minutes the first time):</p>
+      <pre class="output"><code>sha256:dadd50223420d1b617fe703b00d40fbdc83c4a1a604e41a295e3b9e7ab204f75</code></pre>
+      <p class="why"><b>Why this matters:</b> xv6 is built <em>for a processor that is not yours</em>. <code>gcc-riscv64-unknown-elf</code> is a compiler whose output is RISC-V machine code, and the kernel it makes cannot run on an x86-64 or Arm processor directly. A second, ordinary <code>gcc</code> is there only to build one helper that makes the xv6 disk image. The version is pinned by its commit ID, so everyone builds the same code.</p>
+    </li>
+    <li>
+      <h3>Two different machines in one image</h3>
+      <p>The container itself runs on your computer's processor, under Docker's Linux kernel. Ask it what that is. Then ask what kind of program the xv6 kernel is:</p>
+      <pre data-lang="bash" class="cmd" data-id="07-arch" data-expect="(x86_64|aarch64)[\s\S]*elf64-littleriscv"><code>docker run --rm --label oslab=true oslab-07-xv6 uname -m
+docker run --rm --label oslab=true oslab-07-xv6 riscv64-unknown-elf-objdump -f kernel/kernel</code></pre>
+      <p class="small"><b>Example output</b> (the first line is <code>aarch64</code> on an ARM64 computer):</p>
+      <pre class="output"><code>x86_64
+
+kernel/kernel:     file format elf64-littleriscv
+architecture: riscv:rv64, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED</code></pre>
+      <p class="why"><b>Why this matters:</b> the container's processor is <code>x86_64</code>, but the kernel file is <code>riscv:rv64</code>, a different instruction set. A container could never run it: a container shares the host's kernel and runs programs for the host's processor. To run xv6 you need something that <em>pretends to be a RISC-V computer</em> (memory, a disk, a serial port, a processor) and then runs a real boot on it. That something is QEMU.</p>
+    </li>
+    <li>
+      <h3>Boot xv6</h3>
+      <p>Start it yourself first. <code>-it</code> connects your keyboard and screen to the container, and the image's default command is <code>make qemu</code>, which starts QEMU with the kernel and a virtual disk. Try a few commands (<code>ls</code>, <code>echo hello</code>), then press <kbd>Ctrl</kbd>+<kbd>A</kbd>, release, and press <kbd>X</kbd> to quit.</p>
+      <pre data-lang="bash" class="cmd" data-manual><code>docker run -it --rm --label oslab=true oslab-07-xv6</code></pre>
+      <p>The same boot, typed for you, so the output can be shown exactly. The <code>-e</code> option sets an environment variable: here, the list of commands, separated by semicolons:</p>
+      <pre data-lang="bash" class="cmd" data-id="07-boot" data-expect="xv6 kernel is booting[\s\S]*init: starting sh[\s\S]*README"><code>docker run --rm --label oslab=true -e 'XV6_CMDS=ls' oslab-07-xv6 run-xv6.sh</code></pre>
+      <p class="small"><b>Example output</b> (shortened; <code>QEMU: Terminated</code> at the end is the exit key):</p>
+      <pre class="output"><code>qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+xv6 kernel is booting
+
+init: starting sh
+$ ls
+.              1 1 1024
+..             1 1 1024
+README         2 2 2441
+cat            2 3 36760
+echo           2 4 35592
+…
+sh             2 13 58608
+…
+console        3 23 0
+$ QEMU: Terminated</code></pre>
+      <p class="why"><b>Why this matters:</b> read the first line: it is the QEMU command, and its options <em>describe the pretend computer</em>: a <code>virt</code> machine, 128 MB of memory (<code>-m 128M</code>), one processor (<code>-smp 1</code>), a virtual disk (<code>fs.img</code>), and a serial console in place of a screen (<code>-nographic</code>). The kernel starts and prints <code>xv6 kernel is booting</code>. It then starts <code>init</code>, the first process (Lab 6), which starts a shell, <code>sh</code>, whose prompt is <code>$</code>. That is the whole boot: a kernel, a first process and a shell. It is the sequence <a href="../modules/04-boot.html">Module 4</a> describes, on a very small system. Unlike every earlier lab, this kernel is <em>not</em> the Linux kernel of Docker's virtual machine.</p>
+    </li>
+    <li>
+      <h3>Use it: a different operating system</h3>
+      <p>xv6 looks like Unix but is far smaller. Run a few commands: <code>echo</code> prints its arguments, <code>wc README</code> counts lines, words and bytes, and a <b>pipe</b> (<code>|</code>) sends one program's output into another.</p>
+      <pre data-lang="bash" class="cmd" data-id="07-use" data-expect="hello from xv6[\s\S]*48 336 2441 README[\s\S]*sh +2 13"><code>docker run --rm --label oslab=true -e 'XV6_CMDS=echo hello from xv6;wc README;ls | grep sh' oslab-07-xv6 run-xv6.sh</code></pre>
+      <p class="small"><b>Example output</b> (without the first lines you saw in step 3):</p>
+      <pre class="output"><code>$ echo hello from xv6
+hello from xv6
+$ wc README
+48 336 2441 README
+$ ls | grep sh
+sh             2 13 58608
+$ QEMU: Terminated</code></pre>
+      <p class="why"><b>Why this matters:</b> everything you just ran, the shell, <code>echo</code>, <code>wc</code>, <code>ls</code>, <code>grep</code>, is a user program that xv6 loaded from its own disk image and ran on its own kernel, using xv6's own system calls. None of it is Linux. The pipe worked because xv6 has the same <code>pipe</code>, <code>fork</code> and <code>exec</code> system calls you met in Lab 5. xv6 has no <code>uname</code>, no network and no users: a minimal system that still has processes, memory management, a file system and a shell.</p>
+    </li>
+    <li>
+      <h3>Why is it slow without KVM?</h3>
+      <p>Ask QEMU which <b>accelerators</b> (ways of running the guest's instructions) it can use inside this container:</p>
+      <pre data-lang="bash" class="cmd" data-id="07-accel" data-expect="tcg"><code>docker run --rm --label oslab=true oslab-07-xv6 qemu-system-riscv64 -accel help</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>Accelerators supported in QEMU binary:
+tcg</code></pre>
+      <p class="why"><b>Why this matters:</b> <code>tcg</code> is QEMU's <b>Tiny Code Generator</b>: it reads RISC-V instructions one block at a time and <em>translates</em> them into instructions your processor understands, then runs those. That is pure software, so every guest instruction costs many host instructions. A faster accelerator, <b>KVM</b> (or Apple's and Microsoft's equivalents), lets the guest's instructions run directly on the real processor, but it works only if the guest and the host processor are the <em>same kind</em>, and a RISC-V guest on an x86-64 or Arm computer never qualifies. So a RISC-V guest is always emulated, and that is why this lab uses a very small kernel. Contrast a container: it runs at full speed because it never pretends to be a computer at all.</p>
+    </li>
+    <li>
+      <h3>Read the source</h3>
+      <p>The source is in the image. Find the line that printed the boot message, count the lines of kernel code, and list the first system calls:</p>
+      <pre data-lang="bash" class="cmd" data-id="07-source" data-expect="booting[\s\S]*total[\s\S]*SYS_fork"><code>docker run --rm --label oslab=true oslab-07-xv6 sh -c 'grep -n booting kernel/main.c; wc -l kernel/*.c kernel/*.h | tail -n 1; grep -n define.SYS_ kernel/syscall.h | head -n 6'</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>17:    printk("xv6 kernel is booting\n");
+ 6334 total
+2:#define SYS_fork   1
+3:#define SYS_exit   2
+4:#define SYS_wait   3
+5:#define SYS_pipe   4
+6:#define SYS_read   5
+7:#define SYS_kill   6</code></pre>
+      <p class="why"><b>Why this matters:</b> the entire kernel, the part that does scheduling, memory management, the file system, the system calls and the drivers, is about 6,300 lines in <code>kernel/*.c</code> and <code>kernel/*.h</code>. You can read all of it. The message came from <code>kernel/main.c</code>, the file where the boot code starts. The system-call numbers live in <code>kernel/syscall.h</code>; xv6 defines 22 of them (<code>fork</code>, <code>exit</code>, <code>wait</code>, <code>pipe</code>, <code>read</code> and so on). Linux defines hundreds. Good places to start reading: <code>kernel/proc.c</code> (processes and the scheduler), <code>kernel/vm.c</code> (page tables) and <code>kernel/syscall.c</code> (how a system call reaches its code).</p>
+    </li>
+    <li>
+      <h3>Change the kernel and add a program</h3>
+      <p>Make your own xv6. <code>hello.c</code> is a new user program; <code>Dockerfile.mine</code> starts from the image you built, changes the boot message in <code>kernel/main.c</code> with <code>sed</code> (a text-replacing tool), adds the program to the list of programs on the disk (<code>UPROGS</code> in the <code>Makefile</code>) and rebuilds.</p>
+      <pre class="code" data-src="handson/assets/07-booting-a-kernel/hello.c"><code>#include "kernel/types.h"
+#include "kernel/stat.h"
+#include "user/user.h"
+
+int
+main(void)
+{
+  printf("Hello from a program I added to xv6!\n");
+  exit(0);
+}</code></pre>
+      <pre class="code" data-src="handson/assets/07-booting-a-kernel/Dockerfile.mine" data-lang="docker"><code># Your own xv6: a changed boot message and one new program, rebuilt on top of the first image.
+FROM oslab-07-xv6
+COPY hello.c user/hello.c
+RUN sed -i 's/xv6 kernel is booting/my own kernel is booting/' kernel/main.c \
+ &amp;&amp; sed -i 's|^UPROGS=|UPROGS=$U/_hello |' Makefile \
+ &amp;&amp; make kernel/kernel fs.img</code></pre>
+      <pre data-lang="bash" class="cmd" data-id="07-mine-build" data-expect="sha256:"><code>docker build -q --label oslab=true -f Dockerfile.mine -t oslab-07-mine .</code></pre>
+      <p>Boot it and run your new program:</p>
+      <pre data-lang="bash" class="cmd" data-id="07-mine" data-expect="my own kernel is booting[\s\S]*Hello from a program I added to xv6!"><code>docker run --rm --label oslab=true -e 'XV6_CMDS=hello' oslab-07-mine run-xv6.sh</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 1 -nographic -global virtio-mmio.force-legacy=false -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+my own kernel is booting
+
+init: starting sh
+$ hello
+Hello from a program I added to xv6!
+$ QEMU: Terminated</code></pre>
+      <p class="why"><b>Why this matters:</b> you changed a kernel and ran it. Two lines of change in a build recipe gave you your own boot message, and the new program, compiled by the RISC-V cross compiler, was written onto xv6's virtual disk and found by its shell. This is how operating-system courses work: the kernel is small enough to modify, and a failed experiment costs only a rebuild, because a bug in your kernel cannot harm your computer. It can only crash the pretend computer.</p>
+    </li>
+  </ol>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Change the boot message to your own name, and add a second program that prints the numbers 1 to 5. (Write the C, add it to <code>UPROGS</code> the same way, rebuild.) Remember to give the new image a different name, such as <code>oslab-07-mine2</code>, and remove it afterwards.</li>
+    <li>Read <code>kernel/syscall.c</code> in the image (<code>docker run --rm --label oslab=true oslab-07-xv6 sh -c 'sed -n 1,40p kernel/syscall.c'</code>). Find the table that maps system-call numbers to functions. How is it like the numbered calls you saw in Lab 5?</li>
+    <li>Run the interactive session again and try <code>usertests</code> or <code>forktest</code>. Slower, longer-running tests show the cost of emulation. (Quit with <kbd>Ctrl</kbd>+<kbd>A</kbd>, <kbd>X</kbd>.)</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="7"></div>
+
+  <h2>Clean up</h2>
+  <p>Remove the two images, then check that nothing from this lab remains. The last command lists any <code>oslab</code> containers and should print only its header line.</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-expect="CONTAINER ID"><code>docker rmi oslab-07-mine oslab-07-xv6
+docker ps -a --filter label=oslab=true</code></pre>
+  <p>The shared <code>debian:13-slim</code> base image stays on your computer; <a href="index.html#cleanup-everything">clean up everything</a> removes it. If you built extra images in the exercises, remove them with <code>docker rmi NAME</code>.</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>The build fails while downloading packages or from GitHub:</b> check your internet connection and any proxy or firewall; the build needs <code>deb.debian.org</code> and <code>github.com</code>. Then run the same <code>docker build</code> again.</li>
+    <li><b>“no space left on device” during the build:</b> the image needs about 1 GB plus working space. See <code>docker system df</code> and the <a href="troubleshooting.html">troubleshooting page</a>.</li>
+    <li><b>The interactive session seems frozen:</b> xv6 prints nothing until you press <kbd>Enter</kbd> at the <code>$</code> prompt. To stop it, use <kbd>Ctrl</kbd>+<kbd>A</kbd>, release, then <kbd>X</kbd>. If that fails, run <code>docker rm -f NAME</code> from a second terminal (find the name with <code>docker ps</code>).</li>
+    <li><b>The scripted run shows the commands but no output for them:</b> the helper types a command two seconds apart and waits four seconds for the first boot. A very slow computer may need more; copy <code>run-xv6.sh</code>, increase the <code>sleep</code> numbers, and rebuild.</li>
+    <li><b>The pinned version no longer downloads:</b> the Dockerfile fetches one exact commit from the xv6 repository. If that repository were ever deleted or rewritten, the step would fail; use a current commit ID from <code>github.com/mit-pdos/xv6-riscv</code> and expect small differences in the output.</li>
+    <li>See the <a href="troubleshooting.html">troubleshooting page</a> for other problems.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>A container shares its host's kernel and processor type. An emulator such as QEMU pretends to be a whole computer, so it can run a different kernel on a different processor design, such as RISC-V.</li>
+    <li>Without hardware help (KVM) QEMU translates every guest instruction in software, which is slow; a RISC-V guest on an x86-64 or Arm computer can never use that help.</li>
+    <li>A small kernel such as xv6 shows the whole shape of an operating system (boot, first process, shell, system calls) in a few thousand lines you can read, change and rebuild safely.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>

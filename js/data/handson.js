@@ -26,7 +26,13 @@ window.OSData.handson = [
     minutes: 35, level: "Intermediate", related: [1, 5, 2], needs: [0] },
   { n: 6, slug: "06-init-signals-zombies", title: "Init, signals and zombies",
     summary: "Send signals to a container's first process, see why a polite stop request can be ignored, make a zombie on purpose, and fix both problems with an init process.",
-    minutes: 40, level: "Intermediate", related: [5, 4, 12], needs: [0, 2] }
+    minutes: 40, level: "Intermediate", related: [5, 4, 12], needs: [0, 2] },
+  { n: 7, slug: "07-booting-a-kernel", title: "Booting a different kernel",
+    summary: "Cross the container boundary: build and boot xv6, a small teaching operating system, under the QEMU emulator inside a container, then read its source and change it.",
+    minutes: 45, level: "Intermediate", related: [19, 4, 1], needs: [0] },
+  { n: 8, slug: "08-other-oses", title: "Exploring other operating systems",
+    summary: "A capstone: boot a real OpenBSD system headless under QEMU, compare it with the Linux kernel your containers use, and fill in a worksheet. Includes an honest guide to other systems you could try.",
+    minutes: 40, level: "Intermediate", related: [19, 4, 1], needs: [0] }
 ];
 
 window.OSData.handsonChecks = [
@@ -158,5 +164,43 @@ window.OSData.handsonChecks = [
     explain: "For docker stop, the init process forwards SIGTERM to your program, which is no longer PID 1, so the signal's default action works and the stop is quick. For the zombie test, the init process is PID 1 and so adopts the orphan and calls wait on it, removing the zombie. One fix handles the signal duty, the other the reaping duty." },
   { lab: 6, q: "What would happen if you ran the zombie test and the parent script, the one that never waits for others, ran with --init, but the orphan was instead a direct child of that script?",
     choices: ["It would be reaped, because --init reaps everything", "It would still be a zombie, because only the script, its parent, can collect it", "It would turn into a normal process", "The container would stop"], answer: 1,
-    explain: "An init process reaps orphans adopted by PID 1. A child that has a living parent is that parent's responsibility, and if the parent never calls wait, the zombie stays until the parent exits. --init does not remove that bug from your code." }
+    explain: "An init process reaps orphans adopted by PID 1. A child that has a living parent is that parent's responsibility, and if the parent never calls wait, the zombie stays until the parent exits. --init does not remove that bug from your code." },
+
+  // ---- Lab 7 ----
+  { lab: 7, q: "How does a QEMU guest differ from a container?",
+    choices: ["There is no difference; both share the host kernel", "The guest runs its own kernel on an emulated computer, while a container's processes use the host's kernel", "A container runs its own kernel and a guest does not", "A guest can only run Linux"], answer: 1,
+    explain: "A container is ordinary processes with a restricted view, all served by the host's kernel. QEMU pretends to be a whole computer (processor, memory, disk, console), so the guest boots its own kernel, which can be a different operating system and even a different processor design." },
+  { lab: 7, q: "Why is a RISC-V guest slow when it runs under QEMU on an x86-64 or Arm computer?",
+    choices: ["The guest has too little memory", "QEMU must translate every guest instruction into host instructions in software (TCG), because hardware help such as KVM only works when guest and host processors are the same kind", "Docker throttles emulators", "RISC-V is a slow processor design"], answer: 1,
+    explain: "KVM and similar features run the guest's instructions directly on the real processor, which only works when the instruction sets match. Across different instruction sets, every block of guest code must be translated first, which costs many host instructions each." },
+  { lab: 7, q: "Predict: you run uname -m inside the container, and riscv64-unknown-elf-objdump -f on the xv6 kernel. What do the two commands show?",
+    choices: ["Both say x86_64", "x86_64 (or aarch64) for the container, and a RISC-V file format for the kernel", "Both say riscv64", "An error, because xv6 is not a file"], answer: 1,
+    explain: "The container runs on your computer's own processor, but the xv6 kernel was built by a cross compiler for RISC-V, so it can only run on a RISC-V processor, or on an emulator that pretends to be one." },
+  { lab: 7, q: "What did the boot messages and shell prompt tell you about how xv6 starts?",
+    explain: "The kernel starts and prints its banner (xv6 kernel is booting), then starts init, the first process (init: starting sh), which starts the shell and shows the $ prompt. That is the usual order: kernel, first process, a shell for the user. xv6 prints few messages because it has little to set up compared with a full kernel such as Linux." },
+  { lab: 7, q: "What would happen if you broke xv6 badly, for example by changing the scheduler so it never ran any process?",
+    choices: ["Your computer would crash", "Docker Desktop would need reinstalling", "Only the emulated computer would hang or crash; you would rebuild or stop the container and your computer would be unaffected", "The host kernel would be rewritten"], answer: 2,
+    explain: "The kernel you changed runs on a pretend computer inside a container. A bug in it can only stop that pretend computer, which is why emulators are good for experimenting with kernels." },
+  { lab: 7, q: "About how many system calls does xv6 define, compared with Linux?",
+    choices: ["About 22, compared with hundreds in Linux", "About 2,000, compared with 20 in Linux", "None; xv6 has no system calls", "The same number"], answer: 0,
+    explain: "xv6 defines 22 system calls in kernel/syscall.h (fork, exit, wait, pipe, read, and so on): enough for a shell, pipes and files. Linux has hundreds. That is part of why xv6 can be read in an afternoon." },
+
+  // ---- Lab 8 ----
+  { lab: 8, q: "A program on Linux reads /proc/cpuinfo to learn about the processor. Why does the same program fail on OpenBSD?",
+    choices: ["OpenBSD has no processor information", "OpenBSD has no /proc; it gives the kernel's information through the sysctl system call instead", "OpenBSD hides it for security", "The program needs a different compiler"], answer: 1,
+    explain: "Linux publishes kernel information as files under /proc, and OpenBSD chose to answer such questions through sysctl. Both give a program a way to ask the kernel; they differ in the interface, which is why software must be ported between systems." },
+  { lab: 8, q: "In ls -l output, the \"discard everything\" device file shows 2, 2 on OpenBSD and 1, 3 on Linux, where a file would show its size. What are those numbers?",
+    choices: ["The file's size and age", "The major and minor device numbers: the major picks the driver and the minor picks the instance, and each kernel numbers its own drivers", "The owner and group", "Two reference counts"], answer: 1,
+    explain: "A device file holds no data. The numbers tell the kernel which driver and which device to use, and they are assigned by each kernel, so the same device has different numbers on different systems." },
+  { lab: 8, q: "Predict: you boot the OpenBSD install image with no display and no serial console set up. What is the most likely problem?",
+    choices: ["It boots normally and prints to the host's terminal", "You see nothing, because the console is the emulated screen unless you tell the boot loader to use the serial port (set tty com0)", "The kernel refuses to start without a screen", "QEMU crashes"], answer: 1,
+    explain: "A PC's default console is the screen. With -nographic there is no screen to read, so the helper script tells the boot loader to use the first serial port, com0, and QEMU connects that to your terminal." },
+  { lab: 8, q: "Why does the Dockerfile check the downloaded OpenBSD image with sha256sum before using it?",
+    explain: "To confirm that the file is exactly the one that was published: if it was damaged in transit or replaced by someone else, the sum would differ and the build would stop. Running an operating-system image you have not verified means trusting whatever the network handed you." },
+  { lab: 8, q: "The installer's shell has no ps, uname or head. What does that tell you about an installer environment?",
+    choices: ["It is broken", "It carries only what it needs to partition disks, make file systems and copy files, so it is much smaller than the system it installs", "Those commands were removed for security", "OpenBSD never has them"], answer: 1,
+    explain: "The install image has to fit in a small RAM disk, so it holds just enough tools to do its job. The full system has ps, uname and many more programs; this is a stripped-down environment, not the whole operating system." },
+  { lab: 8, q: "Predict: you boot a system whose drivers all run inside the kernel (like OpenBSD) and another whose drivers are separate user programs (like MINIX 3). Which is a monolithic kernel, and which a microkernel?",
+    choices: ["The first is monolithic and the second a microkernel", "The first is a microkernel and the second monolithic", "Both are monolithic", "Both are microkernels"], answer: 0,
+    explain: "Drivers inside the kernel is the monolithic design, as in OpenBSD and Linux. Moving drivers and servers out into ordinary user programs is the microkernel design, as in MINIX 3. The trade-off is speed against isolation: a failing driver cannot crash a microkernel." }
 ];

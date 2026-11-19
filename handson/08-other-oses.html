@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hands-on 8: Exploring other operating systems — OS Concepts</title>
+<meta name="description" content="A capstone: boot a real OpenBSD system headless under QEMU, compare it with the Linux kernel your containers use, and fill in a worksheet. Includes an honest guide to other systems you could try.">
+<!-- social:start -->
+<link rel="canonical" href="https://scttech.github.io/operating_system_concepts/handson/08-other-oses.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Operating System Concepts">
+<meta property="og:title" content="Hands-on 8: Exploring other operating systems — OS Concepts">
+<meta property="og:description" content="A capstone: boot a real OpenBSD system headless under QEMU, compare it with the Linux kernel your containers use, and fill in a worksheet. Includes an honest guide to other systems you could try.">
+<meta property="og:url" content="https://scttech.github.io/operating_system_concepts/handson/08-other-oses.html">
+<meta property="og:image" content="https://scttech.github.io/operating_system_concepts/images/logo-hero.jpg">
+<meta property="og:image:width" content="1000">
+<meta property="og:image:height" content="563">
+<meta property="og:image:alt" content="Operating System Concepts: Learn, Practice, Explore">
+<meta name="twitter:card" content="summary_large_image">
+<!-- social:end -->
+<link rel="stylesheet" href="../css/style.css">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+</head>
+<body data-root="../" data-page="labs" data-handson="8">
+<main>
+  <p class="eyebrow">Hands-on with Docker · Lab 8</p>
+  <h1>Exploring other operating systems</h1>
+  <p class="lead">A capstone. Every lab so far used Linux, or xv6 (a teaching kernel). Here you boot a <em>third</em>, a complete, real, independently designed system, <b>OpenBSD</b>, and compare it with Linux using the same commands. Then you fill in a worksheet you can reuse on any other system.</p>
+  <div class="lab-meta"><span>About 40 minutes</span><span>Intermediate</span><span>Related: <a href="../modules/19-virtualization.html">Module 19 Virtualization &amp; Containers</a>, <a href="../modules/04-boot.html">Module 4 Boot Process</a>, <a href="../modules/01-fundamentals.html">Module 1 OS Fundamentals</a></span></div>
+  <p><b>Concept link:</b> <a href="../modules/01-fundamentals.html">Module 1</a> describes what every operating system provides and how kernels are structured; <a href="../modules/19-virtualization.html">Module 19</a> explains the emulation used to run a different one.</p>
+
+  <h2>What you will learn</h2>
+  <ul>
+    <li>Boot a real BSD system <b>headless</b> (with no screen, only a text console) under QEMU, and recognise the same boot sequence you saw in <a href="07-booting-a-kernel.html">Lab 7</a>.</li>
+    <li>Tell two Unix-family systems apart using commands, and say which differences are <em>design choices</em> (names, numbers, where information lives) and which are <em>shared ideas</em> (files, devices, a shell, a root file system).</li>
+    <li>Read an honest feasibility list of other systems, and know why a few are not given a recipe here.</li>
+    <li>Use a worksheet to study any operating system: its process model, memory management, file system, boot and what surprised you.</li>
+  </ul>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li><b>Prerequisites:</b> <a href="00-setup-and-big-idea.html">Lab 0</a>. <a href="07-booting-a-kernel.html">Lab 7</a> is strongly recommended: it explains why QEMU is needed and why it is slow without KVM.</li>
+    <li><b>Disk and time:</b> the build downloads about 300 MB of tools plus a 6 MB OpenBSD image, and takes <b>2 to 4 minutes</b> the first time. Each boot takes roughly half a minute. The clean-up removes everything.</li>
+    <li>Make an empty folder for this lab (for example <code>oslab-08</code>) and open your terminal in it. You will download two small files into it.</li>
+    <li>You need internet access during the build (Debian packages and <code>cdn.openbsd.org</code>).</li>
+  </ul>
+  <div class="callout">
+    <p><b>Platform notes.</b> <b>No KVM.</b> As in Lab 7, nothing here uses KVM; QEMU translates every instruction in software. The guest is an x86-64 PC, and the lab pins one OpenBSD image, so the output matches the page. <b>On an ARM64 computer</b> (Apple silicon, Windows on Arm) the guest is still an x86-64 PC and QEMU emulates it more slowly; allow a few minutes per boot. <i>Not tested on macOS or ARM64; tested on Windows 11 with Docker Desktop (WSL2) on x86-64.</i> <b>Exit key:</b> in the interactive session, press <kbd>Ctrl</kbd>+<kbd>A</kbd>, release, then <kbd>X</kbd>.</p>
+  </div>
+
+  <h2>Which systems can you try? An honest list</h2>
+  <p>There are many operating systems you could boot. This table says what I could and could not check. “Verified” means every command on this page was run, in order, on real Docker. Nothing marked otherwise is presented as working.</p>
+  <table>
+    <thead><tr><th>System</th><th>What it is</th><th>Status here</th></tr></thead>
+    <tbody>
+      <tr><td><b>OpenBSD</b></td><td>A Unix-family system with its own kernel and tools, known for security and a small, readable code base.</td><td><b>Verified.</b> Used in this lab. The install image boots to a shell over a serial console, with no screen needed.</td></tr>
+      <tr><td><b>xv6</b></td><td>A teaching kernel (a few thousand lines).</td><td><b>Verified</b> in <a href="07-booting-a-kernel.html">Lab 7</a>.</td></tr>
+      <tr><td><b>9front (Plan 9)</b></td><td>A research system in which almost everything, even the network and the windows, is a file.</td><td><i>Unverified.</i> Ready-made disk images exist (about 258 MB), but from my test setup the download ran at under 100 KB/s and did not finish, so I could not try it. Its default interface is a graphical screen, which is awkward headless.</td></tr>
+      <tr><td><b>FreeBSD</b></td><td>The best-known BSD; publishes ready-made virtual machine images.</td><td><i>Unverified.</i> My test setup could not connect to the FreeBSD download server. No recipe is given.</td></tr>
+      <tr><td><b>MINIX 3</b></td><td>A <b>microkernel</b> system: drivers and servers run as separate user programs.</td><td><i>Unverified.</i> Its download site did not respond in my test. No recipe is given, though it is the best example of a microkernel design if you can get it.</td></tr>
+      <tr><td><b>FreeDOS</b></td><td>An open-source system compatible with the old MS-DOS.</td><td><i>Not attempted.</i> It uses the PC's text display, not a serial console, so it does not fit a headless container.</td></tr>
+      <tr><td><b>macOS</b></td><td>Apple's system.</td><td><b>Not covered, by design.</b> Apple's licence allows it only on Apple hardware, so no setup instructions are given.</td></tr>
+      <tr><td><b>Windows</b></td><td>Microsoft's system.</td><td><b>Not covered, by design.</b> It is heavy, needs KVM-class acceleration to be usable, and is licensed. (<a href="appendix-windows-containers.html">The Windows-containers appendix</a> explains what Windows <em>containers</em> are instead.)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Steps</h2>
+  <ol class="steps">
+    <li>
+      <h3>Build the OpenBSD image</h3>
+      <p>Download these two files into your lab folder. The Dockerfile installs QEMU for a PC, downloads one pinned <b>install image</b> (a small disk image that contains a complete mini OpenBSD, used to install the full system) and checks it against its published SHA-256 sum, so you know it is the file intended. <code>run-openbsd.exp</code> is a helper written for <code>expect</code>, a tool that types into a program and waits for replies. It boots the image over a serial console, picks the installer's shell, and either types your commands or gives you the keyboard.</p>
+      <pre class="code" data-src="handson/assets/08-other-oses/Dockerfile" data-lang="docker"><code># Debian with the QEMU emulator (for a PC) and one pinned OpenBSD install image, checked against its published SHA-256 sum.
+FROM debian:13-slim
+RUN apt-get update \
+ &amp;&amp; apt-get install -y --no-install-recommends qemu-system-x86 expect curl ca-certificates \
+ &amp;&amp; rm -rf /var/lib/apt/lists/*
+WORKDIR /os
+RUN curl -4 -fsSL -o miniroot80.img https://cdn.openbsd.org/pub/OpenBSD/8.0/amd64/miniroot80.img \
+ &amp;&amp; echo 'fe268f373dacf249b36306096404aa578e0ceb950d08c19c5a1117806997399a  miniroot80.img' | sha256sum -c -
+COPY --chmod=755 run-openbsd.exp /usr/local/bin/run-openbsd
+CMD ["run-openbsd"]</code></pre>
+      <pre class="code" data-src="handson/assets/08-other-oses/run-openbsd.exp"><code>#!/usr/bin/expect -f
+# Boot the OpenBSD install image on an emulated PC, with the serial port as the console.
+# Choose the installer's shell, then either type each command in $OBSD_CMDS (separated by
+# semicolons) and quit, or, if it is not set, hand the keyboard to you.
+set timeout 300
+log_user 0
+spawn qemu-system-x86_64 -machine pc -m 512 -nographic -accel tcg -nic none \
+  -drive file=/os/miniroot80.img,format=raw,snapshot=on
+expect "boot&gt; "
+send "set tty com0\r"
+expect "boot&gt; "
+send "boot\r"
+expect "(I)nstall, (U)pgrade, (A)utoinstall or (S)hell? "
+send "s\r"
+expect "# "
+if {![info exists env(OBSD_CMDS)]} {
+  puts "\nYou are in the OpenBSD installer's shell. Quit with Ctrl-A, then X.\n"
+  send "\r"
+  interact
+  exit 0
+}
+puts -nonewline "# "
+foreach c [split $env(OBSD_CMDS) ";"] {
+  send "[string trim $c]\r"
+  expect "# "
+  puts -nonewline [string map [list "\r" ""] $expect_out(buffer)]
+}
+send "\001x"
+expect eof
+puts ""</code></pre>
+      <pre data-lang="bash" class="cmd" data-id="08-build" data-expect="sha256:" data-assets="08-other-oses"><code>docker build -q --label oslab=true -t oslab-08-openbsd .</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>sha256:06857846b58bf0fc5dc832d92405b03d61518d6166ff904d13c1d5b6a849869f</code></pre>
+      <p class="why"><b>Why this matters:</b> the line that downloads the image also <em>verifies</em> it. If the file were damaged or swapped on the way, <code>sha256sum -c</code> would fail and the build would stop. Checking a download against a known sum before running it is a good habit with any operating-system image. The helper script is also instructive: a PC starts with a program called a <b>boot loader</b> that asks which kernel to start (the <code>boot&gt;</code> prompt). Telling it <code>set tty com0</code> sends the console to the serial port instead of a screen, which is what lets this system run with no display.</p>
+    </li>
+    <li>
+      <h3>Boot it and read its boot messages</h3>
+      <p>Start it yourself first (<code>-it</code> connects your keyboard). With no commands given, the helper hands you the keyboard once the installer's shell appears. Try a few commands, then press <kbd>Ctrl</kbd>+<kbd>A</kbd>, release, and press <kbd>X</kbd> to quit. Nothing you do is saved.</p>
+      <pre data-lang="bash" class="cmd" data-manual><code>docker run -it --rm --label oslab=true oslab-08-openbsd</code></pre>
+      <p>The same boot, typed for you. <code>dmesg</code> prints the messages the kernel wrote while it started:</p>
+      <pre data-lang="bash" class="cmd" data-id="08-boot" data-expect="OpenBSD 8\.0 \(RAMDISK_CD\)[\s\S]*cpu0 at mainbus0[\s\S]*root on rd0a"><code>docker run --rm --label oslab=true -e 'OBSD_CMDS=dmesg' oslab-08-openbsd run-openbsd</code></pre>
+      <p class="small"><b>Example output</b> (shortened to the lines that matter; the full output is about 60 lines):</p>
+      <pre class="output"><code># dmesg
+OpenBSD 8.0 (RAMDISK_CD) #79: Tue Oct  6 23:24:34 MDT 2026
+    deraadt@amd64.openbsd.org:/usr/src/sys/arch/amd64/compile/RAMDISK_CD
+real mem = 519962624 (495MB)
+…
+bios0: QEMU Standard PC (i440FX + PIIX, 1996)
+cpu0 at mainbus0: apid 0 (boot processor)
+cpu0: QEMU Virtual CPU version 2.5+, 2905.82 MHz, 0f-6b-01
+…
+com0 at acpi0 COM1 addr 0x3f8/0x8 irq 4: ns16550a, 16 byte fifo
+com0: console
+…
+wd0 at pciide0 channel 0 drive 0: &lt;QEMU HARDDISK&gt;
+…
+root on rd0a swap on rd0b dump on rd0b
+# </code></pre>
+      <p class="why"><b>Why this matters:</b> this is the boot sequence from <a href="../modules/04-boot.html">Module 4</a>, written by the kernel itself. It found a (pretend) PC from QEMU's BIOS, found the processor, <code>cpu0</code>, found the serial port <code>com0</code> and chose it as the <b>console</b>, found a disk, <code>wd0</code>, and finally mounted its <b>root file system</b> on a <b>RAM disk</b> (<code>rd0a</code>, a disk that lives in memory) because this is an installer. Every operating system does these jobs in some order. Only the names are OpenBSD's: devices are named for their <em>driver</em> (<code>wd</code> for an IDE disk, <code>com</code> for a serial port), where Linux names them by <em>kind</em> (<code>sda</code>).</p>
+    </li>
+    <li>
+      <h3>Two kernels, one question: who are you?</h3>
+      <p>Ask the Linux kernel your containers use, then the OpenBSD kernel in the emulated machine. <code>sysctl</code> reads settings and facts from the kernel; the installer's version is cut down and answers only a few names, which is enough here.</p>
+      <pre data-lang="bash" class="cmd" data-id="08-identify" data-expect="Linux[\s\S]*8\.0[\s\S]*hw\.machine=amd64[\s\S]*hw\.model=QEMU Virtual CPU"><code>docker run --rm --label oslab=true oslab-08-openbsd uname -sr
+docker run --rm --label oslab=true -e 'OBSD_CMDS=sysctl -n kern.osrelease;sysctl hw.machine;sysctl hw.model' oslab-08-openbsd run-openbsd</code></pre>
+      <p class="small"><b>Example output</b> (the Linux version on your computer will differ):</p>
+      <pre class="output"><code>Linux 5.15.146.1-microsoft-standard-WSL2
+# sysctl -n kern.osrelease
+8.0
+# sysctl hw.machine
+hw.machine=amd64
+# sysctl hw.model
+hw.model=QEMU Virtual CPU version 2.5+</code></pre>
+      <p class="why"><b>Why this matters:</b> the first command is the one that ran on <em>the Docker kernel</em> that every earlier lab shared. The others ran on a completely different kernel, with its own version number, on a processor that is a pretend one (<code>QEMU Virtual CPU</code>). Notice what you are <em>not</em> doing: you are not running a Linux program on OpenBSD. The two kernels do not share anything. The different tool names (<code>uname</code> on Linux, <code>sysctl</code> here) are the first sign that even closely related systems make different choices.</p>
+    </li>
+    <li>
+      <h3>Where does the system keep its information?</h3>
+      <p>On Linux, <code>/proc</code> is a window into the kernel (Lab 4 used it). Look for the same thing on OpenBSD:</p>
+      <pre data-lang="bash" class="cmd" data-id="08-proc" data-expect="/proc/1[\s\S]*/proc/cpuinfo[\s\S]*ls: /proc: No such file or directory"><code>docker run --rm --label oslab=true oslab-08-openbsd ls -d /proc/1 /proc/cpuinfo
+docker run --rm --label oslab=true -e 'OBSD_CMDS=ls /proc' oslab-08-openbsd run-openbsd</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code>/proc/1
+/proc/cpuinfo
+# ls /proc
+ls: /proc: No such file or directory</code></pre>
+      <p class="why"><b>Why this matters:</b> Linux decided that the kernel should publish its internals <em>as files</em>; OpenBSD decided that they belong behind a system call (<code>sysctl</code>), so there is no <code>/proc</code> at all. Both are valid designs of the same idea: a program needs some way to ask the kernel about processes and hardware. “Everything is a file” is a Linux and Plan 9 emphasis, not a law of all Unix systems. When you move to a new system, the question to ask is not “where is <code>/proc</code>?” but “how does this system let me ask the kernel?”.</p>
+    </li>
+    <li>
+      <h3>What tools come with it?</h3>
+      <p>The installer is a very small system, so its tool list is short enough to read in full. List its two main program folders:</p>
+      <pre data-lang="bash" class="cmd" data-id="08-tools" data-expect="hostname[\s\S]*mount_nfs[\s\S]*disklabel"><code>docker run --rm --label oslab=true -e 'OBSD_CMDS=ls /bin;ls /sbin' oslab-08-openbsd run-openbsd</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code># ls /bin
+arch     chmod    dd       eject    ln       mt       rm       sha512   sync
+cat      cp       df       hostname ls       mv       sh       sleep    tar
+chgrp    date     ed       ksh      mkdir    pax      sha256   stty
+# ls /sbin
+bioctl       fsck         init         mount_ffs    ping         slaacd
+chown        fsck_ffs     kbd          mount_msdos  ping6        sysctl
+dhcpleased   fsck_msdos   mknod        mount_nfs    reboot       umount
+disklabel    growfs       mount        mount_udf    resolvd
+dmesg        halt         mount_cd9660 newfs        restore
+fdisk        ifconfig     mount_ext2fs newfs_msdos  route
+# </code></pre>
+      <p class="why"><b>Why this matters:</b> this is a system with a shell (<code>sh</code>, <code>ksh</code>), file tools (<code>cp</code>, <code>mv</code>, <code>ls</code>), <code>init</code> (the first process, as in Lab 6), a file-system checker (<code>fsck</code>), partitioning tools (<code>fdisk</code>, <code>disklabel</code>) and tools for several <em>other</em> file-system types (<code>mount_msdos</code>, <code>mount_ext2fs</code>, <code>mount_udf</code>, <code>mount_nfs</code>). It has no <code>ps</code>, no <code>uname</code> and no <code>head</code>: an installer needs only enough to partition a disk and copy files. The split between <code>/bin</code> (needed by everyone) and <code>/sbin</code> (system administration) is a shared Unix tradition.</p>
+    </li>
+    <li>
+      <h3>Devices and file systems</h3>
+      <p>Compare how the two systems describe a mounted file system and a <b>device file</b> (a file name that stands for a device). <code>ls -l</code> on a device shows two numbers, the <b>major</b> and <b>minor</b> device numbers, where a file normally shows its size:</p>
+      <pre data-lang="bash" class="cmd" data-id="08-dev" data-expect="/dev/rd0a on / type ffs[\s\S]*crw-rw-rw-[\s\S]*17, 0[\s\S]*1, 3"><code>docker run --rm --label oslab=true -e 'OBSD_CMDS=mount;ls -l /dev/null /dev/rd0a' oslab-08-openbsd run-openbsd
+docker run --rm --label oslab=true oslab-08-openbsd ls -l /dev/null</code></pre>
+      <p class="small"><b>Example output</b> (dates will differ):</p>
+      <pre class="output"><code># mount
+/dev/rd0a on / type ffs (local)
+# ls -l /dev/null /dev/rd0a
+crw-rw-rw-  1 root  wheel      2, 2 Nov 18 22:38 /dev/null
+brw-r-----  1 root  operator  17, 0 Oct  7 05:24 /dev/rd0a
+#
+crw-rw-rw- 1 root root 1, 3 Nov 18 22:38 /dev/null
+</code></pre>
+      <p class="why"><b>Why this matters:</b> the same <code>/dev/null</code>, the “discard everything” device, exists on both systems and starts with <code>c</code> (a <b>character device</b>, which handles a stream of bytes). But its numbers are <code>2, 2</code> on OpenBSD and <code>1, 3</code> on Linux. A major number picks the <em>driver</em>, a minor number picks the <em>instance</em>, and each kernel numbers its drivers in its own way. The disk <code>/dev/rd0a</code> starts with <code>b</code>, a <b>block device</b> (data in fixed-size blocks). The root file system type is <code>ffs</code>, the <b>Fast File System</b> that BSD pioneered and that many later systems learned from (Module 16), where Linux containers show <code>overlay</code> (Lab 4).</p>
+    </li>
+    <li>
+      <h3>The installer is a shell script</h3>
+      <p>Look at the installer that normally runs when you choose “Install”. It is a file in the root directory:</p>
+      <pre data-lang="bash" class="cmd" data-id="08-install" data-expect="install -&gt; install\.sub[\s\S]*2409"><code>docker run --rm --label oslab=true -e 'OBSD_CMDS=ls -l /install;grep -c . /install.sub' oslab-08-openbsd run-openbsd</code></pre>
+      <p class="small"><b>Example output</b>:</p>
+      <pre class="output"><code># ls -l /install
+lrwxr-xr-x  1 root  wheel  11 Oct  7 05:24 /install -&gt; install.sub
+# grep -c . /install.sub
+2409
+# </code></pre>
+      <p class="why"><b>Why this matters:</b> <code>/install</code> is a <b>symbolic link</b> (Lab 4) to <code>install.sub</code>, a script of 2,409 non-blank lines for the very shell you are typing into. The program that installs the whole operating system is not a special tool but ordinary shell commands calling <code>fdisk</code>, <code>newfs</code> and <code>mount</code>. You can read it in the interactive session with <code>more /install.sub</code>. That is a lesson about operating systems in general: most of what “installing” means is the simple tools you have already met, partition a disk, make a file system, copy files and make the disk bootable.</p>
+    </li>
+  </ol>
+
+  <h2>Try it yourself</h2>
+  <ol>
+    <li>Start the interactive session (<code>docker run -it --rm --label oslab=true oslab-08-openbsd</code>) and read <code>/install.sub</code> with <code>more</code>. Find where it calls <code>fdisk</code> and <code>newfs</code>. Which steps match what Module 16 says a file system needs?</li>
+    <li>Run <code>ifconfig</code> in the guest. Which network devices does it show, and why is there no real network? (Look at the <code>-nic none</code> option in the helper script.)</li>
+    <li>Pick another system from the table and, if you can reach its download, try to boot it the same way. Use the worksheet below. If you succeed, <em>you</em> have a recipe worth adding.</li>
+  </ol>
+
+  <h2>Worksheet: study any operating system</h2>
+  <p>Pick one system (OpenBSD, xv6, or another you can boot) and answer these questions in your own words. The hints show where to look in OpenBSD. Keep your answers: comparing two systems side by side is where the learning happens.</p>
+  <ol>
+    <li><b>Process model.</b> How is the first process started? How does a program create another (is there a <code>fork</code>)? How are processes listed? <i>Hints: <code>/sbin/init</code>, Lab 6; this installer has no <code>ps</code>.</i></li>
+    <li><b>Memory management.</b> How much memory does the kernel see, and does it report paging or swap? <i>Hints: <code>dmesg</code> shows <code>real mem</code>, <code>avail mem</code> and a swap device (<code>rd0b</code>).</i></li>
+    <li><b>File systems.</b> What is the root file system's type, and which others can it mount? How are devices named and numbered? <i>Hints: step 6, <code>/sbin/mount_*</code>.</i></li>
+    <li><b>Init and boot.</b> What runs between power-on and a shell? Where does the console go? <i>Hints: step 2, the <code>boot&gt;</code> prompt and <code>com0</code>.</i></li>
+    <li><b>System interface.</b> How does a program ask the kernel for information (<code>/proc</code>, <code>sysctl</code>, something else)? <i>Hints: steps 3 and 4.</i></li>
+    <li><b>Kernel structure.</b> Is it monolithic (one big program with drivers inside), a microkernel (drivers outside), or something else? <i>Hint: OpenBSD's drivers appear in the kernel's own boot messages, so it is monolithic.</i></li>
+    <li><b>What surprised you?</b> Name one thing that works differently from Linux and say <em>why</em> you think the designers chose it.</li>
+  </ol>
+
+  <h2>Check your understanding</h2>
+  <div data-handson-quiz="8"></div>
+
+  <h2>Clean up</h2>
+  <p>Remove the image, then check that nothing from this lab remains. The last command lists any <code>oslab</code> containers and should print only its header line.</p>
+  <pre data-lang="bash" class="cmd" data-cleanup data-expect="CONTAINER ID"><code>docker rmi oslab-08-openbsd
+docker ps -a --filter label=oslab=true</code></pre>
+  <p>The shared <code>debian:13-slim</code> base image stays on your computer; <a href="index.html#cleanup-everything">clean up everything</a> removes it.</p>
+
+  <h2>Troubleshooting</h2>
+  <ul>
+    <li><b>The build cannot download the OpenBSD image:</b> check your internet connection and any proxy or firewall for <code>cdn.openbsd.org</code>. The build forces IPv4 (<code>curl -4</code>) because some networks stall on IPv6; if your network is IPv6-only, remove the <code>-4</code>.</li>
+    <li><b>The build says the checksum failed:</b> the download was damaged or the file changed. Run the build again. If it still fails, do not use the image.</li>
+    <li><b>The pinned version no longer downloads:</b> OpenBSD moves older releases off its main mirror after a time. Use <code>archive.openbsd.org</code> in the URL, or a newer release (change <code>8.0</code> and <code>80</code> in the Dockerfile and the helper, and take the new SHA-256 from the <code>SHA256</code> file in the same folder). Expect small differences in the output.</li>
+    <li><b>The scripted run prints nothing, or stops early:</b> a very slow computer may exceed the helper's five-minute wait. Increase <code>set timeout 300</code> in the helper and rebuild.</li>
+    <li><b>You are stuck in the interactive session:</b> press <kbd>Ctrl</kbd>+<kbd>A</kbd>, release, then <kbd>X</kbd>. If that fails, run <code>docker rm -f NAME</code> from a second terminal (find the name with <code>docker ps</code>).</li>
+    <li>See the <a href="troubleshooting.html">troubleshooting page</a> for other problems.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>A different operating system is a different kernel with its own design choices: names, numbers, tools and ways of exposing information, even when the big ideas (processes, files, devices, a boot sequence) are shared.</li>
+    <li>QEMU can run a whole PC with no screen if the console is a serial port, which makes complete systems scriptable and repeatable.</li>
+    <li>Compare systems by asking the same <em>questions</em> (process model, memory, file systems, boot, kernel structure), not by looking for the same <em>file names</em>.</li>
+    <li>Say what you could and could not verify. A recipe is only worth following if someone has run it.</li>
+  </ul>
+</main>
+<script src="../js/data/modules.js"></script>
+<script src="../js/data/glossary.js"></script>
+<script src="../js/data/handson.js"></script>
+<script src="../js/ui.js"></script>
+<script src="../js/site.js"></script>
+<script src="../js/vendor/prism.min.js"></script>
+<script src="../js/code.js"></script>
+<script src="../js/quiz.js"></script>
+</body>
+</html>
